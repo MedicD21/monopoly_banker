@@ -1,5 +1,28 @@
-import React, { useState } from 'react';
-import { DollarSign, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, Home, TrendingUp, RotateCcw, Building2, X, Car, Ship, Cat, Dog, Zap, Crown, Footprints, Gift } from 'lucide-react';
+import React, { useState } from "react";
+import {
+  DollarSign,
+  Dice1,
+  Dice2,
+  Dice3,
+  Dice4,
+  Dice5,
+  Dice6,
+  Home,
+  TrendingUp,
+  RotateCcw,
+  Building2,
+  X,
+} from "lucide-react";
+import {
+  Car,
+  Boat,
+  Cat,
+  Dog,
+  Sneaker,
+  Crown,
+  Scissors,
+  Wrench,
+} from "phosphor-react";
 
 const STARTING_MONEY = 1500;
 const PASS_GO_AMOUNT = 200;
@@ -7,70 +30,272 @@ const HOUSE_COST = 50;
 const HOTEL_COST = 200;
 
 const GAME_PIECES = [
-  { id: 'car', name: 'Car', icon: Car },
-  { id: 'ship', name: 'Ship', icon: Ship },
-  { id: 'cat', name: 'Cat', icon: Cat },
-  { id: 'dog', name: 'Dog', icon: Dog },
-  { id: 'boot', name: 'Boot', icon: Footprints },
-  { id: 'hat', name: 'Top Hat', icon: Crown },
-  { id: 'thimble', name: 'Thimble', icon: Gift },
-  { id: 'iron', name: 'Iron', icon: Zap }
+  { id: "car", name: "Car", icon: Car },
+  { id: "ship", name: "Ship", icon: Boat },
+  { id: "cat", name: "Cat", icon: Cat },
+  { id: "dog", name: "Dog", icon: Dog },
+  { id: "boot", name: "Boot", icon: Sneaker },
+  { id: "hat", name: "Top Hat", icon: Crown },
+  { id: "thimble", name: "Thimble", icon: Scissors },
+  { id: "iron", name: "Iron", icon: Wrench },
 ];
 
 const PROPERTIES = [
-  { name: 'Mediterranean Ave', price: 60, rent: [2, 10, 30, 90, 160, 250], color: 'bg-amber-900', group: 'brown' },
-  { name: 'Baltic Ave', price: 60, rent: [4, 20, 60, 180, 320, 450], color: 'bg-amber-900', group: 'brown' },
-  { name: 'Oriental Ave', price: 100, rent: [6, 30, 90, 270, 400, 550], color: 'bg-cyan-600', group: 'lightblue' },
-  { name: 'Vermont Ave', price: 100, rent: [6, 30, 90, 270, 400, 550], color: 'bg-cyan-600', group: 'lightblue' },
-  { name: 'Connecticut Ave', price: 120, rent: [8, 40, 100, 300, 450, 600], color: 'bg-cyan-600', group: 'lightblue' },
-  { name: 'St. Charles Place', price: 140, rent: [10, 50, 150, 450, 625, 750], color: 'bg-pink-600', group: 'pink' },
-  { name: 'States Ave', price: 140, rent: [10, 50, 150, 450, 625, 750], color: 'bg-pink-600', group: 'pink' },
-  { name: 'Virginia Ave', price: 160, rent: [12, 60, 180, 500, 700, 900], color: 'bg-pink-600', group: 'pink' },
-  { name: 'St. James Place', price: 180, rent: [14, 70, 200, 550, 750, 950], color: 'bg-orange-600', group: 'orange' },
-  { name: 'Tennessee Ave', price: 180, rent: [14, 70, 200, 550, 750, 950], color: 'bg-orange-600', group: 'orange' },
-  { name: 'New York Ave', price: 200, rent: [16, 80, 220, 600, 800, 1000], color: 'bg-orange-600', group: 'orange' },
-  { name: 'Kentucky Ave', price: 220, rent: [18, 90, 250, 700, 875, 1050], color: 'bg-red-700', group: 'red' },
-  { name: 'Indiana Ave', price: 220, rent: [18, 90, 250, 700, 875, 1050], color: 'bg-red-700', group: 'red' },
-  { name: 'Illinois Ave', price: 240, rent: [20, 100, 300, 750, 925, 1100], color: 'bg-red-700', group: 'red' },
-  { name: 'Atlantic Ave', price: 260, rent: [22, 110, 330, 800, 975, 1150], color: 'bg-yellow-600', group: 'yellow' },
-  { name: 'Ventnor Ave', price: 260, rent: [22, 110, 330, 800, 975, 1150], color: 'bg-yellow-600', group: 'yellow' },
-  { name: 'Marvin Gardens', price: 280, rent: [24, 120, 360, 850, 1025, 1200], color: 'bg-yellow-600', group: 'yellow' },
-  { name: 'Pacific Ave', price: 300, rent: [26, 130, 390, 900, 1100, 1275], color: 'bg-green-700', group: 'green' },
-  { name: 'North Carolina Ave', price: 300, rent: [26, 130, 390, 900, 1100, 1275], color: 'bg-green-700', group: 'green' },
-  { name: 'Pennsylvania Ave', price: 320, rent: [28, 150, 450, 1000, 1200, 1400], color: 'bg-green-700', group: 'green' },
-  { name: 'Park Place', price: 350, rent: [35, 175, 500, 1100, 1300, 1500], color: 'bg-blue-800', group: 'darkblue' },
-  { name: 'Boardwalk', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], color: 'bg-blue-800', group: 'darkblue' },
-  { name: 'Reading Railroad', price: 200, rent: [25, 50, 100, 200], color: 'bg-gray-600', group: 'railroad' },
-  { name: 'Pennsylvania Railroad', price: 200, rent: [25, 50, 100, 200], color: 'bg-gray-600', group: 'railroad' },
-  { name: 'B&O Railroad', price: 200, rent: [25, 50, 100, 200], color: 'bg-gray-600', group: 'railroad' },
-  { name: 'Short Line', price: 200, rent: [25, 50, 100, 200], color: 'bg-gray-600', group: 'railroad' },
-  { name: 'Electric Company', price: 150, rent: [], color: 'bg-yellow-500', group: 'utility' },
-  { name: 'Water Works', price: 150, rent: [], color: 'bg-blue-400', group: 'utility' }
+  {
+    name: "Mediterranean Ave",
+    price: 60,
+    rent: [2, 10, 30, 90, 160, 250],
+    color: "bg-amber-900",
+    group: "brown",
+  },
+  {
+    name: "Baltic Ave",
+    price: 60,
+    rent: [4, 20, 60, 180, 320, 450],
+    color: "bg-amber-900",
+    group: "brown",
+  },
+  {
+    name: "Oriental Ave",
+    price: 100,
+    rent: [6, 30, 90, 270, 400, 550],
+    color: "bg-cyan-600",
+    group: "lightblue",
+  },
+  {
+    name: "Vermont Ave",
+    price: 100,
+    rent: [6, 30, 90, 270, 400, 550],
+    color: "bg-cyan-600",
+    group: "lightblue",
+  },
+  {
+    name: "Connecticut Ave",
+    price: 120,
+    rent: [8, 40, 100, 300, 450, 600],
+    color: "bg-cyan-600",
+    group: "lightblue",
+  },
+  {
+    name: "St. Charles Place",
+    price: 140,
+    rent: [10, 50, 150, 450, 625, 750],
+    color: "bg-pink-600",
+    group: "pink",
+  },
+  {
+    name: "States Ave",
+    price: 140,
+    rent: [10, 50, 150, 450, 625, 750],
+    color: "bg-pink-600",
+    group: "pink",
+  },
+  {
+    name: "Virginia Ave",
+    price: 160,
+    rent: [12, 60, 180, 500, 700, 900],
+    color: "bg-pink-600",
+    group: "pink",
+  },
+  {
+    name: "St. James Place",
+    price: 180,
+    rent: [14, 70, 200, 550, 750, 950],
+    color: "bg-orange-600",
+    group: "orange",
+  },
+  {
+    name: "Tennessee Ave",
+    price: 180,
+    rent: [14, 70, 200, 550, 750, 950],
+    color: "bg-orange-600",
+    group: "orange",
+  },
+  {
+    name: "New York Ave",
+    price: 200,
+    rent: [16, 80, 220, 600, 800, 1000],
+    color: "bg-orange-600",
+    group: "orange",
+  },
+  {
+    name: "Kentucky Ave",
+    price: 220,
+    rent: [18, 90, 250, 700, 875, 1050],
+    color: "bg-red-700",
+    group: "red",
+  },
+  {
+    name: "Indiana Ave",
+    price: 220,
+    rent: [18, 90, 250, 700, 875, 1050],
+    color: "bg-red-700",
+    group: "red",
+  },
+  {
+    name: "Illinois Ave",
+    price: 240,
+    rent: [20, 100, 300, 750, 925, 1100],
+    color: "bg-red-700",
+    group: "red",
+  },
+  {
+    name: "Atlantic Ave",
+    price: 260,
+    rent: [22, 110, 330, 800, 975, 1150],
+    color: "bg-yellow-600",
+    group: "yellow",
+  },
+  {
+    name: "Ventnor Ave",
+    price: 260,
+    rent: [22, 110, 330, 800, 975, 1150],
+    color: "bg-yellow-600",
+    group: "yellow",
+  },
+  {
+    name: "Marvin Gardens",
+    price: 280,
+    rent: [24, 120, 360, 850, 1025, 1200],
+    color: "bg-yellow-600",
+    group: "yellow",
+  },
+  {
+    name: "Pacific Ave",
+    price: 300,
+    rent: [26, 130, 390, 900, 1100, 1275],
+    color: "bg-green-700",
+    group: "green",
+  },
+  {
+    name: "North Carolina Ave",
+    price: 300,
+    rent: [26, 130, 390, 900, 1100, 1275],
+    color: "bg-green-700",
+    group: "green",
+  },
+  {
+    name: "Pennsylvania Ave",
+    price: 320,
+    rent: [28, 150, 450, 1000, 1200, 1400],
+    color: "bg-green-700",
+    group: "green",
+  },
+  {
+    name: "Park Place",
+    price: 350,
+    rent: [35, 175, 500, 1100, 1300, 1500],
+    color: "bg-blue-800",
+    group: "darkblue",
+  },
+  {
+    name: "Boardwalk",
+    price: 400,
+    rent: [50, 200, 600, 1400, 1700, 2000],
+    color: "bg-blue-800",
+    group: "darkblue",
+  },
+  {
+    name: "Reading Railroad",
+    price: 200,
+    rent: [25, 50, 100, 200],
+    color: "bg-gray-600",
+    group: "railroad",
+  },
+  {
+    name: "Pennsylvania Railroad",
+    price: 200,
+    rent: [25, 50, 100, 200],
+    color: "bg-gray-600",
+    group: "railroad",
+  },
+  {
+    name: "B&O Railroad",
+    price: 200,
+    rent: [25, 50, 100, 200],
+    color: "bg-gray-600",
+    group: "railroad",
+  },
+  {
+    name: "Short Line",
+    price: 200,
+    rent: [25, 50, 100, 200],
+    color: "bg-gray-600",
+    group: "railroad",
+  },
+  {
+    name: "Electric Company",
+    price: 150,
+    rent: [],
+    color: "bg-yellow-500",
+    group: "utility",
+  },
+  {
+    name: "Water Works",
+    price: 150,
+    rent: [],
+    color: "bg-blue-400",
+    group: "utility",
+  },
 ];
 
 const PLAYER_COLORS = [
-  'bg-red-600', 'bg-blue-600', 'bg-green-600', 'bg-yellow-500',
-  'bg-purple-600', 'bg-pink-600', 'bg-orange-600', 'bg-teal-600'
+  "bg-red-600",
+  "bg-blue-600",
+  "bg-green-600",
+  "bg-yellow-500",
+  "bg-purple-600",
+  "bg-pink-600",
+  "bg-orange-600",
+  "bg-teal-600",
 ];
 
 export default function MonopolyBanker() {
-  const [screen, setScreen] = useState('setup');
+  const [screen, setScreen] = useState("setup");
   const [players, setPlayers] = useState([]);
   const [numPlayers, setNumPlayers] = useState(0);
-  const [playerNames, setPlayerNames] = useState(['', '', '', '', '', '', '', '']);
-  const [playerPieces, setPlayerPieces] = useState(['', '', '', '', '', '', '', '']);
-  const [playerColors, setPlayerColors] = useState(['', '', '', '', '', '', '', '']);
+  const [playerNames, setPlayerNames] = useState([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
+  const [playerPieces, setPlayerPieces] = useState([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
+  const [playerColors, setPlayerColors] = useState([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [lastRoll, setLastRoll] = useState(null);
   const [transactionMode, setTransactionMode] = useState(null);
-  const [transactionAmount, setTransactionAmount] = useState('');
+  const [transactionAmount, setTransactionAmount] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [showDice, setShowDice] = useState(false);
   const [rentMode, setRentMode] = useState(null);
-  const [utilityDiceRoll, setUtilityDiceRoll] = useState('');
+  const [showBuyProperty, setShowBuyProperty] = useState(false);
+  const [utilityDiceRoll, setUtilityDiceRoll] = useState("");
   const [diceRolling, setDiceRolling] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
 
   const rollDice = () => {
     setDiceRolling(true);
@@ -78,14 +303,24 @@ export default function MonopolyBanker() {
     const rollInterval = setInterval(() => {
       const tempD1 = Math.floor(Math.random() * 6) + 1;
       const tempD2 = Math.floor(Math.random() * 6) + 1;
-      setLastRoll({ d1: tempD1, d2: tempD2, total: tempD1 + tempD2, isDoubles: tempD1 === tempD2 });
+      setLastRoll({
+        d1: tempD1,
+        d2: tempD2,
+        total: tempD1 + tempD2,
+        isDoubles: tempD1 === tempD2,
+      });
       rollCount++;
-      
+
       if (rollCount >= 10) {
         clearInterval(rollInterval);
         const finalD1 = Math.floor(Math.random() * 6) + 1;
         const finalD2 = Math.floor(Math.random() * 6) + 1;
-        setLastRoll({ d1: finalD1, d2: finalD2, total: finalD1 + finalD2, isDoubles: finalD1 === finalD2 });
+        setLastRoll({
+          d1: finalD1,
+          d2: finalD2,
+          total: finalD1 + finalD2,
+          isDoubles: finalD1 === finalD2,
+        });
         setDiceRolling(false);
         setShowDice(true);
         setTimeout(() => setShowDice(false), 3000);
@@ -95,66 +330,72 @@ export default function MonopolyBanker() {
 
   const showError = (message) => {
     setErrorMessage(message);
-    setTimeout(() => setErrorMessage(''), 3000);
+    setTimeout(() => setErrorMessage(""), 3000);
   };
 
   const startGame = () => {
     // Validate player setup
     if (numPlayers < 2 || numPlayers > 8) {
-      showError('Please select 2-8 players');
+      showError("Please select 2-8 players");
       return;
     }
 
     // Validate player names
     const activePlayers = playerNames.slice(0, numPlayers);
-    const hasEmptyNames = activePlayers.some(name => !name.trim());
+    const hasEmptyNames = activePlayers.some((name) => !name.trim());
     if (hasEmptyNames) {
-      showError('All players must have names');
+      showError("All players must have names");
       return;
     }
 
     // Validate unique names
-    const uniqueNames = new Set(activePlayers.map(n => n.trim().toLowerCase()));
+    const uniqueNames = new Set(
+      activePlayers.map((n) => n.trim().toLowerCase())
+    );
     if (uniqueNames.size !== numPlayers) {
-      showError('Player names must be unique');
+      showError("Player names must be unique");
       return;
     }
 
     // Validate pieces selected
     const activePieces = playerPieces.slice(0, numPlayers);
-    if (activePieces.some(p => !p)) {
-      showError('All players must select a game piece');
+    if (activePieces.some((p) => !p)) {
+      showError("All players must select a game piece");
       return;
     }
 
     // Validate unique pieces
     const uniquePieces = new Set(activePieces);
     if (uniquePieces.size !== numPlayers) {
-      showError('Each player must have a unique game piece');
+      showError("Each player must have a unique game piece");
       return;
     }
 
     const newPlayers = [];
     for (let i = 0; i < numPlayers; i++) {
-      const piece = GAME_PIECES.find(p => p.id === playerPieces[i]);
+      const piece = GAME_PIECES.find((p) => p.id === playerPieces[i]);
       newPlayers.push({
         id: i,
         name: playerNames[i].trim(),
         balance: STARTING_MONEY,
         properties: [],
         color: playerColors[i],
-        piece: piece
+        piece: piece,
       });
     }
     setPlayers(newPlayers);
     setCurrentPlayer(0);
-    setScreen('game');
+    setScreen("game");
   };
 
   const updateBalance = (playerId, amount) => {
-    setPlayers(prev => prev.map(p => 
-      p.id === playerId ? { ...p, balance: Math.max(0, p.balance + amount) } : p
-    ));
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? { ...p, balance: Math.max(0, p.balance + amount) }
+          : p
+      )
+    );
   };
 
   const transferMoney = (fromId, toId, amount) => {
@@ -162,174 +403,219 @@ export default function MonopolyBanker() {
 
     // Validation
     if (isNaN(amt) || amt <= 0) {
-      showError('Please enter a valid amount');
+      showError("Please enter a valid amount");
       return;
     }
 
     if (fromId === toId) {
-      showError('Cannot transfer money to yourself');
+      showError("Cannot transfer money to yourself");
       return;
     }
 
-    const fromPlayer = players.find(p => p.id === fromId);
-    const toPlayer = players.find(p => p.id === toId);
+    const fromPlayer = players.find((p) => p.id === fromId);
+    const toPlayer = players.find((p) => p.id === toId);
 
     if (!fromPlayer || !toPlayer) {
-      showError('Invalid player selection');
+      showError("Invalid player selection");
       return;
     }
 
     if (fromPlayer.balance < amt) {
-      showError(`${fromPlayer.name} does not have enough money ($${fromPlayer.balance} available)`);
+      showError(
+        `${fromPlayer.name} does not have enough money ($${fromPlayer.balance} available)`
+      );
       return;
     }
 
-    setPlayers(prev => prev.map(p => {
-      if (p.id === fromId) return { ...p, balance: p.balance - amt };
-      if (p.id === toId) return { ...p, balance: p.balance + amt };
-      return p;
-    }));
+    setPlayers((prev) =>
+      prev.map((p) => {
+        if (p.id === fromId) return { ...p, balance: p.balance - amt };
+        if (p.id === toId) return { ...p, balance: p.balance + amt };
+        return p;
+      })
+    );
     setTransactionMode(null);
     setRentMode(null);
-    setTransactionAmount('');
+    setTransactionAmount("");
     setSelectedPlayer(null);
-    setUtilityDiceRoll('');
+    setUtilityDiceRoll("");
   };
 
   const buyProperty = (playerId, property) => {
-    const player = players.find(p => p.id === playerId);
+    const player = players.find((p) => p.id === playerId);
 
     if (!player) {
-      showError('Player not found');
+      showError("Player not found");
       return;
     }
 
     if (player.balance < property.price) {
-      showError(`Insufficient funds. Need $${property.price}, have $${player.balance}`);
+      showError(
+        `Insufficient funds. Need $${property.price}, have $${player.balance}`
+      );
       return;
     }
 
-    const isOwned = players.some(p => p.properties.some(pr => pr.name === property.name));
+    const isOwned = players.some((p) =>
+      p.properties.some((pr) => pr.name === property.name)
+    );
     if (isOwned) {
-      showError('Property is already owned');
+      showError("Property is already owned");
       return;
     }
 
-    setPlayers(prev => prev.map(p =>
-      p.id === playerId
-        ? { ...p, balance: p.balance - property.price, properties: [...p.properties, { name: property.name, houses: 0, hotel: false }] }
-        : p
-    ));
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? {
+              ...p,
+              balance: p.balance - property.price,
+              properties: [
+                ...p.properties,
+                { name: property.name, houses: 0, hotel: false },
+              ],
+            }
+          : p
+      )
+    );
     setTransactionMode(null);
   };
 
   const sellProperty = (playerId, propertyName) => {
-    const property = PROPERTIES.find(p => p.name === propertyName);
-    const player = players.find(p => p.id === playerId);
+    const property = PROPERTIES.find((p) => p.name === propertyName);
+    const player = players.find((p) => p.id === playerId);
     if (!player) return;
-    const playerProp = player.properties.find(pr => pr.name === propertyName);
+    const playerProp = player.properties.find((pr) => pr.name === propertyName);
     if (!playerProp) return;
-    const refund = property.price + (playerProp.houses * HOUSE_COST) + (playerProp.hotel ? HOTEL_COST : 0);
-    
-    setPlayers(prev => prev.map(p => 
-      p.id === playerId 
-        ? { ...p, balance: p.balance + refund, properties: p.properties.filter(pr => pr.name !== propertyName) }
-        : p
-    ));
+    const refund =
+      property.price +
+      playerProp.houses * HOUSE_COST +
+      (playerProp.hotel ? HOTEL_COST : 0);
+
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? {
+              ...p,
+              balance: p.balance + refund,
+              properties: p.properties.filter((pr) => pr.name !== propertyName),
+            }
+          : p
+      )
+    );
   };
 
   const addHouse = (playerId, propertyName) => {
-    const player = players.find(p => p.id === playerId);
+    const player = players.find((p) => p.id === playerId);
     if (!player) return;
-    const playerProp = player.properties.find(pr => pr.name === propertyName);
+    const playerProp = player.properties.find((pr) => pr.name === propertyName);
     if (!playerProp) return;
 
-    if (player.balance >= HOUSE_COST && playerProp.houses < 4 && !playerProp.hotel) {
-      setPlayers(prev => prev.map(p => {
-        if (p.id === playerId) {
-          return {
-            ...p,
-            balance: p.balance - HOUSE_COST,
-            properties: p.properties.map(pr =>
-              pr.name === propertyName ? { ...pr, houses: pr.houses + 1 } : pr
-            )
-          };
-        }
-        return p;
-      }));
+    if (
+      player.balance >= HOUSE_COST &&
+      playerProp.houses < 4 &&
+      !playerProp.hotel
+    ) {
+      setPlayers((prev) =>
+        prev.map((p) => {
+          if (p.id === playerId) {
+            return {
+              ...p,
+              balance: p.balance - HOUSE_COST,
+              properties: p.properties.map((pr) =>
+                pr.name === propertyName ? { ...pr, houses: pr.houses + 1 } : pr
+              ),
+            };
+          }
+          return p;
+        })
+      );
     }
   };
 
   const removeHouse = (playerId, propertyName) => {
-    const player = players.find(p => p.id === playerId);
+    const player = players.find((p) => p.id === playerId);
     if (!player) return;
-    const playerProp = player.properties.find(pr => pr.name === propertyName);
+    const playerProp = player.properties.find((pr) => pr.name === propertyName);
     if (!playerProp || playerProp.houses === 0) return;
 
-    setPlayers(prev => prev.map(p => {
-      if (p.id === playerId) {
-        return {
-          ...p,
-          balance: p.balance + (HOUSE_COST / 2),
-          properties: p.properties.map(pr =>
-            pr.name === propertyName ? { ...pr, houses: pr.houses - 1 } : pr
-          )
-        };
-      }
-      return p;
-    }));
-  };
-
-  const addHotel = (playerId, propertyName) => {
-    const player = players.find(p => p.id === playerId);
-    if (!player) return;
-    const playerProp = player.properties.find(pr => pr.name === propertyName);
-    if (!playerProp) return;
-    
-    if (player.balance >= HOTEL_COST && playerProp.houses === 4 && !playerProp.hotel) {
-      setPlayers(prev => prev.map(p => {
+    setPlayers((prev) =>
+      prev.map((p) => {
         if (p.id === playerId) {
           return {
             ...p,
-            balance: p.balance - HOTEL_COST,
-            properties: p.properties.map(pr => 
-              pr.name === propertyName ? { ...pr, houses: 0, hotel: true } : pr
-            )
+            balance: p.balance + HOUSE_COST / 2,
+            properties: p.properties.map((pr) =>
+              pr.name === propertyName ? { ...pr, houses: pr.houses - 1 } : pr
+            ),
           };
         }
         return p;
-      }));
+      })
+    );
+  };
+
+  const addHotel = (playerId, propertyName) => {
+    const player = players.find((p) => p.id === playerId);
+    if (!player) return;
+    const playerProp = player.properties.find((pr) => pr.name === propertyName);
+    if (!playerProp) return;
+
+    if (
+      player.balance >= HOTEL_COST &&
+      playerProp.houses === 4 &&
+      !playerProp.hotel
+    ) {
+      setPlayers((prev) =>
+        prev.map((p) => {
+          if (p.id === playerId) {
+            return {
+              ...p,
+              balance: p.balance - HOTEL_COST,
+              properties: p.properties.map((pr) =>
+                pr.name === propertyName
+                  ? { ...pr, houses: 0, hotel: true }
+                  : pr
+              ),
+            };
+          }
+          return p;
+        })
+      );
     }
   };
 
   const calculateRent = (ownerId, propertyName) => {
-    const property = PROPERTIES.find(p => p.name === propertyName);
-    const owner = players.find(p => p.id === ownerId);
+    const property = PROPERTIES.find((p) => p.name === propertyName);
+    const owner = players.find((p) => p.id === ownerId);
     if (!owner) return 0;
-    const ownerProp = owner.properties.find(pr => pr.name === propertyName);
+    const ownerProp = owner.properties.find((pr) => pr.name === propertyName);
     if (!ownerProp) return 0;
-    
-    if (property.group === 'railroad') {
-      const railroadCount = owner.properties.filter(pr => {
-        const prop = PROPERTIES.find(p => p.name === pr.name);
-        return prop.group === 'railroad';
+
+    if (property.group === "railroad") {
+      const railroadCount = owner.properties.filter((pr) => {
+        const prop = PROPERTIES.find((p) => p.name === pr.name);
+        return prop.group === "railroad";
       }).length;
       return property.rent[railroadCount - 1] || 0;
     }
-    
-    if (property.group === 'utility') {
+
+    if (property.group === "utility") {
       return null;
     }
-    
+
     if (property.rent && property.rent.length > 0) {
-      const groupProperties = PROPERTIES.filter(p => p.group === property.group);
-      const ownerGroupProperties = owner.properties.filter(pr => {
-        const prop = PROPERTIES.find(p => p.name === pr.name);
+      const groupProperties = PROPERTIES.filter(
+        (p) => p.group === property.group
+      );
+      const ownerGroupProperties = owner.properties.filter((pr) => {
+        const prop = PROPERTIES.find((p) => p.name === pr.name);
         return prop.group === property.group;
       });
-      
-      const hasMonopoly = groupProperties.length === ownerGroupProperties.length;
-      
+
+      const hasMonopoly =
+        groupProperties.length === ownerGroupProperties.length;
+
       if (ownerProp.hotel) {
         return property.rent[5] || 0;
       } else if (ownerProp.houses > 0) {
@@ -340,30 +626,30 @@ export default function MonopolyBanker() {
         return property.rent[0] || 0;
       }
     }
-    
+
     return 0;
   };
 
   const payRent = (fromId, toId, propertyName) => {
-    const property = PROPERTIES.find(p => p.name === propertyName);
-    const owner = players.find(p => p.id === toId);
+    const property = PROPERTIES.find((p) => p.name === propertyName);
+    const owner = players.find((p) => p.id === toId);
     if (!owner) return;
-    
+
     let rentAmount = 0;
-    
-    if (property.group === 'utility') {
-      const utilityCount = owner.properties.filter(pr => {
-        const prop = PROPERTIES.find(p => p.name === pr.name);
-        return prop.group === 'utility';
+
+    if (property.group === "utility") {
+      const utilityCount = owner.properties.filter((pr) => {
+        const prop = PROPERTIES.find((p) => p.name === pr.name);
+        return prop.group === "utility";
       }).length;
-      
+
       const multiplier = utilityCount === 2 ? 10 : 4;
       const roll = parseInt(utilityDiceRoll) || 0;
       rentAmount = roll * multiplier;
     } else {
       rentAmount = calculateRent(toId, propertyName);
     }
-    
+
     if (rentAmount > 0) {
       transferMoney(fromId, toId, rentAmount.toString());
     }
@@ -382,7 +668,7 @@ export default function MonopolyBanker() {
   const NumberPad = ({ onNumber, onClear, onSubmit }) => {
     return (
       <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
           <button
             key={num}
             onClick={() => onNumber(num)}
@@ -423,15 +709,13 @@ export default function MonopolyBanker() {
           >
             <X className="w-6 h-6" />
           </button>
-          <div className="clear-both">
-            {children}
-          </div>
+          <div className="clear-both">{children}</div>
         </div>
       </div>
     );
   };
 
-  if (screen === 'setup') {
+  if (screen === "setup") {
     return (
       <div className="min-h-screen bg-black text-amber-50 p-8">
         {/* Error Toast */}
@@ -443,15 +727,19 @@ export default function MonopolyBanker() {
 
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold mb-2 text-amber-400">MONOPOLY BANKER</h1>
+            <h1 className="text-5xl font-bold mb-2 text-amber-400">
+              MONOPOLY BANKER
+            </h1>
             <p className="text-amber-600">Digital Banking System</p>
           </div>
 
           {numPlayers === 0 ? (
             <div className="bg-zinc-900 rounded-lg p-8 border border-amber-900/30">
-              <h2 className="text-2xl font-bold mb-6 text-amber-400">Select Number of Players</h2>
+              <h2 className="text-2xl font-bold mb-6 text-amber-400">
+                Select Number of Players
+              </h2>
               <div className="grid grid-cols-4 gap-4">
-                {[2, 3, 4, 5, 6, 7, 8].map(num => (
+                {[2, 3, 4, 5, 6, 7, 8].map((num) => (
                   <button
                     key={num}
                     onClick={() => setNumPlayers(num)}
@@ -464,14 +752,21 @@ export default function MonopolyBanker() {
             </div>
           ) : (
             <div className="bg-zinc-900 rounded-lg p-8 border border-amber-900/30">
-              <h2 className="text-2xl font-bold mb-6 text-amber-400">Setup Players</h2>
+              <h2 className="text-2xl font-bold mb-6 text-amber-400">
+                Setup Players
+              </h2>
               <div className="space-y-4 mb-8">
                 {Array.from({ length: numPlayers }).map((_, i) => (
-                  <div key={i} className="bg-zinc-800 rounded p-4 border border-amber-900/30">
+                  <div
+                    key={i}
+                    className="bg-zinc-800 rounded p-4 border border-amber-900/30"
+                  >
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="text-lg font-bold text-amber-400">Player {i + 1}</div>
+                      <div className="text-lg font-bold text-amber-400">
+                        Player {i + 1}
+                      </div>
                     </div>
-                    
+
                     <input
                       type="text"
                       placeholder={`Player ${i + 1} Name`}
@@ -486,11 +781,15 @@ export default function MonopolyBanker() {
                     />
 
                     <div className="mb-3">
-                      <p className="text-xs text-amber-600 mb-2">Select Piece:</p>
+                      <p className="text-xs text-amber-600 mb-2">
+                        Select Piece:
+                      </p>
                       <div className="grid grid-cols-4 gap-2">
-                        {GAME_PIECES.map(piece => {
+                        {GAME_PIECES.map((piece) => {
                           const PieceIcon = piece.icon;
-                          const isUsed = playerPieces.some((p, idx) => p === piece.id && idx !== i);
+                          const isUsed = playerPieces.some(
+                            (p, idx) => p === piece.id && idx !== i
+                          );
                           return (
                             <button
                               key={piece.id}
@@ -504,10 +803,10 @@ export default function MonopolyBanker() {
                               disabled={isUsed}
                               className={`p-3 rounded border transition-all ${
                                 playerPieces[i] === piece.id
-                                  ? 'bg-amber-600 border-amber-500 text-black'
+                                  ? "bg-amber-600 border-amber-500 text-black"
                                   : isUsed
-                                  ? 'bg-zinc-900 border-zinc-700 opacity-30 cursor-not-allowed'
-                                  : 'bg-zinc-900 border-amber-900/30 hover:border-amber-600'
+                                  ? "bg-zinc-900 border-zinc-700 opacity-30 cursor-not-allowed"
+                                  : "bg-zinc-900 border-amber-900/30 hover:border-amber-600"
                               }`}
                             >
                               <PieceIcon className="w-6 h-6 mx-auto" />
@@ -519,10 +818,14 @@ export default function MonopolyBanker() {
                     </div>
 
                     <div>
-                      <p className="text-xs text-amber-600 mb-2">Select Color:</p>
-                      <div className="grid grid-cols-8 gap-2">
-                        {PLAYER_COLORS.map(color => {
-                          const isUsed = playerColors.some((c, idx) => c === color && idx !== i);
+                      <p className="text-xs text-amber-600 mb-2">
+                        Select Color:
+                      </p>
+                      <div className="grid grid-cols-8 gap-1 sm:gap-2">
+                        {PLAYER_COLORS.map((color) => {
+                          const isUsed = playerColors.some(
+                            (c, idx) => c === color && idx !== i
+                          );
                           return (
                             <button
                               key={color}
@@ -534,12 +837,12 @@ export default function MonopolyBanker() {
                                 }
                               }}
                               disabled={isUsed}
-                              className={`w-10 h-10 rounded ${color} ${
+                              className={`w-6 h-6 sm:w-10 sm:h-10 rounded ${color} ${
                                 playerColors[i] === color
-                                  ? 'ring-4 ring-amber-400'
+                                  ? "ring-2 sm:ring-4 ring-amber-400"
                                   : isUsed
-                                  ? 'opacity-30 cursor-not-allowed'
-                                  : 'hover:ring-2 ring-amber-600'
+                                  ? "opacity-30 cursor-not-allowed"
+                                  : "hover:ring-2 ring-amber-600"
                               } transition-all`}
                             />
                           );
@@ -558,7 +861,10 @@ export default function MonopolyBanker() {
                 </button>
                 <button
                   onClick={startGame}
-                  disabled={playerPieces.slice(0, numPlayers).some(p => !p) || playerColors.slice(0, numPlayers).some(c => !c)}
+                  disabled={
+                    playerPieces.slice(0, numPlayers).some((p) => !p) ||
+                    playerColors.slice(0, numPlayers).some((c) => !c)
+                  }
                   className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-800 disabled:text-amber-900 text-black font-bold py-3 rounded transition-colors"
                 >
                   Start Game
@@ -572,7 +878,7 @@ export default function MonopolyBanker() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-amber-50 p-4">
+    <div className="min-h-screen bg-black text-amber-50 p-2 sm:p-4">
       {/* Error Toast */}
       {errorMessage && (
         <div className="fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-pulse">
@@ -580,24 +886,26 @@ export default function MonopolyBanker() {
         </div>
       )}
       <div className="max-w-7xl mx-auto">
-        <div className="bg-zinc-900 rounded-lg p-4 mb-4 border border-amber-900/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-amber-400" />
-              <h1 className="text-2xl font-bold text-amber-400">MONOPOLY BANKER</h1>
+        <div className="bg-zinc-900 rounded-lg p-2 sm:p-4 mb-2 sm:mb-4 border border-amber-900/30">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <DollarSign className="w-7 h-7 sm:w-8 sm:h-8 text-amber-400" />
+              <h1 className="text-xl sm:text-2xl font-bold text-amber-400">
+                MONOPOLY BANKER
+              </h1>
             </div>
             <button
               onClick={() => {
-                if (window.confirm('Reset game?')) {
-                  setScreen('setup');
+                if (window.confirm("Reset game?")) {
+                  setScreen("setup");
                   setPlayers([]);
                   setNumPlayers(0);
-                  setPlayerNames(['', '', '', '', '', '', '', '']);
-                  setPlayerPieces(['', '', '', '', '', '', '', '']);
-                  setPlayerColors(['', '', '', '', '', '', '', '']);
+                  setPlayerNames(["", "", "", "", "", "", "", ""]);
+                  setPlayerPieces(["", "", "", "", "", "", "", ""]);
+                  setPlayerColors(["", "", "", "", "", "", "", ""]);
                 }
               }}
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/30 text-amber-400"
+              className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/30 text-amber-400 text-sm sm:text-base"
             >
               <RotateCcw className="w-4 h-4" />
               Reset
@@ -607,102 +915,138 @@ export default function MonopolyBanker() {
 
         {(showDice || diceRolling) && lastRoll && (
           <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
-            <div className={`bg-zinc-900 border-2 border-amber-600 rounded-lg p-8 ${diceRolling ? 'animate-pulse' : ''}`}>
-              <div className="flex gap-6 items-center justify-center text-amber-400">
+            <div
+              className={`bg-zinc-900 border-2 border-amber-600 rounded-lg p-4 sm:p-8 ${
+                diceRolling ? "animate-pulse" : ""
+              }`}
+            >
+              <div className="flex gap-3 sm:gap-6 items-center justify-center text-amber-400">
                 <DiceIcon value={lastRoll.d1} />
-                <div className="text-4xl font-bold">+</div>
+                <div className="text-2xl sm:text-4xl font-bold">+</div>
                 <DiceIcon value={lastRoll.d2} />
-                <div className="text-4xl font-bold">=</div>
-                <div className="text-5xl font-bold text-amber-400">{lastRoll.total}</div>
+                <div className="text-2xl sm:text-4xl font-bold">=</div>
+                <div className="text-3xl sm:text-5xl font-bold text-amber-400">
+                  {lastRoll.total}
+                </div>
               </div>
               {lastRoll.isDoubles && !diceRolling && (
-                <div className="text-2xl font-bold text-center mt-4 text-amber-400">DOUBLES!</div>
+                <div className="text-lg sm:text-2xl font-bold text-center mt-2 sm:mt-4 text-amber-400">
+                  DOUBLES!
+                </div>
               )}
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 space-y-3">
-            {players.map(player => {
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-4">
+          <div className="lg:col-span-2 space-y-2 sm:space-y-3">
+            {players.map((player) => {
               const PieceIcon = player.piece.icon;
               return (
                 <div
                   key={player.id}
-                  className={`bg-zinc-900 rounded-lg p-4 border-2 transition-all ${
-                    currentPlayer === player.id ? 'border-amber-600' : 'border-amber-900/30'
+                  className={`bg-zinc-900 rounded-lg p-2 sm:p-4 border-2 transition-all ${
+                    currentPlayer === player.id
+                      ? "border-amber-600"
+                      : "border-amber-900/30"
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-14 h-14 ${player.color} rounded flex items-center justify-center`}>
-                        <PieceIcon className="w-8 h-8 text-white" />
+                  <div className="flex flex-col sm:flex-row items-center justify-between mb-2 sm:mb-3 gap-2 sm:gap-0">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div
+                        className={`w-10 h-10 sm:w-14 sm:h-14 ${player.color} rounded flex items-center justify-center`}
+                      >
+                        <PieceIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-xl font-bold text-amber-50">{player.name}</h3>
-                        <div className="text-2xl font-bold text-amber-400">
+                        <h3 className="text-lg sm:text-xl font-bold text-amber-50">
+                          {player.name}
+                        </h3>
+                        <div className="text-xl sm:text-2xl font-bold text-amber-400">
                           ${player.balance.toLocaleString()}
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={() => setCurrentPlayer(player.id)}
-                      className={`px-4 py-2 rounded font-bold transition-all ${
+                      className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded font-bold transition-all ${
                         currentPlayer === player.id
-                          ? 'bg-amber-600 text-black'
-                          : 'bg-zinc-800 hover:bg-zinc-700 border border-amber-900/30 text-amber-400'
-                      }`}
+                          ? "bg-amber-600 text-black"
+                          : "bg-zinc-800 hover:bg-zinc-700 border border-amber-900/30 text-amber-400"
+                      } text-sm sm:text-base`}
                     >
-                      {currentPlayer === player.id ? 'Active' : 'Select'}
+                      {currentPlayer === player.id ? "Active" : "Select"}
                     </button>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="flex flex-wrap gap-1 sm:gap-2 mb-2 sm:mb-3">
                     <button
                       onClick={() => passGo(player.id)}
-                      className="bg-amber-600 hover:bg-amber-500 text-black px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                      className="bg-amber-600 hover:bg-amber-500 text-black px-2.5 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm font-bold transition-colors flex items-center gap-1"
                     >
                       <TrendingUp className="w-3 h-3" />
                       Pass GO
                     </button>
                     <button
                       onClick={() => {
-                        setTransactionMode('pay');
+                        setTransactionMode("pay");
                         setCurrentPlayer(player.id);
-                        setTransactionAmount('');
+                        setTransactionAmount("");
                       }}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 px-3 py-1.5 rounded text-sm font-bold transition-colors border border-amber-900/30"
+                      className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm font-bold transition-colors border border-amber-900/30"
                     >
                       Pay
                     </button>
                     <button
                       onClick={() => {
-                        setTransactionMode('receive');
+                        setTransactionMode("receive");
                         setCurrentPlayer(player.id);
-                        setTransactionAmount('');
+                        setTransactionAmount("");
                       }}
-                      className="bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors"
+                      className="bg-green-700 hover:bg-green-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm font-bold transition-colors"
                     >
                       Receive
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentPlayer(player.id);
+                        setShowBuyProperty(true);
+                      }}
+                      className="bg-blue-700 hover:bg-blue-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm font-bold transition-colors"
+                    >
+                      Buy Property
                     </button>
                   </div>
 
                   {/* Properties Section */}
                   {player.properties.length > 0 && (
                     <div className="mt-3 border-t border-amber-900/30 pt-3">
-                      <h4 className="text-xs font-bold text-amber-500 mb-2">Properties</h4>
+                      <h4 className="text-xs font-bold text-amber-500 mb-2">
+                        Properties
+                      </h4>
                       <div className="space-y-1">
                         {player.properties.map((prop, idx) => {
-                          const property = PROPERTIES.find(p => p.name === prop.name);
+                          const property = PROPERTIES.find(
+                            (p) => p.name === prop.name
+                          );
                           if (!property) return null;
                           return (
-                            <div key={idx} className="flex items-center justify-between text-xs bg-zinc-900/50 p-2 rounded">
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between text-xs bg-zinc-900/50 p-2 rounded"
+                            >
                               <div className="flex items-center gap-2">
-                                <div className={`w-3 h-3 rounded ${property.color}`}></div>
-                                <span className="text-amber-100">{prop.name}</span>
+                                <div
+                                  className={`w-3 h-3 rounded ${property.color}`}
+                                ></div>
+                                <span className="text-amber-100">
+                                  {prop.name}
+                                </span>
                                 {prop.houses > 0 && (
                                   <span className="text-green-400">
-                                    {prop.houses === 5 ? '🏨' : '🏠'.repeat(prop.houses)}
+                                    {prop.houses === 5
+                                      ? "\ud83c\udfe8"
+                                      : "\ud83c\udfe0".repeat(prop.houses)}
                                   </span>
                                 )}
                               </div>
@@ -725,50 +1069,119 @@ export default function MonopolyBanker() {
               );
             })}
           </div>
+          {/* Buy Property Modal */}
+          {showBuyProperty && currentPlayer !== null && (
+            <Modal onClose={() => setShowBuyProperty(false)}>
+              <h3 className="text-xl font-bold text-amber-400 mb-4">
+                Buy Property
+              </h3>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {PROPERTIES.filter(
+                  (prop) =>
+                    !players.some((p) =>
+                      p.properties.some((owned) => owned.name === prop.name)
+                    )
+                ).map((property) => (
+                  <div
+                    key={property.name}
+                    className="flex items-center justify-between bg-zinc-800 p-3 rounded"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-4 h-4 rounded ${property.color}`}
+                      ></div>
+                      <span className="text-amber-100 font-bold">
+                        {property.name}
+                      </span>
+                      <span className="text-amber-400 ml-2">
+                        ${property.price}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        buyProperty(currentPlayer, property);
+                        setShowBuyProperty(false);
+                      }}
+                      className="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                    >
+                      Buy
+                    </button>
+                  </div>
+                ))}
+                {PROPERTIES.filter(
+                  (prop) =>
+                    !players.some((p) =>
+                      p.properties.some((owned) => owned.name === prop.name)
+                    )
+                ).length === 0 && (
+                  <div className="text-amber-400 text-center">
+                    All properties are owned.
+                  </div>
+                )}
+              </div>
+            </Modal>
+          )}
 
-          <div className="space-y-4">
+          <div className="space-y-2 sm:space-y-4">
             {/* Dice Roll Section */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <button
                 onClick={rollDice}
                 disabled={diceRolling}
-                className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-4 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-colors flex items-center justify-center gap-2"
               >
-                <Dice1 className="w-6 h-6" />
-                {diceRolling ? 'Rolling...' : 'Roll Dice'}
+                <Dice1 className="w-5 h-5 sm:w-6 sm:h-6" />
+                {diceRolling ? "Rolling..." : "Roll Dice"}
               </button>
 
               {showDice && lastRoll && (
-                <div className="mt-4 bg-zinc-900 p-4 rounded-lg border border-amber-900/30 text-center">
-                  <div className="flex justify-center gap-4 mb-2">
+                <div className="mt-3 sm:mt-4 bg-zinc-900 p-3 sm:p-4 rounded-lg border border-amber-900/30 text-center">
+                  <div className="flex justify-center gap-3 sm:gap-4 mb-2">
                     {[lastRoll.d1, lastRoll.d2].map((die, idx) => {
-                      const DiceIcon = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6][die - 1];
-                      return <DiceIcon key={idx} className="w-12 h-12 text-amber-400" />;
+                      const DiceIcon = [
+                        Dice1,
+                        Dice2,
+                        Dice3,
+                        Dice4,
+                        Dice5,
+                        Dice6,
+                      ][die - 1];
+                      return (
+                        <DiceIcon
+                          key={idx}
+                          className="w-8 h-8 sm:w-12 sm:h-12 text-amber-400"
+                        />
+                      );
                     })}
                   </div>
-                  <p className="text-2xl font-bold text-amber-400">Total: {lastRoll.total}</p>
-                  {lastRoll.isDoubles && <p className="text-green-400 text-sm mt-1">Doubles!</p>}
+                  <p className="text-xl sm:text-2xl font-bold text-amber-400">
+                    Total: {lastRoll.total}
+                  </p>
+                  {lastRoll.isDoubles && (
+                    <p className="text-green-400 text-xs sm:text-sm mt-1">
+                      Doubles!
+                    </p>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Transaction Modal */}
+        {/* Transaction Modal */}
         {transactionMode && currentPlayer !== null && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
             <div className="bg-zinc-900 rounded-lg p-6 max-w-md w-full border border-amber-900/30">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-amber-400">
-                  {transactionMode === 'pay' ? 'Pay Money' : 'Receive Money'}
+                  {transactionMode === "pay" ? "Pay Money" : "Receive Money"}
                 </h3>
                 <button
                   onClick={() => {
                     setTransactionMode(null);
                     setCurrentPlayer(null);
                     setSelectedPlayer(null);
-                    setTransactionAmount('');
+                    setTransactionAmount("");
                   }}
                   className="text-amber-400 hover:text-amber-300"
                 >
@@ -778,21 +1191,27 @@ export default function MonopolyBanker() {
 
               <div className="mb-4">
                 <p className="text-amber-100 mb-2">
-                  From: {players.find(p => p.id === currentPlayer)?.name}
+                  From: {players.find((p) => p.id === currentPlayer)?.name}
                 </p>
 
-                {transactionMode === 'pay' && (
+                {transactionMode === "pay" && (
                   <div className="mb-4">
                     <label className="block text-amber-400 mb-2">To:</label>
                     <select
-                      value={selectedPlayer || ''}
-                      onChange={(e) => setSelectedPlayer(parseInt(e.target.value))}
+                      value={selectedPlayer || ""}
+                      onChange={(e) =>
+                        setSelectedPlayer(parseInt(e.target.value))
+                      }
                       className="w-full bg-zinc-800 text-amber-100 p-2 rounded border border-amber-900/30"
                     >
                       <option value="">Select Player</option>
-                      {players.filter(p => p.id !== currentPlayer).map(player => (
-                        <option key={player.id} value={player.id}>{player.name}</option>
-                      ))}
+                      {players
+                        .filter((p) => p.id !== currentPlayer)
+                        .map((player) => (
+                          <option key={player.id} value={player.id}>
+                            {player.name}
+                          </option>
+                        ))}
                     </select>
                   </div>
                 )}
@@ -811,18 +1230,18 @@ export default function MonopolyBanker() {
                 onClick={() => {
                   const amount = parseInt(transactionAmount);
                   if (amount && amount > 0) {
-                    if (transactionMode === 'pay' && selectedPlayer !== null) {
+                    if (transactionMode === "pay" && selectedPlayer !== null) {
                       transferMoney(currentPlayer, selectedPlayer, amount);
-                    } else if (transactionMode === 'receive') {
+                    } else if (transactionMode === "receive") {
                       updateBalance(currentPlayer, amount);
                     }
                     setTransactionMode(null);
                     setCurrentPlayer(null);
                     setSelectedPlayer(null);
-                    setTransactionAmount('');
+                    setTransactionAmount("");
                   }
                 }}
-                disabled={transactionMode === 'pay' && !selectedPlayer}
+                disabled={transactionMode === "pay" && !selectedPlayer}
                 className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-3 rounded transition-colors"
               >
                 Confirm
@@ -836,7 +1255,9 @@ export default function MonopolyBanker() {
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
             <div className="bg-zinc-900 rounded-lg p-6 max-w-md w-full border border-amber-900/30">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-amber-400">Manage Property</h3>
+                <h3 className="text-xl font-bold text-amber-400">
+                  Manage Property
+                </h3>
                 <button
                   onClick={() => {
                     setSelectedProperty(null);
@@ -849,21 +1270,33 @@ export default function MonopolyBanker() {
               </div>
 
               <div className="mb-4">
-                <p className="text-amber-100 text-lg mb-4">{selectedProperty}</p>
+                <p className="text-amber-100 text-lg mb-4">
+                  {selectedProperty}
+                </p>
 
                 {(() => {
-                  const player = players.find(p => p.id === currentPlayer);
-                  const playerProp = player?.properties.find(p => p.name === selectedProperty);
-                  const property = PROPERTIES.find(p => p.name === selectedProperty);
+                  const player = players.find((p) => p.id === currentPlayer);
+                  const playerProp = player?.properties.find(
+                    (p) => p.name === selectedProperty
+                  );
+                  const property = PROPERTIES.find(
+                    (p) => p.name === selectedProperty
+                  );
 
-                  if (!property || property.group === 'railroad' || property.group === 'utility') {
+                  if (
+                    !property ||
+                    property.group === "railroad" ||
+                    property.group === "utility"
+                  ) {
                     return (
                       <div className="space-y-2">
                         <button
-                          onClick={() => sellProperty(currentPlayer, selectedProperty)}
+                          onClick={() =>
+                            sellProperty(currentPlayer, selectedProperty)
+                          }
                           className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-3 rounded transition-colors"
                         >
-                          Sell Property (${(property?.price || 0) / 2 })
+                          Sell Property (${(property?.price || 0) / 2})
                         </button>
                       </div>
                     );
@@ -873,12 +1306,17 @@ export default function MonopolyBanker() {
                     <div className="space-y-2">
                       <div className="bg-zinc-800 p-3 rounded mb-3">
                         <p className="text-amber-100">
-                          Houses: {playerProp?.houses === 5 ? 'Hotel' : playerProp?.houses || 0}
+                          Houses:{" "}
+                          {playerProp?.houses === 5
+                            ? "Hotel"
+                            : playerProp?.houses || 0}
                         </p>
                       </div>
 
                       <button
-                        onClick={() => addHouse(currentPlayer, selectedProperty)}
+                        onClick={() =>
+                          addHouse(currentPlayer, selectedProperty)
+                        }
                         disabled={playerProp?.houses >= 5}
                         className="w-full bg-green-700 hover:bg-green-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
                       >
@@ -886,18 +1324,24 @@ export default function MonopolyBanker() {
                       </button>
 
                       <button
-                        onClick={() => removeHouse(currentPlayer, selectedProperty)}
-                        disabled={!playerProp?.houses || playerProp.houses === 0}
+                        onClick={() =>
+                          removeHouse(currentPlayer, selectedProperty)
+                        }
+                        disabled={
+                          !playerProp?.houses || playerProp.houses === 0
+                        }
                         className="w-full bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
                       >
                         Remove House
                       </button>
 
                       <button
-                        onClick={() => sellProperty(currentPlayer, selectedProperty)}
+                        onClick={() =>
+                          sellProperty(currentPlayer, selectedProperty)
+                        }
                         className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-3 rounded transition-colors"
                       >
-                        Sell Property (${(property?.price || 0) / 2 })
+                        Sell Property (${(property?.price || 0) / 2})
                       </button>
                     </div>
                   );
