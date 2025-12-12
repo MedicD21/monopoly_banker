@@ -9,9 +9,9 @@ import {
   getDocs,
   serverTimestamp,
   addDoc,
-} from 'firebase/firestore';
-import { db } from './config';
-import { Game, GameConfig, Player, GameEvent } from '../types/game';
+} from "firebase/firestore";
+import { db } from "./config";
+import { Game, GameConfig, Player, GameEvent } from "../types/game";
 
 // Generate a unique 5-digit game code
 export async function generateGameCode(): Promise<string> {
@@ -21,7 +21,7 @@ export async function generateGameCode(): Promise<string> {
 
   while (exists) {
     code = Math.floor(10000 + Math.random() * 90000).toString();
-    const q = query(collection(db, 'games'), where('code', '==', code));
+    const q = query(collection(db, "games"), where("code", "==", code));
     const querySnapshot = await getDocs(q);
     exists = !querySnapshot.empty;
   }
@@ -30,15 +30,18 @@ export async function generateGameCode(): Promise<string> {
 }
 
 // Create a new game
-export async function createGame(hostId: string, config: GameConfig): Promise<string> {
+export async function createGame(
+  hostId: string,
+  config: GameConfig
+): Promise<string> {
   const code = await generateGameCode();
-  const gameRef = doc(collection(db, 'games'));
+  const gameRef = doc(collection(db, "games"));
   const gameId = gameRef.id;
 
-  const gameData: Omit<Game, 'id'> = {
+  const gameData: Omit<Game, "id"> = {
     code,
     hostId,
-    status: 'lobby',
+    status: "lobby",
     config,
     createdAt: Date.now(),
     lastActivity: Date.now(),
@@ -50,7 +53,7 @@ export async function createGame(hostId: string, config: GameConfig): Promise<st
 
 // Join a game by code
 export async function joinGameByCode(code: string): Promise<string | null> {
-  const q = query(collection(db, 'games'), where('code', '==', code));
+  const q = query(collection(db, "games"), where("code", "==", code));
   const querySnapshot = await getDocs(q);
 
   if (querySnapshot.empty) {
@@ -60,8 +63,8 @@ export async function joinGameByCode(code: string): Promise<string | null> {
   const gameDoc = querySnapshot.docs[0];
   const game = gameDoc.data() as Game;
 
-  if (game.status !== 'lobby') {
-    throw new Error('Game has already started');
+  if (game.status !== "lobby") {
+    throw new Error("Game has already started");
   }
 
   return gameDoc.id;
@@ -72,7 +75,7 @@ export async function addPlayer(
   gameId: string,
   playerData: Player
 ): Promise<void> {
-  const playerRef = doc(db, 'games', gameId, 'players', playerData.id);
+  const playerRef = doc(db, "games", gameId, "players", playerData.id);
   await setDoc(playerRef, {
     ...playerData,
     isConnected: true,
@@ -86,7 +89,7 @@ export async function updatePlayer(
   playerId: string,
   updates: Partial<Player>
 ): Promise<void> {
-  const playerRef = doc(db, 'games', gameId, 'players', playerId);
+  const playerRef = doc(db, "games", gameId, "players", playerId);
   await updateDoc(playerRef, {
     ...updates,
     lastSeen: Date.now(),
@@ -95,7 +98,7 @@ export async function updatePlayer(
 
 // Get game data
 export async function getGame(gameId: string): Promise<Game | null> {
-  const gameRef = doc(db, 'games', gameId);
+  const gameRef = doc(db, "games", gameId);
   const gameSnap = await getDoc(gameRef);
 
   if (!gameSnap.exists()) {
@@ -108,9 +111,9 @@ export async function getGame(gameId: string): Promise<Game | null> {
 // Update game status
 export async function updateGameStatus(
   gameId: string,
-  status: 'lobby' | 'playing' | 'ended'
+  status: "lobby" | "playing" | "ended"
 ): Promise<void> {
-  const gameRef = doc(db, 'games', gameId);
+  const gameRef = doc(db, "games", gameId);
   await updateDoc(gameRef, {
     status,
     lastActivity: Date.now(),
@@ -120,9 +123,9 @@ export async function updateGameStatus(
 // Log a game event
 export async function logEvent(
   gameId: string,
-  event: Omit<GameEvent, 'id' | 'timestamp'>
+  event: Omit<GameEvent, "id" | "timestamp">
 ): Promise<void> {
-  const eventsRef = collection(db, 'games', gameId, 'events');
+  const eventsRef = collection(db, "games", gameId, "events");
   await addDoc(eventsRef, {
     ...event,
     timestamp: Date.now(),
@@ -130,8 +133,11 @@ export async function logEvent(
 }
 
 // Update dice roll (for utility rent calculations)
-export async function updateLastDiceRoll(gameId: string, total: number): Promise<void> {
-  const gameRef = doc(db, 'games', gameId);
+export async function updateLastDiceRoll(
+  gameId: string,
+  total: number
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
   await updateDoc(gameRef, {
     lastDiceRoll: total,
     lastActivity: Date.now(),
@@ -140,5 +146,5 @@ export async function updateLastDiceRoll(gameId: string, total: number): Promise
 
 // Start the game
 export async function startGame(gameId: string): Promise<void> {
-  await updateGameStatus(gameId, 'playing');
+  await updateGameStatus(gameId, "playing");
 }

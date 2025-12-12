@@ -92,21 +92,32 @@ export function GameProvider({ children }: GameProviderProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const location = useLocation();
 
-  // Restore currentPlayerId from localStorage if available
+  // Store a playerId per game in localStorage: key = monopoly_playerId_{gameId}
   const [currentPlayerId, setCurrentPlayerIdState] = useState<string | null>(
-    () => {
-      return localStorage.getItem("currentPlayerId") || null;
-    }
+    null
   );
+
+  // Helper to get playerId for a game from localStorage
+  const getStoredPlayerId = (gameId: string) => {
+    return localStorage.getItem(`monopoly_playerId_${gameId}`);
+  };
+  // Helper to set playerId for a game in localStorage
+  const setStoredPlayerId = (gameId: string, playerId: string | null) => {
+    if (playerId) {
+      localStorage.setItem(`monopoly_playerId_${gameId}`, playerId);
+    } else {
+      localStorage.removeItem(`monopoly_playerId_${gameId}`);
+    }
+  };
   const navigate = useNavigate();
 
-  // Helper to set currentPlayerId in both state and localStorage
-  const setCurrentPlayerId = (id: string | null) => {
+  // Set currentPlayerId and persist for a specific game
+  const setCurrentPlayerId = (id: string | null, gameId?: string) => {
     setCurrentPlayerIdState(id);
-    if (id) {
-      localStorage.setItem("currentPlayerId", id);
-    } else {
-      localStorage.removeItem("currentPlayerId");
+    if (id && gameId) {
+      setStoredPlayerId(gameId, id);
+    } else if (gameId) {
+      setStoredPlayerId(gameId, null);
     }
   };
 
@@ -161,36 +172,37 @@ export function GameProvider({ children }: GameProviderProps) {
 
   const hostGame = async (config: GameConfig) => {
     try {
-      console.log("hostGame: generating playerId");
       // Generate a temporary player ID for the host
-      const playerId = `player_${Date.now()}_${Math.random()
+      const tempPlayerId = `player_${Date.now()}_${Math.random()
         .toString(36)
         .substr(2, 9)}`;
-      setCurrentPlayerId(playerId);
-
-      console.log("hostGame: creating game");
       // Create the game
-      const gameId = await createGame(playerId, config);
-      console.log("hostGame: gameId", gameId);
+      const gameId = await createGame(tempPlayerId, config);
+      // Check if we already have a playerId for this game
+      let playerId = getStoredPlayerId(gameId);
+      if (!playerId) {
+        playerId = tempPlayerId;
+        setStoredPlayerId(gameId, playerId);
+      }
+      setCurrentPlayerId(playerId, gameId);
 
-      // Add host as first player
-      await addPlayer(gameId, {
-        id: playerId,
-        name: "",
-        pieceId: "",
-        color: "",
-        balance: config.startingMoney,
-        properties: [],
-        isReady: false,
-        isHost: true,
-        isConnected: true,
-        lastSeen: Date.now(),
-      });
-      console.log("hostGame: host player added");
-
-      // Navigate to lobby
+      // Only add host as first player if not already present
+      const existingHost = await getPlayer(gameId, playerId);
+      if (!existingHost) {
+        await addPlayer(gameId, {
+          id: playerId,
+          name: "",
+          pieceId: "",
+          color: "",
+          balance: config.startingMoney,
+          properties: [],
+          isReady: false,
+          isHost: true,
+          isConnected: true,
+          lastSeen: Date.now(),
+        });
+      }
       navigate(`/lobby/${gameId}`);
-      console.log("hostGame: navigated to lobby");
     } catch (error) {
       console.error("Error hosting game:", error);
       alert("Failed to create game. Please try again.");
@@ -199,12 +211,6 @@ export function GameProvider({ children }: GameProviderProps) {
 
   const joinGame = async (code: string) => {
     try {
-      // Generate a temporary player ID
-      const playerId = `player_${Date.now()}_${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-      setCurrentPlayerId(playerId);
-
       // Find game by code
       const gameId = await joinGameByCode(code);
 
@@ -212,6 +218,16 @@ export function GameProvider({ children }: GameProviderProps) {
         alert("Game not found. Please check the code and try again.");
         return;
       }
+
+      // Use or generate a playerId for this game
+      let playerId = getStoredPlayerId(gameId);
+      if (!playerId) {
+        playerId = `player_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        setStoredPlayerId(gameId, playerId);
+      }
+      setCurrentPlayerId(playerId, gameId);
 
       // Get game config
       const gameData = await getGame(gameId);
@@ -224,19 +240,22 @@ export function GameProvider({ children }: GameProviderProps) {
         speedDie: false,
       };
 
-      // Add player to game
-      await addPlayer(gameId, {
-        id: playerId,
-        name: "",
-        pieceId: "",
-        color: "",
-        balance: config.startingMoney,
-        properties: [],
-        isReady: false,
-        isHost: false,
-        isConnected: true,
-        lastSeen: Date.now(),
-      });
+      // Only add player if not already present
+      const existingPlayer = await getPlayer(gameId, playerId);
+      if (!existingPlayer) {
+        await addPlayer(gameId, {
+          id: playerId,
+          name: "",
+          pieceId: "",
+          color: "",
+          balance: config.startingMoney,
+          properties: [],
+          isReady: false,
+          isHost: false,
+          isConnected: true,
+          lastSeen: Date.now(),
+        });
+      }
 
       // Navigate to lobby
       navigate(`/lobby/${gameId}`);
@@ -287,6 +306,9 @@ export function GameProvider({ children }: GameProviderProps) {
   };
 
   const leaveGame = () => {
+    if (game?.id) {
+      setStoredPlayerId(game.id, null);
+    }
     setGame(null);
     setCurrentPlayerId(null);
     navigate("/");
