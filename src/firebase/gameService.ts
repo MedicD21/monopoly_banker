@@ -1,3 +1,10 @@
+// Get a player document
+export async function getPlayer(gameId: string, playerId: string): Promise<Player | null> {
+  const playerRef = doc(db, 'games', gameId, 'players', playerId);
+  const playerSnap = await getDoc(playerRef);
+  if (!playerSnap.exists()) return null;
+  return { id: playerSnap.id, ...playerSnap.data() } as Player;
+}
 import {
   collection,
   doc,
