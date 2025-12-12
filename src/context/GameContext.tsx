@@ -5,6 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import {
   createGame,
@@ -88,12 +89,42 @@ interface GameProviderProps {
 export function GameProvider({ children }: GameProviderProps) {
   const [game, setGame] = useState<Game | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
+  const location = useLocation();
+  
+  // Restore currentPlayerId from localStorage if available
+  const [currentPlayerId, setCurrentPlayerIdState] = useState<string | null>(
+    () => {
+      return localStorage.getItem("currentPlayerId") || null;
+    }
+  );
   const navigate = useNavigate();
+
+  // Helper to set currentPlayerId in both state and localStorage
+  const setCurrentPlayerId = (id: string | null) => {
+    setCurrentPlayerIdState(id);
+    if (id) {
+      localStorage.setItem("currentPlayerId", id);
+    } else {
+      localStorage.removeItem("currentPlayerId");
+    }
+  };
 
   const isHost = game?.hostId === currentPlayerId;
 
   // Subscribe to game updates
+  // Restore game state on mount if gameId is in URL and currentPlayerId is set
+  useEffect(() => {
+    // Try to extract gameId from URL (e.g., /lobby/:gameId or /game/:gameId)
+    const match = location.pathname.match(/\/(lobby|game)\/(\w+)/);
+    const urlGameId = match ? match[2] : null;
+    if (!game && urlGameId) {
+      // Fetch game and set in state so subscriptions can start
+      getGame(urlGameId).then((fetchedGame) => {
+        if (fetchedGame) setGame(fetchedGame);
+      });
+    }
+  }, [location.pathname, game]);
+
   useEffect(() => {
     if (!game?.id) return;
 
