@@ -14,6 +14,7 @@ import {
   updatePlayer,
   startGame as startGameService,
   getGame,
+  getPlayer,
 } from "../firebase/gameService";
 import {
   subscribeToGame,

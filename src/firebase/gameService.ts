@@ -16,6 +16,7 @@ import { Game, GameConfig, Player, GameEvent } from '../types/game';
 // Generate a unique 5-digit game code
 export async function generateGameCode(): Promise<string> {
   let code: string;
+  // Get a player document
   let exists = true;
 
   while (exists) {
