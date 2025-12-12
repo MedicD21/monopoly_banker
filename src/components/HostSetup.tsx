@@ -51,14 +51,14 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
         </button>
 
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-amber-400 mb-2">Game Setup</h1>
-          <p className="text-amber-600">Configure your game settings</p>
+          <h1 className="text-4xl font-bold text-emerald-600 mb-2">
+            Game Setup
+          </h1>
+          <p className="text-red-600">Configure your game settings</p>
         </div>
 
         <div className="bg-zinc-900 rounded-lg p-6 border border-amber-900/30 mb-6">
-          <h2 className="text-xl font-bold text-amber-400 mb-4">
-            Game Variants
-          </h2>
+          <h2 className="text-xl font-bold text-red-400 mb-4">Game Variants</h2>
 
           <div className="space-y-4">
             <label className="flex items-center justify-between p-3 bg-zinc-800 rounded cursor-pointer hover:bg-zinc-700 transition-colors">
@@ -112,7 +112,7 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
         </div>
 
         <div className="bg-zinc-900 rounded-lg p-6 border border-amber-900/30 mb-6">
-          <h2 className="text-xl font-bold text-amber-400 mb-4">
+          <h2 className="text-xl font-bold text-emerald-600 mb-4">
             Money Settings
           </h2>
 
@@ -124,7 +124,7 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
                   setEditingField("startingMoney");
                   setShowNumberPad(true);
                 }}
-                className="bg-amber-600 hover:bg-amber-500 text-black font-bold px-4 py-2 rounded"
+                className="bg-emerald-600 hover:bg-emerald-500 text-black font-bold px-4 py-2 rounded"
               >
                 ${config.startingMoney}
               </button>
@@ -137,7 +137,7 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
                   setEditingField("passGoAmount");
                   setShowNumberPad(true);
                 }}
-                className="bg-amber-600 hover:bg-amber-500 text-black font-bold px-4 py-2 rounded"
+                className="bg-emerald-600 hover:bg-emerald-500 text-black font-bold px-4 py-2 rounded"
               >
                 ${config.passGoAmount}
               </button>
@@ -160,7 +160,7 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
               setLoading(false);
             }
           }}
-          className="w-full bg-amber-600 hover:bg-amber-500 text-black font-bold py-4 rounded-lg text-xl transition-colors disabled:bg-zinc-700 disabled:text-zinc-400"
+          className="w-full bg-emerald-600 hover:bg-emerald-500 text-black font-bold py-4 rounded-lg text-xl transition-colors disabled:bg-zinc-700 disabled:text-zinc-400"
           disabled={loading}
         >
           {loading ? "Opening Lobby..." : "Open Game Lobby"}

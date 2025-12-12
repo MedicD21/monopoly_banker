@@ -8,6 +8,7 @@ export interface Property {
   name: string;
   houses: number;
   hotel: boolean;
+  mortgaged?: boolean;
 }
 
 export interface Player {

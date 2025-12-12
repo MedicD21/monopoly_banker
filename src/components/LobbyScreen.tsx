@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Check, X } from 'lucide-react';
-import QRCode from 'react-qr-code';
-import { GAME_PIECES, PLAYER_COLORS } from '../types/game';
+import React, { useState } from "react";
+import { Check, X } from "lucide-react";
+import QRCode from "react-qr-code";
+import { GAME_PIECES, PLAYER_COLORS } from "../types/game";
 
 interface Player {
   id: string;
@@ -33,17 +33,21 @@ export default function LobbyScreen({
   onStartGame,
   onLeave,
 }: LobbyScreenProps) {
-  const [name, setName] = useState('');
-  const [selectedPiece, setSelectedPiece] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
+  const [name, setName] = useState("");
+  const [selectedPiece, setSelectedPiece] = useState("");
+  const [selectedColor, setSelectedColor] = useState("");
 
-  const currentPlayer = players.find(p => p.id === currentPlayerId);
-  const allReady = players.length >= 2 && players.every(p => p.isReady);
+  const currentPlayer = players.find((p) => p.id === currentPlayerId);
+  const allReady = players.length >= 2 && players.every((p) => p.isReady);
   const gameUrl = `${window.location.origin}?join=${gameCode}`;
 
   // Get used pieces and colors
-  const usedPieces = players.filter(p => p.id !== currentPlayerId).map(p => p.pieceId);
-  const usedColors = players.filter(p => p.id !== currentPlayerId).map(p => p.color);
+  const usedPieces = players
+    .filter((p) => p.id !== currentPlayerId)
+    .map((p) => p.pieceId);
+  const usedColors = players
+    .filter((p) => p.id !== currentPlayerId)
+    .map((p) => p.color);
 
   const handleSaveSettings = () => {
     if (name && selectedPiece && selectedColor) {
@@ -67,36 +71,51 @@ export default function LobbyScreen({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Game Code & QR Code */}
           <div className="bg-zinc-900 rounded-lg p-6 border border-amber-900/30">
-            <h2 className="text-xl font-bold text-amber-400 mb-4">Join Code</h2>
+            <h2 className="text-xl font-bold text-emerald-600 mb-4 text-center">
+              Join Code
+            </h2>
             <div className="text-center mb-4">
               <div className="text-6xl font-bold text-amber-400 tracking-widest mb-2">
                 {gameCode}
               </div>
-              <p className="text-sm text-amber-600">Share this code with other players</p>
+              <p className="text-sm text-amber-600">
+                Share this code with other players
+              </p>
             </div>
 
-            <div className="bg-white p-4 rounded-lg inline-block">
-              <QRCode value={gameUrl} size={200} />
+            <div className="bg-green-300 p-4 rounded-lg inline-block flex items-center justify-center">
+              <QRCode value={gameUrl} size={150} />
             </div>
-            <p className="text-xs text-amber-600 mt-2">Scan to join instantly</p>
+            <p className="text-xs text-amber-600 mt-2 text-center">
+              Scan to join instantly
+            </p>
           </div>
 
           {/* Your Setup */}
           <div className="bg-zinc-900 rounded-lg p-6 border border-amber-900/30">
-            <h2 className="text-xl font-bold text-amber-400 mb-4">Your Setup</h2>
+            <h2 className="text-xl font-bold text-amber-400 mb-4">
+              Your Setup
+            </h2>
 
             {currentPlayer?.isReady ? (
               <div className="text-center py-8">
                 <div className="flex items-center justify-center gap-3 mb-4">
-                  <div className={`w-16 h-16 ${currentPlayer.color} rounded flex items-center justify-center p-2`}>
+                  <div
+                    className={`w-16 h-16 ${currentPlayer.color} rounded flex items-center justify-center p-2`}
+                  >
                     <img
-                      src={GAME_PIECES.find(p => p.id === currentPlayer.pieceId)?.icon}
+                      src={
+                        GAME_PIECES.find((p) => p.id === currentPlayer.pieceId)
+                          ?.icon
+                      }
                       alt="Your piece"
                       className="w-full h-full object-contain"
                     />
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold text-amber-50 mb-2">{currentPlayer.name}</h3>
+                <h3 className="text-2xl font-bold text-amber-50 mb-2">
+                  {currentPlayer.name}
+                </h3>
                 <div className="flex items-center justify-center gap-2 text-green-400 text-lg">
                   <Check className="w-6 h-6" />
                   Ready!
@@ -123,7 +142,9 @@ export default function LobbyScreen({
                 </div>
 
                 <div>
-                  <label className="block text-amber-400 mb-2">Game Piece</label>
+                  <label className="block text-amber-400 mb-2">
+                    Game Piece
+                  </label>
                   <div className="grid grid-cols-4 gap-2">
                     {GAME_PIECES.map((piece) => {
                       const isUsed = usedPieces.includes(piece.id);
@@ -134,13 +155,17 @@ export default function LobbyScreen({
                           disabled={isUsed}
                           className={`p-3 rounded border transition-all ${
                             selectedPiece === piece.id
-                              ? 'bg-amber-600 border-amber-500'
+                              ? "bg-amber-600 border-amber-500"
                               : isUsed
-                              ? 'bg-zinc-900 border-zinc-700 opacity-30 cursor-not-allowed'
-                              : 'bg-zinc-800 border-amber-900/30 hover:border-amber-600'
+                              ? "bg-zinc-900 border-zinc-700 opacity-30 cursor-not-allowed"
+                              : "bg-zinc-800 border-amber-900/30 hover:border-amber-600"
                           }`}
                         >
-                          <img src={piece.icon} alt={piece.name} className="w-full h-auto" />
+                          <img
+                            src={piece.icon}
+                            alt={piece.name}
+                            className="w-full h-auto"
+                          />
                         </button>
                       );
                     })}
@@ -159,10 +184,10 @@ export default function LobbyScreen({
                           disabled={isUsed}
                           className={`w-10 h-10 rounded ${color} ${
                             selectedColor === color
-                              ? 'ring-4 ring-amber-400'
+                              ? "ring-4 ring-amber-400"
                               : isUsed
-                              ? 'opacity-30 cursor-not-allowed'
-                              : 'hover:ring-2 ring-amber-600'
+                              ? "opacity-30 cursor-not-allowed"
+                              : "hover:ring-2 ring-amber-600"
                           } transition-all`}
                         />
                       );
@@ -192,7 +217,9 @@ export default function LobbyScreen({
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {players.map((player) => {
-              const piece = player.pieceId ? GAME_PIECES.find(p => p.id === player.pieceId) : undefined;
+              const piece = player.pieceId
+                ? GAME_PIECES.find((p) => p.id === player.pieceId)
+                : undefined;
               return (
                 <div
                   key={player.id}
@@ -200,18 +227,30 @@ export default function LobbyScreen({
                 >
                   <div className="flex items-center gap-3">
                     {player.pieceId && piece && piece.icon ? (
-                      <div className={`w-12 h-12 ${player.color} rounded flex items-center justify-center p-1`}>
-                        <img src={piece.icon} alt={piece.name} className="w-full h-full object-contain" />
+                      <div
+                        className={`w-12 h-12 ${player.color} rounded flex items-center justify-center p-1`}
+                      >
+                        <img
+                          src={piece.icon}
+                          alt={piece.name}
+                          className="w-full h-full object-contain"
+                        />
                       </div>
                     ) : (
-                      <div className={`w-12 h-12 ${player.color} rounded flex items-center justify-center p-1 bg-zinc-700`}>
+                      <div
+                        className={`w-12 h-12 ${player.color} rounded flex items-center justify-center p-1 bg-zinc-700`}
+                      >
                         <span className="text-xs text-zinc-400">No Piece</span>
                       </div>
                     )}
                     <div>
                       <p className="font-bold text-amber-50">
-                        {player.name || 'Setting up...'}
-                        {player.isHost && <span className="text-xs text-amber-400 ml-2">(Host)</span>}
+                        {player.name || "Setting up..."}
+                        {player.isHost && (
+                          <span className="text-xs text-amber-400 ml-2">
+                            (Host)
+                          </span>
+                        )}
                       </p>
                       {player.pieceId && piece && piece.name && (
                         <p className="text-sm text-amber-600">{piece.name}</p>
@@ -235,7 +274,9 @@ export default function LobbyScreen({
                 disabled={!allReady}
                 className="w-full bg-green-700 hover:bg-green-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-4 rounded-lg text-xl transition-colors"
               >
-                {allReady ? 'Start Game' : 'Waiting for all players to be ready...'}
+                {allReady
+                  ? "Start Game"
+                  : "Waiting for all players to be ready..."}
               </button>
             </div>
           )}

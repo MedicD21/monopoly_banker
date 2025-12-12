@@ -1,5 +1,5 @@
-import React from 'react';
-import { Users, LogIn } from 'lucide-react';
+import React from "react";
+import { Users, LogIn } from "lucide-react";
 
 interface StartScreenProps {
   onHost: () => void;
@@ -12,18 +12,18 @@ export default function StartScreen({ onHost, onJoin }: StartScreenProps) {
       <div className="max-w-md w-full">
         <div className="text-center mb-12">
           <div className="flex justify-center mb-6">
-            <img src="/images/Monopoly_Logo.svg" alt="Monopoly" className="w-64 h-auto" />
+            <img
+              src="/images/logo_sticker.svg"
+              alt="Monopoly"
+              className="w-auto h-auto"
+            />
           </div>
-          <h1 className="text-5xl font-bold mb-2 text-amber-400">
-            MONOPOLY BANKER
-          </h1>
-          <p className="text-amber-600 text-lg">Digital Banking System</p>
         </div>
 
         <div className="space-y-4">
           <button
             onClick={onHost}
-            className="w-full bg-amber-600 hover:bg-amber-500 text-black font-bold py-6 rounded-lg text-xl transition-colors flex items-center justify-center gap-3"
+            className="w-full bg-green-600 hover:bg-green-500 text-black font-bold py-6 rounded-lg text-xl transition-colors flex items-center justify-center gap-3"
           >
             <Users className="w-8 h-8" />
             Host Game
@@ -31,7 +31,7 @@ export default function StartScreen({ onHost, onJoin }: StartScreenProps) {
 
           <button
             onClick={onJoin}
-            className="w-full bg-blue-700 hover:bg-blue-600 text-white font-bold py-6 rounded-lg text-xl transition-colors flex items-center justify-center gap-3"
+            className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-6 rounded-lg text-xl transition-colors flex items-center justify-center gap-3"
           >
             <LogIn className="w-8 h-8" />
             Join Game

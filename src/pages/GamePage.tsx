@@ -52,6 +52,7 @@ export default function GamePage() {
   return (
     <MonopolyBanker
       gameId={game.id}
+      gameCode={game.code}
       initialPlayers={players}
       currentPlayerId={currentPlayerId}
       gameConfig={game.config}

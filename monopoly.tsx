@@ -27,6 +27,8 @@ import {
   recordDiceRoll,
   passGo as passGoFirebase,
   resetGame as resetGameFirebase,
+  mortgageProperty as mortgagePropertyFirebase,
+  unmortgageProperty as unmortgagePropertyFirebase,
 } from "./src/firebase/gameplayService";
 import { updatePlayer } from "./src/firebase/gameService";
 
@@ -258,6 +260,7 @@ const PLAYER_COLORS = [
 
 interface MonopolyBankerProps {
   gameId?: string;
+  gameCode?: string;
   initialPlayers?: any[];
   currentPlayerId?: string;
   gameConfig?: {
@@ -272,6 +275,7 @@ interface MonopolyBankerProps {
 
 export default function MonopolyBanker({
   gameId,
+  gameCode,
   initialPlayers,
   currentPlayerId: firebasePlayerId,
   gameConfig,
@@ -607,11 +611,131 @@ export default function MonopolyBanker({
     }
   };
 
+  const mortgageProperty = async (playerId, propertyName) => {
+    const property = PROPERTIES.find((p) => p.name === propertyName);
+    const player = players.find((p) => p.id === playerId);
+    if (!player || !property) return;
+
+    const playerProp = player.properties.find((pr) => pr.name === propertyName);
+    if (!playerProp) return;
+
+    // Can't mortgage if it has houses or hotels
+    if (playerProp.houses > 0 || playerProp.hotel) {
+      alert("You must sell all houses and hotels before mortgaging!");
+      return;
+    }
+
+    // Can't mortgage if already mortgaged
+    if (playerProp.mortgaged) {
+      alert("This property is already mortgaged!");
+      return;
+    }
+
+    const mortgageValue = Math.floor(property.price / 2);
+    const newBalance = player.balance + mortgageValue;
+
+    // Update local state
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? {
+              ...p,
+              balance: newBalance,
+              properties: p.properties.map((pr) =>
+                pr.name === propertyName ? { ...pr, mortgaged: true } : pr
+              ),
+            }
+          : p
+      )
+    );
+
+    // Sync to Firebase in multiplayer mode
+    if (isMultiplayer && gameId) {
+      await mortgagePropertyFirebase(gameId, playerId, propertyName, mortgageValue);
+    }
+  };
+
+  const unmortgageProperty = async (playerId, propertyName) => {
+    const property = PROPERTIES.find((p) => p.name === propertyName);
+    const player = players.find((p) => p.id === playerId);
+    if (!player || !property) return;
+
+    const playerProp = player.properties.find((pr) => pr.name === propertyName);
+    if (!playerProp) return;
+
+    // Can't unmortgage if not mortgaged
+    if (!playerProp.mortgaged) {
+      alert("This property is not mortgaged!");
+      return;
+    }
+
+    // Unmortgage cost is mortgage value + 10%
+    const mortgageValue = Math.floor(property.price / 2);
+    const unmortgageCost = Math.floor(mortgageValue * 1.1);
+
+    if (player.balance < unmortgageCost) {
+      alert(`You need $${unmortgageCost.toLocaleString()} to unmortgage this property!`);
+      return;
+    }
+
+    const newBalance = player.balance - unmortgageCost;
+
+    // Update local state
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? {
+              ...p,
+              balance: newBalance,
+              properties: p.properties.map((pr) =>
+                pr.name === propertyName ? { ...pr, mortgaged: false } : pr
+              ),
+            }
+          : p
+      )
+    );
+
+    // Sync to Firebase in multiplayer mode
+    if (isMultiplayer && gameId) {
+      await unmortgagePropertyFirebase(gameId, playerId, propertyName, unmortgageCost);
+    }
+  };
+
+  // Check if player has a monopoly (owns all properties in a color group)
+  const hasMonopoly = (player, propertyName) => {
+    const property = PROPERTIES.find((p) => p.name === propertyName);
+    if (!property) return false;
+
+    // Can't build on railroads or utilities
+    if (property.group === "railroad" || property.group === "utility") {
+      return false;
+    }
+
+    // Get all properties in the same color group
+    const groupProperties = PROPERTIES.filter(
+      (p) => p.group === property.group
+    );
+
+    // Check if player owns all properties in the group
+    const ownedInGroup = player.properties.filter((pr) => {
+      const prop = PROPERTIES.find((p) => p.name === pr.name);
+      return prop && prop.group === property.group;
+    });
+
+    return ownedInGroup.length === groupProperties.length;
+  };
+
   const addHouse = async (playerId, propertyName) => {
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
     const playerProp = player.properties.find((pr) => pr.name === propertyName);
     if (!playerProp) return;
+
+    // Check if player has monopoly before allowing house purchase
+    if (!hasMonopoly(player, propertyName)) {
+      alert("You must own all properties in this color group to build houses!");
+      return;
+    }
 
     if (
       player.balance >= HOUSE_COST &&
@@ -682,6 +806,18 @@ export default function MonopolyBanker({
     if (!player) return;
     const playerProp = player.properties.find((pr) => pr.name === propertyName);
     if (!playerProp) return;
+
+    // Check if player has monopoly before allowing hotel purchase
+    if (!hasMonopoly(player, propertyName)) {
+      alert("You must own all properties in this color group to build hotels!");
+      return;
+    }
+
+    // Check if property has exactly 4 houses before allowing hotel
+    if (playerProp.houses !== 4) {
+      alert("You must have exactly 4 houses before building a hotel!");
+      return;
+    }
 
     if (
       player.balance >= HOTEL_COST &&
@@ -792,13 +928,14 @@ export default function MonopolyBanker({
 
   // Enhanced pay system handlers
   const handleBankerPays = () => {
-    if (currentPlayerId === null) {
+    const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+    if (playerIdToUse === null) {
       showError("Please select which player you are first");
       return;
     }
     setNumberPadTitle("Banker Pays");
     setNumberPadCallback(() => (amount) => {
-      updateBalance(currentPlayerId, amount);
+      updateBalance(playerIdToUse, amount);
     });
     setShowNumberPad(true);
   };
@@ -810,19 +947,21 @@ export default function MonopolyBanker({
   };
 
   const handleCustomAmountClick = (toPlayerId) => {
+    const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
     setNumberPadTitle(
       `Pay to ${players.find((p) => p.id === toPlayerId)?.name}`
     );
     setNumberPadCallback(() => (amount) => {
-      transferMoney(currentPlayerId, toPlayerId, amount.toString());
+      transferMoney(playerIdToUse, toPlayerId, amount.toString());
     });
     setShowPayPlayerModal(false);
     setShowNumberPad(true);
   };
 
   const handlePayRent = (amount, propertyName) => {
-    if (selectedLandlord !== null && currentPlayerId !== null) {
-      transferMoney(currentPlayerId, selectedLandlord, amount.toString());
+    const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+    if (selectedLandlord !== null && playerIdToUse !== null) {
+      transferMoney(playerIdToUse, selectedLandlord, amount.toString());
       setShowRentSelector(false);
       setSelectedLandlord(null);
     }
@@ -1064,15 +1203,23 @@ export default function MonopolyBanker({
             </button>
           </div>
 
+          {/* Room Code Display */}
+          {isMultiplayer && gameCode && (
+            <div className="text-center text-xs text-amber-600 mb-4">
+              Room Code: <span className="font-bold text-amber-500">{gameCode}</span>
+            </div>
+          )}
+
           {/* Banker Action Buttons */}
           <div className="flex flex-wrap gap-2 mb-4">
             <button
               onClick={() => {
-                if (currentPlayerId === null) {
+                const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+                if (playerIdToUse === null) {
                   showError("Please select which player you are first");
                   return;
                 }
-                passGo(currentPlayerId);
+                passGo(playerIdToUse);
               }}
               className="bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded font-bold transition-colors flex items-center gap-2"
             >
@@ -1082,11 +1229,11 @@ export default function MonopolyBanker({
 
             <button
               onClick={() => {
-                if (currentPlayerId === null) {
+                const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+                if (playerIdToUse === null) {
                   showError("Please select which player you are first");
                   return;
                 }
-                setCurrentPlayer(currentPlayerId);
                 setShowBuyProperty(true);
               }}
               className="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded font-bold transition-colors flex items-center gap-2"
@@ -1174,7 +1321,8 @@ export default function MonopolyBanker({
         {/* PLAYERS LIST */}
         <div className="space-y-3">
           {players.map((player) => {
-            const isCurrentUser = player.id === currentPlayerId;
+            const playerIdToCompare = isMultiplayer ? firebasePlayerId : currentPlayerId;
+            const isCurrentUser = player.id === playerIdToCompare;
 
             return (
               <div
@@ -1208,16 +1356,40 @@ export default function MonopolyBanker({
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setCurrentPlayerId(player.id)}
-                    className={`px-4 py-2 rounded font-bold transition-all ${
-                      isCurrentUser
-                        ? "bg-amber-600 text-black"
-                        : "bg-zinc-800 hover:bg-zinc-700 border border-amber-900/30 text-amber-400"
-                    }`}
-                  >
-                    {isCurrentUser ? "You" : "Select"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {isCurrentUser && (
+                      <div className="px-4 py-2 rounded font-bold bg-amber-600 text-black">
+                        You
+                      </div>
+                    )}
+                    {!isCurrentUser && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handlePayRentClick(player.id)}
+                          disabled={player.properties.length === 0}
+                          className="bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                        >
+                          <img
+                            src="/images/Payment.svg"
+                            alt="Pay Rent"
+                            className="w-4 h-4"
+                          />
+                          Pay Rent
+                        </button>
+                        <button
+                          onClick={() => handleCustomAmountClick(player.id)}
+                          className="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                        >
+                          <img
+                            src="/images/Bank.svg"
+                            alt="Pay"
+                            className="w-4 h-4"
+                          />
+                          Pay
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Player-specific action buttons - ONLY SHOW IF THIS IS THE CURRENT USER */}
@@ -1298,10 +1470,15 @@ export default function MonopolyBanker({
                                   className={`w-3 h-3 rounded ${property.color}`}
                                 ></div>
                               )}
-                              <span className="text-amber-100">
+                              <span className={`${prop.mortgaged ? "text-zinc-500 line-through" : "text-amber-100"}`}>
                                 {prop.name}
                               </span>
-                              {prop.hotel ? (
+                              {prop.mortgaged && (
+                                <span className="text-xs bg-red-900 text-red-200 px-1.5 py-0.5 rounded font-bold">
+                                  MORT
+                                </span>
+                              )}
+                              {!prop.mortgaged && prop.hotel ? (
                                 <span className="flex items-center gap-0.5">
                                   <img
                                     src="/images/Hotel.svg"
@@ -1309,7 +1486,7 @@ export default function MonopolyBanker({
                                     className="w-4 h-4"
                                   />
                                 </span>
-                              ) : prop.houses > 0 ? (
+                              ) : !prop.mortgaged && prop.houses > 0 ? (
                                 <span className="flex items-center gap-0.5">
                                   {Array.from({ length: prop.houses }).map(
                                     (_, i) => (
@@ -1330,7 +1507,6 @@ export default function MonopolyBanker({
                               <button
                                 onClick={() => {
                                   setSelectedProperty(prop.name);
-                                  setCurrentPlayer(player.id);
                                 }}
                                 className="text-amber-400 hover:text-amber-300"
                               >
@@ -1349,7 +1525,7 @@ export default function MonopolyBanker({
         </div>
 
         {/* Buy Property Modal */}
-        {showBuyProperty && currentPlayer !== null && (
+        {showBuyProperty && (isMultiplayer ? firebasePlayerId : currentPlayerId) !== null && (
           <Modal onClose={() => setShowBuyProperty(false)}>
             <h3 className="text-xl font-bold text-amber-400 mb-4">
               Buy Property
@@ -1400,7 +1576,8 @@ export default function MonopolyBanker({
                   </div>
                   <button
                     onClick={() => {
-                      buyProperty(currentPlayer, property);
+                      const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+                      buyProperty(playerIdToUse, property);
                       setShowBuyProperty(false);
                     }}
                     className="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors"
@@ -1506,7 +1683,7 @@ export default function MonopolyBanker({
         )}
 
         {/* Property Management Modal */}
-        {selectedProperty && currentPlayer !== null && (
+        {selectedProperty && (isMultiplayer ? firebasePlayerId : currentPlayerId) !== null && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
             <div className="bg-zinc-900 rounded-lg p-6 max-w-md w-full border border-amber-900/30">
               <div className="flex justify-between items-center mb-4">
@@ -1516,7 +1693,6 @@ export default function MonopolyBanker({
                 <button
                   onClick={() => {
                     setSelectedProperty(null);
-                    setCurrentPlayer(null);
                   }}
                   className="text-amber-400 hover:text-amber-300"
                 >
@@ -1530,7 +1706,8 @@ export default function MonopolyBanker({
                 </p>
 
                 {(() => {
-                  const player = players.find((p) => p.id === currentPlayer);
+                  const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+                  const player = players.find((p) => p.id === playerIdToUse);
                   const playerProp = player?.properties.find(
                     (p) => p.name === selectedProperty
                   );
@@ -1543,11 +1720,35 @@ export default function MonopolyBanker({
                     property.group === "railroad" ||
                     property.group === "utility"
                   ) {
+                    const mortgageValue = Math.floor((property?.price || 0) / 2);
+                    const unmortgageCost = Math.floor(mortgageValue * 1.1);
+
                     return (
                       <div className="space-y-2">
+                        {playerProp?.mortgaged ? (
+                          <button
+                            onClick={() =>
+                              unmortgageProperty(playerIdToUse, selectedProperty)
+                            }
+                            disabled={(player?.balance || 0) < unmortgageCost}
+                            className="w-full bg-yellow-700 hover:bg-yellow-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
+                          >
+                            Unmortgage (${unmortgageCost.toLocaleString()})
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              mortgageProperty(playerIdToUse, selectedProperty)
+                            }
+                            className="w-full bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-3 rounded transition-colors"
+                          >
+                            Mortgage (+${mortgageValue.toLocaleString()})
+                          </button>
+                        )}
+
                         <button
                           onClick={() =>
-                            sellProperty(currentPlayer, selectedProperty)
+                            sellProperty(playerIdToUse, selectedProperty)
                           }
                           className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-3 rounded transition-colors"
                         >
@@ -1561,18 +1762,25 @@ export default function MonopolyBanker({
                     <div className="space-y-2">
                       <div className="bg-zinc-800 p-3 rounded mb-3">
                         <p className="text-amber-100">
-                          Houses:{" "}
-                          {playerProp?.houses === 5
-                            ? "Hotel"
-                            : playerProp?.houses || 0}
+                          {playerProp?.hotel ? "Hotel" : `Houses: ${playerProp?.houses || 0}`}
                         </p>
+                        {!hasMonopoly(player, selectedProperty) && (
+                          <p className="text-amber-500 text-xs mt-1">
+                            ⚠️ Own all properties in this color to build
+                          </p>
+                        )}
                       </div>
 
                       <button
                         onClick={() =>
-                          addHouse(currentPlayer, selectedProperty)
+                          addHouse(playerIdToUse, selectedProperty)
                         }
-                        disabled={playerProp?.houses >= 5}
+                        disabled={
+                          !hasMonopoly(player, selectedProperty) ||
+                          playerProp?.houses >= 4 ||
+                          playerProp?.hotel ||
+                          (player?.balance || 0) < HOUSE_COST
+                        }
                         className="w-full bg-green-700 hover:bg-green-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors flex items-center justify-center gap-2"
                       >
                         <img
@@ -1585,7 +1793,7 @@ export default function MonopolyBanker({
 
                       <button
                         onClick={() =>
-                          removeHouse(currentPlayer, selectedProperty)
+                          removeHouse(playerIdToUse, selectedProperty)
                         }
                         disabled={
                           !playerProp?.houses || playerProp.houses === 0
@@ -1602,7 +1810,54 @@ export default function MonopolyBanker({
 
                       <button
                         onClick={() =>
-                          sellProperty(currentPlayer, selectedProperty)
+                          addHotel(playerIdToUse, selectedProperty)
+                        }
+                        disabled={
+                          !hasMonopoly(player, selectedProperty) ||
+                          playerProp?.houses !== 4 ||
+                          playerProp?.hotel ||
+                          (player?.balance || 0) < HOTEL_COST
+                        }
+                        className="w-full bg-blue-700 hover:bg-blue-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors flex items-center justify-center gap-2"
+                      >
+                        <img
+                          src="/images/Hotel.svg"
+                          alt="Hotel"
+                          className="w-5 h-5"
+                        />
+                        Add Hotel (${HOTEL_COST})
+                      </button>
+
+                      {(() => {
+                        const mortgageValue = Math.floor((property?.price || 0) / 2);
+                        const unmortgageCost = Math.floor(mortgageValue * 1.1);
+
+                        return playerProp?.mortgaged ? (
+                          <button
+                            onClick={() =>
+                              unmortgageProperty(playerIdToUse, selectedProperty)
+                            }
+                            disabled={(player?.balance || 0) < unmortgageCost}
+                            className="w-full bg-yellow-700 hover:bg-yellow-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
+                          >
+                            Unmortgage (${unmortgageCost.toLocaleString()})
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              mortgageProperty(playerIdToUse, selectedProperty)
+                            }
+                            disabled={playerProp?.houses > 0 || playerProp?.hotel}
+                            className="w-full bg-yellow-700 hover:bg-yellow-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
+                          >
+                            Mortgage (+${mortgageValue.toLocaleString()})
+                          </button>
+                        );
+                      })()}
+
+                      <button
+                        onClick={() =>
+                          sellProperty(playerIdToUse, selectedProperty)
                         }
                         className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-3 rounded transition-colors"
                       >
@@ -1621,7 +1876,7 @@ export default function MonopolyBanker({
           isOpen={showPayPlayerModal}
           onClose={() => setShowPayPlayerModal(false)}
           currentPlayer={
-            players.find((p) => p.id === currentPlayerId) || players[0]
+            players.find((p) => p.id === (isMultiplayer ? firebasePlayerId : currentPlayerId)) || players[0]
           }
           allPlayers={players}
           onPayRent={handlePayRentClick}

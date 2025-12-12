@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { GAME_PIECES } from '../types/game';
 
 interface Player {
-  id: number;
+  id: number | string;
   name: string;
   balance: number;
   color: string;
-  piece: { name: string; icon: string };
+  piece?: { name: string; icon: string };
+  pieceId?: string;
   properties: any[];
 }
 
@@ -15,8 +17,8 @@ interface PayPlayerModalProps {
   onClose: () => void;
   currentPlayer: Player;
   allPlayers: Player[];
-  onPayRent: (toPlayerId: number) => void;
-  onCustomAmount: (toPlayerId: number) => void;
+  onPayRent: (toPlayerId: number | string) => void;
+  onCustomAmount: (toPlayerId: number | string) => void;
 }
 
 export default function PayPlayerModal({
@@ -46,42 +48,48 @@ export default function PayPlayerModal({
         </p>
 
         <div className="space-y-3">
-          {opponents.map((player) => (
-            <div
-              key={player.id}
-              className="bg-zinc-800 rounded-lg p-4 border border-amber-900/30"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 ${player.color} rounded flex items-center justify-center p-1`}>
-                  <img
-                    src={player.piece.icon}
-                    alt={player.piece.name}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div>
-                  <h4 className="font-bold text-amber-50">{player.name}</h4>
-                  <p className="text-sm text-amber-400">${player.balance.toLocaleString()}</p>
-                </div>
-              </div>
+          {opponents.map((player) => {
+            const piece = player.piece || GAME_PIECES.find(p => p.id === player.pieceId);
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onPayRent(player.id)}
-                  disabled={player.properties.length === 0}
-                  className="flex-1 bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-2 px-3 rounded text-sm transition-colors"
-                >
-                  Pay Rent
-                </button>
-                <button
-                  onClick={() => onCustomAmount(player.id)}
-                  className="flex-1 bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded text-sm transition-colors"
-                >
-                  Custom Amount
-                </button>
+            return (
+              <div
+                key={player.id}
+                className="bg-zinc-800 rounded-lg p-4 border border-amber-900/30"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 ${player.color} rounded flex items-center justify-center p-1`}>
+                    {piece && (
+                      <img
+                        src={piece.icon}
+                        alt={piece.name}
+                        className="w-full h-full object-contain"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-amber-50">{player.name}</h4>
+                    <p className="text-sm text-amber-400">${player.balance.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onPayRent(player.id)}
+                    disabled={player.properties.length === 0}
+                    className="flex-1 bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-2 px-3 rounded text-sm transition-colors"
+                  >
+                    Pay Rent
+                  </button>
+                  <button
+                    onClick={() => onCustomAmount(player.id)}
+                    className="flex-1 bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded text-sm transition-colors"
+                  >
+                    Custom Amount
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <button

@@ -166,3 +166,55 @@ export async function resetGame(gameId: string, startingBalance: number): Promis
     },
   });
 }
+
+// Mortgage a property
+export async function mortgageProperty(
+  gameId: string,
+  playerId: string,
+  propertyName: string,
+  mortgageValue: number
+): Promise<void> {
+  // Update property to mortgaged status
+  await updatePropertyOnPlayer(gameId, playerId, propertyName, {
+    mortgaged: true,
+  });
+
+  // Give player half the property value
+  await updatePlayerBalance(gameId, playerId, mortgageValue);
+
+  await logEvent(gameId, {
+    type: 'property',
+    playerId,
+    data: {
+      action: 'mortgage',
+      property: propertyName,
+      amount: mortgageValue,
+    },
+  });
+}
+
+// Unmortgage a property
+export async function unmortgageProperty(
+  gameId: string,
+  playerId: string,
+  propertyName: string,
+  unmortgageCost: number
+): Promise<void> {
+  // Update property to unmortgaged status
+  await updatePropertyOnPlayer(gameId, playerId, propertyName, {
+    mortgaged: false,
+  });
+
+  // Charge player the unmortgage cost (mortgage value + 10%)
+  await updatePlayerBalance(gameId, playerId, -unmortgageCost);
+
+  await logEvent(gameId, {
+    type: 'property',
+    playerId,
+    data: {
+      action: 'unmortgage',
+      property: propertyName,
+      amount: unmortgageCost,
+    },
+  });
+}

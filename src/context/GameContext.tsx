@@ -21,38 +21,7 @@ import {
   subscribeToPlayers,
   setupPresence,
 } from "../firebase/realtimeService";
-
-interface Player {
-  id: string;
-  name: string;
-  pieceId: string;
-  color: string;
-  balance: number;
-  properties: any[];
-  isReady?: boolean;
-  isHost?: boolean;
-  isConnected: boolean;
-  lastSeen: number;
-}
-
-interface GameConfig {
-  startingMoney: number;
-  passGoAmount: number;
-  freeParkingJackpot: boolean;
-  doubleGoOnLanding: boolean;
-  auctionProperties: boolean;
-  speedDie: boolean;
-}
-
-interface Game {
-  id: string;
-  code: string;
-  hostId: string;
-  status: "lobby" | "playing" | "finished";
-  config: GameConfig;
-  currentTurn?: string;
-  createdAt: number;
-}
+import { Game, GameConfig, Player } from "../types/game";
 
 interface GameContextType {
   game: Game | null;
@@ -132,10 +101,18 @@ export function GameProvider({ children }: GameProviderProps) {
     if (!game && urlGameId) {
       // Fetch game and set in state so subscriptions can start
       getGame(urlGameId).then((fetchedGame) => {
-        if (fetchedGame) setGame(fetchedGame);
+        if (fetchedGame) {
+          setGame(fetchedGame);
+
+          // Restore playerId from localStorage for this game
+          const storedPlayerId = getStoredPlayerId(urlGameId);
+          if (storedPlayerId && !currentPlayerId) {
+            setCurrentPlayerIdState(storedPlayerId);
+          }
+        }
       });
     }
-  }, [location.pathname, game]);
+  }, [location.pathname, game, currentPlayerId]);
 
   useEffect(() => {
     if (!game?.id) return;

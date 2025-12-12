@@ -1,13 +1,3 @@
-// Get a player document
-export async function getPlayer(
-  gameId: string,
-  playerId: string
-): Promise<Player | null> {
-  const playerRef = doc(db, "games", gameId, "players", playerId);
-  const playerSnap = await getDoc(playerRef);
-  if (!playerSnap.exists()) return null;
-  return { id: playerSnap.id, ...playerSnap.data() } as Player;
-}
 import {
   collection,
   doc,
@@ -26,7 +16,6 @@ import { Game, GameConfig, Player, GameEvent } from "../types/game";
 // Generate a unique 5-digit game code
 export async function generateGameCode(): Promise<string> {
   let code: string;
-  // Get a player document
   let exists = true;
 
   while (exists) {
@@ -157,4 +146,15 @@ export async function updateLastDiceRoll(
 // Start the game
 export async function startGame(gameId: string): Promise<void> {
   await updateGameStatus(gameId, "playing");
+}
+
+// Get a player document
+export async function getPlayer(
+  gameId: string,
+  playerId: string
+): Promise<Player | null> {
+  const playerRef = doc(db, "games", gameId, "players", playerId);
+  const playerSnap = await getDoc(playerRef);
+  if (!playerSnap.exists()) return null;
+  return { id: playerSnap.id, ...playerSnap.data() } as Player;
 }
