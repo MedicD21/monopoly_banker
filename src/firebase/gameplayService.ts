@@ -1,4 +1,4 @@
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
 import { db } from './config';
 import { updatePlayer, logEvent, updateLastDiceRoll } from './gameService';
 import { Property } from '../types/game';
@@ -62,7 +62,20 @@ export async function removePropertyFromPlayer(
   playerId: string,
   propertyName: string
 ): Promise<void> {
-  // Note: arrayRemove requires exact match, so we need to find and remove the property object
+  const playerRef = doc(db, 'games', gameId, 'players', playerId);
+  const playerSnap = await getDoc(playerRef);
+
+  if (playerSnap.exists()) {
+    const playerData = playerSnap.data();
+    const properties = playerData.properties || [];
+    const updatedProperties = properties.filter((p: Property) => p.name !== propertyName);
+
+    await updateDoc(playerRef, {
+      properties: updatedProperties,
+      lastSeen: Date.now(),
+    });
+  }
+
   await logEvent(gameId, {
     type: 'property',
     playerId,
@@ -80,8 +93,22 @@ export async function updatePropertyOnPlayer(
   propertyName: string,
   updates: Partial<Property>
 ): Promise<void> {
-  // This requires getting current properties, updating the specific one, and saving back
-  // For now, log the event - the actual update will be handled by re-syncing properties
+  const playerRef = doc(db, 'games', gameId, 'players', playerId);
+  const playerSnap = await getDoc(playerRef);
+
+  if (playerSnap.exists()) {
+    const playerData = playerSnap.data();
+    const properties = playerData.properties || [];
+    const updatedProperties = properties.map((p: Property) =>
+      p.name === propertyName ? { ...p, ...updates } : p
+    );
+
+    await updateDoc(playerRef, {
+      properties: updatedProperties,
+      lastSeen: Date.now(),
+    });
+  }
+
   await logEvent(gameId, {
     type: 'property',
     playerId,

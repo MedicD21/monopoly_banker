@@ -22,6 +22,8 @@ import {
   updatePlayerBalance,
   transferMoney as transferMoneyFirebase,
   addPropertyToPlayer,
+  removePropertyFromPlayer,
+  updatePropertyOnPlayer,
   recordDiceRoll,
   passGo as passGoFirebase,
   resetGame as resetGameFirebase,
@@ -572,7 +574,7 @@ export default function MonopolyBanker({
     setTransactionMode(null);
   };
 
-  const sellProperty = (playerId, propertyName) => {
+  const sellProperty = async (playerId, propertyName) => {
     const property = PROPERTIES.find((p) => p.name === propertyName);
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
@@ -583,20 +585,29 @@ export default function MonopolyBanker({
       playerProp.houses * HOUSE_COST +
       (playerProp.hotel ? HOTEL_COST : 0);
 
+    const newBalance = player.balance + refund;
+
+    // Update local state
     setPlayers((prev) =>
       prev.map((p) =>
         p.id === playerId
           ? {
               ...p,
-              balance: p.balance + refund,
+              balance: newBalance,
               properties: p.properties.filter((pr) => pr.name !== propertyName),
             }
           : p
       )
     );
+
+    // Sync to Firebase in multiplayer mode
+    if (isMultiplayer && gameId) {
+      await updatePlayerBalance(gameId, playerId, newBalance);
+      await removePropertyFromPlayer(gameId, playerId, propertyName);
+    }
   };
 
-  const addHouse = (playerId, propertyName) => {
+  const addHouse = async (playerId, propertyName) => {
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
     const playerProp = player.properties.find((pr) => pr.name === propertyName);
@@ -607,46 +618,66 @@ export default function MonopolyBanker({
       playerProp.houses < 4 &&
       !playerProp.hotel
     ) {
+      const newBalance = player.balance - HOUSE_COST;
+      const newHouses = playerProp.houses + 1;
+
+      // Update local state
       setPlayers((prev) =>
         prev.map((p) => {
           if (p.id === playerId) {
             return {
               ...p,
-              balance: p.balance - HOUSE_COST,
+              balance: newBalance,
               properties: p.properties.map((pr) =>
-                pr.name === propertyName ? { ...pr, houses: pr.houses + 1 } : pr
+                pr.name === propertyName ? { ...pr, houses: newHouses } : pr
               ),
             };
           }
           return p;
         })
       );
+
+      // Sync to Firebase in multiplayer mode
+      if (isMultiplayer && gameId) {
+        await updatePlayerBalance(gameId, playerId, newBalance);
+        await updatePropertyOnPlayer(gameId, playerId, propertyName, { houses: newHouses });
+      }
     }
   };
 
-  const removeHouse = (playerId, propertyName) => {
+  const removeHouse = async (playerId, propertyName) => {
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
     const playerProp = player.properties.find((pr) => pr.name === propertyName);
     if (!playerProp || playerProp.houses === 0) return;
 
+    const newBalance = player.balance + HOUSE_COST / 2;
+    const newHouses = playerProp.houses - 1;
+
+    // Update local state
     setPlayers((prev) =>
       prev.map((p) => {
         if (p.id === playerId) {
           return {
             ...p,
-            balance: p.balance + HOUSE_COST / 2,
+            balance: newBalance,
             properties: p.properties.map((pr) =>
-              pr.name === propertyName ? { ...pr, houses: pr.houses - 1 } : pr
+              pr.name === propertyName ? { ...pr, houses: newHouses } : pr
             ),
           };
         }
         return p;
       })
     );
+
+    // Sync to Firebase in multiplayer mode
+    if (isMultiplayer && gameId) {
+      await updatePlayerBalance(gameId, playerId, newBalance);
+      await updatePropertyOnPlayer(gameId, playerId, propertyName, { houses: newHouses });
+    }
   };
 
-  const addHotel = (playerId, propertyName) => {
+  const addHotel = async (playerId, propertyName) => {
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
     const playerProp = player.properties.find((pr) => pr.name === propertyName);
@@ -657,12 +688,15 @@ export default function MonopolyBanker({
       playerProp.houses === 4 &&
       !playerProp.hotel
     ) {
+      const newBalance = player.balance - HOTEL_COST;
+
+      // Update local state
       setPlayers((prev) =>
         prev.map((p) => {
           if (p.id === playerId) {
             return {
               ...p,
-              balance: p.balance - HOTEL_COST,
+              balance: newBalance,
               properties: p.properties.map((pr) =>
                 pr.name === propertyName
                   ? { ...pr, houses: 0, hotel: true }
@@ -673,6 +707,12 @@ export default function MonopolyBanker({
           return p;
         })
       );
+
+      // Sync to Firebase in multiplayer mode
+      if (isMultiplayer && gameId) {
+        await updatePlayerBalance(gameId, playerId, newBalance);
+        await updatePropertyOnPlayer(gameId, playerId, propertyName, { houses: 0, hotel: true });
+      }
     }
   };
 
@@ -1148,11 +1188,16 @@ export default function MonopolyBanker({
                     <div
                       className={`w-14 h-14 ${player.color} rounded flex items-center justify-center p-1`}
                     >
-                      <img
-                        src={player.piece.icon}
-                        alt={player.piece.name}
-                        className="w-full h-full object-contain"
-                      />
+                      {(() => {
+                        const piece = player.piece || GAME_PIECES.find(p => p.id === player.pieceId);
+                        return piece ? (
+                          <img
+                            src={piece.icon}
+                            alt={piece.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : null;
+                      })()}
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-amber-50">
