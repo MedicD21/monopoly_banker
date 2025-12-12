@@ -192,16 +192,20 @@ export default function LobbyScreen({
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {players.map((player) => {
-              const piece = GAME_PIECES.find(p => p.id === player.pieceId);
+              const piece = player.pieceId ? GAME_PIECES.find(p => p.id === player.pieceId) : undefined;
               return (
                 <div
                   key={player.id}
                   className="bg-zinc-800 rounded-lg p-4 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
-                    {player.pieceId && (
+                    {player.pieceId && piece && piece.icon ? (
                       <div className={`w-12 h-12 ${player.color} rounded flex items-center justify-center p-1`}>
-                        <img src={piece?.icon} alt={piece?.name} className="w-full h-full object-contain" />
+                        <img src={piece.icon} alt={piece.name} className="w-full h-full object-contain" />
+                      </div>
+                    ) : (
+                      <div className={`w-12 h-12 ${player.color} rounded flex items-center justify-center p-1 bg-zinc-700`}>
+                        <span className="text-xs text-zinc-400">No Piece</span>
                       </div>
                     )}
                     <div>
@@ -209,8 +213,8 @@ export default function LobbyScreen({
                         {player.name || 'Setting up...'}
                         {player.isHost && <span className="text-xs text-amber-400 ml-2">(Host)</span>}
                       </p>
-                      {player.pieceId && (
-                        <p className="text-sm text-amber-600">{piece?.name}</p>
+                      {player.pieceId && piece && piece.name && (
+                        <p className="text-sm text-amber-600">{piece.name}</p>
                       )}
                     </div>
                   </div>
