@@ -90,7 +90,7 @@ export function GameProvider({ children }: GameProviderProps) {
   const [game, setGame] = useState<Game | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const location = useLocation();
-  
+
   // Restore currentPlayerId from localStorage if available
   const [currentPlayerId, setCurrentPlayerIdState] = useState<string | null>(
     () => {
