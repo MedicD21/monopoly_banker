@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   DollarSign,
   Dice1,
@@ -12,7 +12,6 @@ import {
   RotateCcw,
   Building2,
   X,
-  Banknote,
 } from "lucide-react";
 import {
   Car,
@@ -24,19 +23,6 @@ import {
   Scissors,
   Wrench,
 } from "phosphor-react";
-import NumberPadModal from "./src/components/NumberPadModal";
-import PayPlayerModal from "./src/components/PayPlayerModal";
-import RentSelector from "./src/components/RentSelector";
-import { subscribeToPlayers } from "./src/firebase/realtimeService";
-import {
-  updatePlayerBalance,
-  transferMoney as transferMoneyFirebase,
-  addPropertyToPlayer,
-  recordDiceRoll,
-  passGo as passGoFirebase,
-  resetGame as resetGameFirebase,
-} from "./src/firebase/gameplayService";
-import { updatePlayer } from "./src/firebase/gameService";
 
 const STARTING_MONEY = 1500;
 const PASS_GO_AMOUNT = 200;
@@ -264,31 +250,10 @@ const PLAYER_COLORS = [
   "bg-teal-600",
 ];
 
-interface MonopolyBankerProps {
-  gameId?: string;
-  initialPlayers?: any[];
-  currentPlayerId?: string;
-  gameConfig?: {
-    startingMoney: number;
-    passGoAmount: number;
-    freeParkingJackpot: boolean;
-    doubleGoOnLanding: boolean;
-    auctionProperties: boolean;
-    speedDie: boolean;
-  };
-}
-
-export default function MonopolyBanker({
-  gameId,
-  initialPlayers,
-  currentPlayerId: firebasePlayerId,
-  gameConfig
-}: MonopolyBankerProps = {}) {
-  const isMultiplayer = !!gameId;
-
-  const [screen, setScreen] = useState(isMultiplayer ? "play" : "setup");
-  const [players, setPlayers] = useState(isMultiplayer ? initialPlayers || [] : []);
-  const [numPlayers, setNumPlayers] = useState(isMultiplayer ? initialPlayers?.length || 0 : 0);
+export default function MonopolyBanker() {
+  const [screen, setScreen] = useState("setup");
+  const [players, setPlayers] = useState([]);
+  const [numPlayers, setNumPlayers] = useState(0);
   const [playerNames, setPlayerNames] = useState([
     "",
     "",
@@ -320,7 +285,6 @@ export default function MonopolyBanker({
     "",
   ]);
   const [currentPlayer, setCurrentPlayer] = useState(null);
-  const [currentPlayerId, setCurrentPlayerId] = useState(0); // For player-specific view
   const [lastRoll, setLastRoll] = useState(null);
   const [transactionMode, setTransactionMode] = useState(null);
   const [transactionAmount, setTransactionAmount] = useState("");
@@ -333,38 +297,7 @@ export default function MonopolyBanker({
   const [diceRolling, setDiceRolling] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // New state for enhanced pay system
-  const [showPayPlayerModal, setShowPayPlayerModal] = useState(false);
-  const [showRentSelector, setShowRentSelector] = useState(false);
-  const [selectedLandlord, setSelectedLandlord] = useState(null);
-  const [showNumberPad, setShowNumberPad] = useState(false);
-  const [numberPadTitle, setNumberPadTitle] = useState("Enter Amount");
-  const [numberPadCallback, setNumberPadCallback] = useState(null);
-
-  // Firebase sync for multiplayer
-  useEffect(() => {
-    if (!isMultiplayer || !gameId) return;
-
-    // Subscribe to player updates
-    const unsubscribe = subscribeToPlayers(gameId, (updatedPlayers) => {
-      setPlayers(updatedPlayers);
-      setNumPlayers(updatedPlayers.length);
-    });
-
-    return () => unsubscribe();
-  }, [isMultiplayer, gameId]);
-
-  // Set current player ID in multiplayer mode
-  useEffect(() => {
-    if (isMultiplayer && firebasePlayerId && players.length > 0) {
-      const playerIndex = players.findIndex(p => p.id === firebasePlayerId);
-      if (playerIndex !== -1) {
-        setCurrentPlayerId(playerIndex);
-      }
-    }
-  }, [isMultiplayer, firebasePlayerId, players]);
-
-  const rollDice = async () => {
+  const rollDice = () => {
     setDiceRolling(true);
     let rollCount = 0;
     const rollInterval = setInterval(() => {
@@ -382,21 +315,15 @@ export default function MonopolyBanker({
         clearInterval(rollInterval);
         const finalD1 = Math.floor(Math.random() * 6) + 1;
         const finalD2 = Math.floor(Math.random() * 6) + 1;
-        const finalRoll = {
+        setLastRoll({
           d1: finalD1,
           d2: finalD2,
           total: finalD1 + finalD2,
           isDoubles: finalD1 === finalD2,
-        };
-        setLastRoll(finalRoll);
+        });
         setDiceRolling(false);
         setShowDice(true);
         setTimeout(() => setShowDice(false), 3000);
-
-        // Sync to Firebase in multiplayer mode
-        if (isMultiplayer && gameId && firebasePlayerId) {
-          recordDiceRoll(gameId, firebasePlayerId, [finalD1, finalD2]);
-        }
       }
     }, 100);
   };
@@ -461,28 +388,17 @@ export default function MonopolyBanker({
     setScreen("game");
   };
 
-  const updateBalance = async (playerId, amount) => {
-    const player = players.find(p => p.id === playerId);
-    if (!player) return;
-
-    const newBalance = Math.max(0, player.balance + amount);
-
-    // Update local state
+  const updateBalance = (playerId, amount) => {
     setPlayers((prev) =>
       prev.map((p) =>
         p.id === playerId
-          ? { ...p, balance: newBalance }
+          ? { ...p, balance: Math.max(0, p.balance + amount) }
           : p
       )
     );
-
-    // Sync to Firebase in multiplayer mode
-    if (isMultiplayer && gameId) {
-      await updatePlayerBalance(gameId, playerId, newBalance);
-    }
   };
 
-  const transferMoney = async (fromId, toId, amount) => {
+  const transferMoney = (fromId, toId, amount) => {
     const amt = parseInt(amount);
 
     // Validation
@@ -511,7 +427,6 @@ export default function MonopolyBanker({
       return;
     }
 
-    // Update local state
     setPlayers((prev) =>
       prev.map((p) => {
         if (p.id === fromId) return { ...p, balance: p.balance - amt };
@@ -519,14 +434,6 @@ export default function MonopolyBanker({
         return p;
       })
     );
-
-    // Sync to Firebase in multiplayer mode
-    if (isMultiplayer && gameId) {
-      await updatePlayerBalance(gameId, fromId, fromPlayer.balance - amt);
-      await updatePlayerBalance(gameId, toId, toPlayer.balance + amt);
-      await transferMoneyFirebase(gameId, fromId, toId, amt);
-    }
-
     setTransactionMode(null);
     setRentMode(null);
     setTransactionAmount("");
@@ -534,7 +441,7 @@ export default function MonopolyBanker({
     setUtilityDiceRoll("");
   };
 
-  const buyProperty = async (playerId, property) => {
+  const buyProperty = (playerId, property) => {
     const player = players.find((p) => p.id === playerId);
 
     if (!player) {
@@ -557,28 +464,20 @@ export default function MonopolyBanker({
       return;
     }
 
-    const newProperty = { name: property.name, houses: 0, hotel: false };
-    const newBalance = player.balance - property.price;
-
-    // Update local state
     setPlayers((prev) =>
       prev.map((p) =>
         p.id === playerId
           ? {
               ...p,
-              balance: newBalance,
-              properties: [...p.properties, newProperty],
+              balance: p.balance - property.price,
+              properties: [
+                ...p.properties,
+                { name: property.name, houses: 0, hotel: false },
+              ],
             }
           : p
       )
     );
-
-    // Sync to Firebase in multiplayer mode
-    if (isMultiplayer && gameId) {
-      await updatePlayerBalance(gameId, playerId, newBalance);
-      await addPropertyToPlayer(gameId, playerId, newProperty);
-    }
-
     setTransactionMode(null);
   };
 
@@ -760,46 +659,44 @@ export default function MonopolyBanker({
     updateBalance(playerId, PASS_GO_AMOUNT);
   };
 
-  // Enhanced pay system handlers
-  const handleBankerPays = () => {
-    if (currentPlayerId === null) {
-      showError("Please select which player you are first");
-      return;
-    }
-    setNumberPadTitle("Banker Pays");
-    setNumberPadCallback(() => (amount) => {
-      updateBalance(currentPlayerId, amount);
-    });
-    setShowNumberPad(true);
-  };
-
-  const handlePayRentClick = (landlordId) => {
-    setSelectedLandlord(landlordId);
-    setShowPayPlayerModal(false);
-    setShowRentSelector(true);
-  };
-
-  const handleCustomAmountClick = (toPlayerId) => {
-    setNumberPadTitle(`Pay to ${players.find(p => p.id === toPlayerId)?.name}`);
-    setNumberPadCallback(() => (amount) => {
-      transferMoney(currentPlayerId, toPlayerId, amount.toString());
-    });
-    setShowPayPlayerModal(false);
-    setShowNumberPad(true);
-  };
-
-  const handlePayRent = (amount, propertyName) => {
-    if (selectedLandlord !== null && currentPlayerId !== null) {
-      transferMoney(currentPlayerId, selectedLandlord, amount.toString());
-      setShowRentSelector(false);
-      setSelectedLandlord(null);
-    }
-  };
-
   const DiceIcon = ({ value }) => {
     const icons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
     const Icon = icons[value - 1];
     return <Icon className="w-16 h-16" />;
+  };
+
+  const NumberPad = ({ onNumber, onClear, onSubmit }) => {
+    return (
+      <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+          <button
+            key={num}
+            onClick={() => onNumber(num)}
+            className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 text-2xl font-bold py-4 rounded transition-colors border border-zinc-700"
+          >
+            {num}
+          </button>
+        ))}
+        <button
+          onClick={onClear}
+          className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 text-xl font-bold py-4 rounded transition-colors border border-zinc-700"
+        >
+          CLR
+        </button>
+        <button
+          onClick={() => onNumber(0)}
+          className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 text-2xl font-bold py-4 rounded transition-colors border border-zinc-700"
+        >
+          0
+        </button>
+        <button
+          onClick={onSubmit}
+          className="bg-amber-600 hover:bg-amber-500 text-black text-xl font-bold py-4 rounded transition-colors"
+        >
+          OK
+        </button>
+      </div>
+    );
   };
 
   const Modal = ({ children, onClose }) => {
@@ -991,13 +888,13 @@ export default function MonopolyBanker({
         </div>
       )}
       <div className="max-w-7xl mx-auto">
-        {/* BANKER CARD - Reorganized with all main actions */}
-        <div className="bg-zinc-900 rounded-lg p-4 mb-4 border border-amber-900/30">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <img src="/images/Banker.svg" alt="Banker" className="w-12 h-12" />
-              <h1 className="text-2xl font-bold text-amber-400">MONOPOLY BANKER</h1>
+        <div className="bg-zinc-900 rounded-lg p-2 sm:p-4 mb-2 sm:mb-4 border border-amber-900/30">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <img src="/images/Banker.svg" alt="Banker" className="w-10 h-10 sm:w-12 sm:h-12" />
+              <h1 className="text-xl sm:text-2xl font-bold text-amber-400">
+                MONOPOLY BANKER
+              </h1>
             </div>
             <button
               onClick={() => {
@@ -1008,79 +905,13 @@ export default function MonopolyBanker({
                   setPlayerNames(["", "", "", "", "", "", "", ""]);
                   setPlayerPieces(["", "", "", "", "", "", "", ""]);
                   setPlayerColors(["", "", "", "", "", "", "", ""]);
-                  setCurrentPlayerId(0);
                 }
               }}
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/30 text-amber-400"
+              className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/30 text-amber-400 text-sm sm:text-base"
             >
               <RotateCcw className="w-4 h-4" />
               Reset
             </button>
-          </div>
-
-          {/* Banker Action Buttons */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <button
-              onClick={() => {
-                if (currentPlayerId === null) {
-                  showError("Please select which player you are first");
-                  return;
-                }
-                passGo(currentPlayerId);
-              }}
-              className="bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded font-bold transition-colors flex items-center gap-2"
-            >
-              <img src="/images/Go.svg" alt="GO" className="w-5 h-5" />
-              Pass GO
-            </button>
-
-            <button
-              onClick={() => {
-                if (currentPlayerId === null) {
-                  showError("Please select which player you are first");
-                  return;
-                }
-                setCurrentPlayer(currentPlayerId);
-                setShowBuyProperty(true);
-              }}
-              className="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded font-bold transition-colors flex items-center gap-2"
-            >
-              <Building2 className="w-5 h-5" />
-              Buy Property
-            </button>
-
-            <button
-              onClick={handleBankerPays}
-              className="bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded font-bold transition-colors flex items-center gap-2"
-            >
-              <Banknote className="w-5 h-5" />
-              Banker Pays
-            </button>
-          </div>
-
-          {/* Roll Dice Section */}
-          <div className="border-t border-amber-900/30 pt-4">
-            <button
-              onClick={rollDice}
-              disabled={diceRolling}
-              className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <Dice1 className="w-6 h-6" />
-              {diceRolling ? "Rolling..." : "Roll Dice"}
-            </button>
-
-            {lastRoll && (
-              <div className="mt-3 bg-zinc-800 p-3 rounded-lg border border-amber-900/30 text-center">
-                <div className="flex justify-center gap-3 mb-2">
-                  {[lastRoll.d1, lastRoll.d2].map((die, idx) => {
-                    const DiceIconComponent = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6][die - 1];
-                    return <DiceIconComponent key={idx} className="w-10 h-10 text-amber-400" />;
-                  })}
-                </div>
-                <p className="text-xl font-bold text-amber-400">Total: {lastRoll.total}</p>
-                {lastRoll.isDoubles && <p className="text-green-400 text-sm mt-1">Doubles!</p>}
-              </div>
-            )}
           </div>
         </div>
 
@@ -1109,70 +940,87 @@ export default function MonopolyBanker({
           </div>
         )}
 
-        {/* PLAYERS LIST */}
-        <div className="space-y-3">
-          {players.map((player) => {
-            const isCurrentUser = player.id === currentPlayerId;
-
-            return (
-              <div
-                key={player.id}
-                className={`bg-zinc-900 rounded-lg p-4 border-2 transition-all ${
-                  isCurrentUser ? "border-amber-600" : "border-amber-900/30"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-14 h-14 ${player.color} rounded flex items-center justify-center p-1`}
-                    >
-                      <img src={player.piece.icon} alt={player.piece.name} className="w-full h-full object-contain" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-amber-50">{player.name}</h3>
-                      <div className="text-2xl font-bold text-amber-400">
-                        ${player.balance.toLocaleString()}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-4">
+          <div className="lg:col-span-2 space-y-2 sm:space-y-3">
+            {players.map((player) => {
+              return (
+                <div
+                  key={player.id}
+                  className={`bg-zinc-900 rounded-lg p-2 sm:p-4 border-2 transition-all ${
+                    currentPlayer === player.id
+                      ? "border-amber-600"
+                      : "border-amber-900/30"
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row items-center justify-between mb-2 sm:mb-3 gap-2 sm:gap-0">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div
+                        className={`w-10 h-10 sm:w-14 sm:h-14 ${player.color} rounded flex items-center justify-center p-1`}
+                      >
+                        <img src={player.piece.icon} alt={player.piece.name} className="w-full h-full object-contain" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg sm:text-xl font-bold text-amber-50">
+                          {player.name}
+                        </h3>
+                        <div className="text-xl sm:text-2xl font-bold text-amber-400">
+                          ${player.balance.toLocaleString()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => setCurrentPlayerId(player.id)}
-                    className={`px-4 py-2 rounded font-bold transition-all ${
-                      isCurrentUser
-                        ? "bg-amber-600 text-black"
-                        : "bg-zinc-800 hover:bg-zinc-700 border border-amber-900/30 text-amber-400"
-                    }`}
-                  >
-                    {isCurrentUser ? "You" : "Select"}
-                  </button>
-                </div>
-
-                {/* Player-specific action buttons - ONLY SHOW IF THIS IS THE CURRENT USER */}
-                {isCurrentUser && (
-                  <div className="flex flex-wrap gap-2 mb-3">
                     <button
-                      onClick={() => setShowPayPlayerModal(true)}
-                      className="bg-orange-700 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                      onClick={() => setCurrentPlayer(player.id)}
+                      className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded font-bold transition-all ${
+                        currentPlayer === player.id
+                          ? "bg-amber-600 text-black"
+                          : "bg-zinc-800 hover:bg-zinc-700 border border-amber-900/30 text-amber-400"
+                      } text-sm sm:text-base`}
+                    >
+                      {currentPlayer === player.id ? "Active" : "Select"}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 sm:gap-2 mb-2 sm:mb-3">
+                    <button
+                      onClick={() => passGo(player.id)}
+                      className="bg-amber-600 hover:bg-amber-500 text-black px-2.5 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm font-bold transition-colors flex items-center gap-1"
+                    >
+                      <img src="/images/Go.svg" alt="GO" className="w-4 h-4" />
+                      Pass GO
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTransactionMode("pay");
+                        setCurrentPlayer(player.id);
+                        setTransactionAmount("");
+                      }}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm font-bold transition-colors border border-amber-900/30 flex items-center gap-1"
                     >
                       <img src="/images/Payment.svg" alt="Pay" className="w-4 h-4" />
                       Pay
                     </button>
-
                     <button
                       onClick={() => {
-                        setNumberPadTitle("Receive Money");
-                        setNumberPadCallback(() => (amount) => {
-                          updateBalance(player.id, amount);
-                        });
-                        setShowNumberPad(true);
+                        setTransactionMode("receive");
+                        setCurrentPlayer(player.id);
+                        setTransactionAmount("");
                       }}
-                      className="bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                      className="bg-green-700 hover:bg-green-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm font-bold transition-colors flex items-center gap-1"
                     >
                       <img src="/images/Bank.svg" alt="Bank" className="w-4 h-4" />
                       Receive
                     </button>
+                    <button
+                      onClick={() => {
+                        setCurrentPlayer(player.id);
+                        setShowBuyProperty(true);
+                      }}
+                      className="bg-blue-700 hover:bg-blue-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm font-bold transition-colors flex items-center gap-1"
+                    >
+                      <Building2 className="w-3 h-3" />
+                      Buy Property
+                    </button>
                   </div>
-                )}
 
                   {/* Properties Section */}
                   {player.properties.length > 0 && (
@@ -1220,19 +1068,15 @@ export default function MonopolyBanker({
                                   </span>
                                 ) : null}
                               </div>
-
-                              {/* Manage button only for current user */}
-                              {isCurrentUser && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedProperty(prop.name);
-                                    setCurrentPlayer(player.id);
-                                  }}
-                                  className="text-amber-400 hover:text-amber-300"
-                                >
-                                  Manage
-                                </button>
-                              )}
+                              <button
+                                onClick={() => {
+                                  setSelectedProperty(prop.name);
+                                  setCurrentPlayer(player.id);
+                                }}
+                                className="text-amber-400 hover:text-amber-300"
+                              >
+                                Manage
+                              </button>
                             </div>
                           );
                         })}
@@ -1243,8 +1087,7 @@ export default function MonopolyBanker({
               );
             })}
           </div>
-
-        {/* Buy Property Modal */}
+          {/* Buy Property Modal */}
           {showBuyProperty && currentPlayer !== null && (
             <Modal onClose={() => setShowBuyProperty(false)}>
               <h3 className="text-xl font-bold text-amber-400 mb-4">
@@ -1306,6 +1149,52 @@ export default function MonopolyBanker({
               </div>
             </Modal>
           )}
+
+          <div className="space-y-2 sm:space-y-4">
+            {/* Dice Roll Section */}
+            <div className="mb-4 sm:mb-6">
+              <button
+                onClick={rollDice}
+                disabled={diceRolling}
+                className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <Dice1 className="w-5 h-5 sm:w-6 sm:h-6" />
+                {diceRolling ? "Rolling..." : "Roll Dice"}
+              </button>
+
+              {showDice && lastRoll && (
+                <div className="mt-3 sm:mt-4 bg-zinc-900 p-3 sm:p-4 rounded-lg border border-amber-900/30 text-center">
+                  <div className="flex justify-center gap-3 sm:gap-4 mb-2">
+                    {[lastRoll.d1, lastRoll.d2].map((die, idx) => {
+                      const DiceIcon = [
+                        Dice1,
+                        Dice2,
+                        Dice3,
+                        Dice4,
+                        Dice5,
+                        Dice6,
+                      ][die - 1];
+                      return (
+                        <DiceIcon
+                          key={idx}
+                          className="w-8 h-8 sm:w-12 sm:h-12 text-amber-400"
+                        />
+                      );
+                    })}
+                  </div>
+                  <p className="text-xl sm:text-2xl font-bold text-amber-400">
+                    Total: {lastRoll.total}
+                  </p>
+                  {lastRoll.isDoubles && (
+                    <p className="text-green-400 text-xs sm:text-sm mt-1">
+                      Doubles!
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Transaction Modal */}
         {transactionMode && currentPlayer !== null && (
@@ -1491,39 +1380,6 @@ export default function MonopolyBanker({
             </div>
           </div>
         )}
-
-        {/* NEW MODALS */}
-        <PayPlayerModal
-          isOpen={showPayPlayerModal}
-          onClose={() => setShowPayPlayerModal(false)}
-          currentPlayer={players.find(p => p.id === currentPlayerId) || players[0]}
-          allPlayers={players}
-          onPayRent={handlePayRentClick}
-          onCustomAmount={handleCustomAmountClick}
-        />
-
-        <RentSelector
-          isOpen={showRentSelector}
-          onClose={() => {
-            setShowRentSelector(false);
-            setSelectedLandlord(null);
-          }}
-          landlord={players.find(p => p.id === selectedLandlord) || players[0]}
-          allPlayers={players}
-          propertyDefinitions={PROPERTIES}
-          onPayRent={handlePayRent}
-        />
-
-        <NumberPadModal
-          isOpen={showNumberPad}
-          onClose={() => setShowNumberPad(false)}
-          onConfirm={(value) => {
-            if (numberPadCallback) {
-              numberPadCallback(value);
-            }
-          }}
-          title={numberPadTitle}
-        />
       </div>
     </div>
   );

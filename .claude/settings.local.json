@@ -14,7 +14,8 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Complete Monopoly Banker app\n\n- Added complete React-based Monopoly banking application\n- Implemented player setup with game pieces and colors\n- Added transaction system (pay/receive money, pass GO)\n- Implemented property management (buy/sell, add/remove houses)\n- Added dice rolling functionality with animations\n- Implemented error handling and input validation\n- Added TypeScript configuration and dependencies\n- Configured Tailwind CSS for styling\n- Created comprehensive .gitignore\n- Fixed all build errors and JSX issues\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(gh repo create:*)",
-      "Bash(timeout 5 npm run dev)"
+      "Bash(timeout 5 npm run dev)",
+      "Bash(npm install:*)"
     ]
   }
 }
