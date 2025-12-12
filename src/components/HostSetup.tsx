@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import NumberPadModal from './NumberPadModal';
+import React, { useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import NumberPadModal from "./NumberPadModal";
 
 interface GameConfig {
   startingMoney: number;
@@ -27,7 +27,11 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
   });
 
   const [showNumberPad, setShowNumberPad] = useState(false);
-  const [editingField, setEditingField] = useState<'startingMoney' | 'passGoAmount' | null>(null);
+  const [editingField, setEditingField] = useState<
+    "startingMoney" | "passGoAmount" | null
+  >(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleNumberPadConfirm = (value: number) => {
     if (editingField) {
@@ -52,7 +56,9 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
         </div>
 
         <div className="bg-zinc-900 rounded-lg p-6 border border-amber-900/30 mb-6">
-          <h2 className="text-xl font-bold text-amber-400 mb-4">Game Variants</h2>
+          <h2 className="text-xl font-bold text-amber-400 mb-4">
+            Game Variants
+          </h2>
 
           <div className="space-y-4">
             <label className="flex items-center justify-between p-3 bg-zinc-800 rounded cursor-pointer hover:bg-zinc-700 transition-colors">
@@ -60,7 +66,9 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
               <input
                 type="checkbox"
                 checked={config.freeParkingJackpot}
-                onChange={(e) => setConfig({ ...config, freeParkingJackpot: e.target.checked })}
+                onChange={(e) =>
+                  setConfig({ ...config, freeParkingJackpot: e.target.checked })
+                }
                 className="w-6 h-6 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500"
               />
             </label>
@@ -70,7 +78,9 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
               <input
                 type="checkbox"
                 checked={config.doubleGoOnLanding}
-                onChange={(e) => setConfig({ ...config, doubleGoOnLanding: e.target.checked })}
+                onChange={(e) =>
+                  setConfig({ ...config, doubleGoOnLanding: e.target.checked })
+                }
                 className="w-6 h-6 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500"
               />
             </label>
@@ -80,7 +90,9 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
               <input
                 type="checkbox"
                 checked={config.auctionProperties}
-                onChange={(e) => setConfig({ ...config, auctionProperties: e.target.checked })}
+                onChange={(e) =>
+                  setConfig({ ...config, auctionProperties: e.target.checked })
+                }
                 className="w-6 h-6 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500"
               />
             </label>
@@ -90,7 +102,9 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
               <input
                 type="checkbox"
                 checked={config.speedDie}
-                onChange={(e) => setConfig({ ...config, speedDie: e.target.checked })}
+                onChange={(e) =>
+                  setConfig({ ...config, speedDie: e.target.checked })
+                }
                 className="w-6 h-6 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500"
               />
             </label>
@@ -98,14 +112,16 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
         </div>
 
         <div className="bg-zinc-900 rounded-lg p-6 border border-amber-900/30 mb-6">
-          <h2 className="text-xl font-bold text-amber-400 mb-4">Money Settings</h2>
+          <h2 className="text-xl font-bold text-amber-400 mb-4">
+            Money Settings
+          </h2>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-zinc-800 rounded">
               <span className="text-amber-50">Starting Money</span>
               <button
                 onClick={() => {
-                  setEditingField('startingMoney');
+                  setEditingField("startingMoney");
                   setShowNumberPad(true);
                 }}
                 className="bg-amber-600 hover:bg-amber-500 text-black font-bold px-4 py-2 rounded"
@@ -118,7 +134,7 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
               <span className="text-amber-50">Pass GO Amount</span>
               <button
                 onClick={() => {
-                  setEditingField('passGoAmount');
+                  setEditingField("passGoAmount");
                   setShowNumberPad(true);
                 }}
                 className="bg-amber-600 hover:bg-amber-500 text-black font-bold px-4 py-2 rounded"
@@ -130,11 +146,26 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
         </div>
 
         <button
-          onClick={() => onCreateGame(config)}
-          className="w-full bg-amber-600 hover:bg-amber-500 text-black font-bold py-4 rounded-lg text-xl transition-colors"
+          onClick={async () => {
+            setError(null);
+            setLoading(true);
+            try {
+              console.log("Creating game with config:", config);
+              await onCreateGame(config);
+              console.log("Game creation triggered");
+            } catch (e: any) {
+              setError(e?.message || "Failed to create game.");
+              console.error("Error in HostSetup onCreateGame:", e);
+            } finally {
+              setLoading(false);
+            }
+          }}
+          className="w-full bg-amber-600 hover:bg-amber-500 text-black font-bold py-4 rounded-lg text-xl transition-colors disabled:bg-zinc-700 disabled:text-zinc-400"
+          disabled={loading}
         >
-          Open Game Lobby
+          {loading ? "Opening Lobby..." : "Open Game Lobby"}
         </button>
+        {error && <div className="text-red-500 text-center mt-2">{error}</div>}
 
         <NumberPadModal
           isOpen={showNumberPad}
@@ -143,7 +174,11 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
             setEditingField(null);
           }}
           onConfirm={handleNumberPadConfirm}
-          title={editingField === 'startingMoney' ? 'Starting Money' : 'Pass GO Amount'}
+          title={
+            editingField === "startingMoney"
+              ? "Starting Money"
+              : "Pass GO Amount"
+          }
         />
       </div>
     </div>

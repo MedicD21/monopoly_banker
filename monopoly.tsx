@@ -14,16 +14,6 @@ import {
   X,
   Banknote,
 } from "lucide-react";
-import {
-  Car,
-  Boat,
-  Cat,
-  Dog,
-  Sneaker,
-  Crown,
-  Scissors,
-  Wrench,
-} from "phosphor-react";
 import NumberPadModal from "./src/components/NumberPadModal";
 import PayPlayerModal from "./src/components/PayPlayerModal";
 import RentSelector from "./src/components/RentSelector";
@@ -282,13 +272,17 @@ export default function MonopolyBanker({
   gameId,
   initialPlayers,
   currentPlayerId: firebasePlayerId,
-  gameConfig
+  gameConfig,
 }: MonopolyBankerProps = {}) {
   const isMultiplayer = !!gameId;
 
   const [screen, setScreen] = useState(isMultiplayer ? "play" : "setup");
-  const [players, setPlayers] = useState(isMultiplayer ? initialPlayers || [] : []);
-  const [numPlayers, setNumPlayers] = useState(isMultiplayer ? initialPlayers?.length || 0 : 0);
+  const [players, setPlayers] = useState(
+    isMultiplayer ? initialPlayers || [] : []
+  );
+  const [numPlayers, setNumPlayers] = useState(
+    isMultiplayer ? initialPlayers?.length || 0 : 0
+  );
   const [playerNames, setPlayerNames] = useState([
     "",
     "",
@@ -357,7 +351,7 @@ export default function MonopolyBanker({
   // Set current player ID in multiplayer mode
   useEffect(() => {
     if (isMultiplayer && firebasePlayerId && players.length > 0) {
-      const playerIndex = players.findIndex(p => p.id === firebasePlayerId);
+      const playerIndex = players.findIndex((p) => p.id === firebasePlayerId);
       if (playerIndex !== -1) {
         setCurrentPlayerId(playerIndex);
       }
@@ -462,18 +456,14 @@ export default function MonopolyBanker({
   };
 
   const updateBalance = async (playerId, amount) => {
-    const player = players.find(p => p.id === playerId);
+    const player = players.find((p) => p.id === playerId);
     if (!player) return;
 
     const newBalance = Math.max(0, player.balance + amount);
 
     // Update local state
     setPlayers((prev) =>
-      prev.map((p) =>
-        p.id === playerId
-          ? { ...p, balance: newBalance }
-          : p
-      )
+      prev.map((p) => (p.id === playerId ? { ...p, balance: newBalance } : p))
     );
 
     // Sync to Firebase in multiplayer mode
@@ -780,7 +770,9 @@ export default function MonopolyBanker({
   };
 
   const handleCustomAmountClick = (toPlayerId) => {
-    setNumberPadTitle(`Pay to ${players.find(p => p.id === toPlayerId)?.name}`);
+    setNumberPadTitle(
+      `Pay to ${players.find((p) => p.id === toPlayerId)?.name}`
+    );
     setNumberPadCallback(() => (amount) => {
       transferMoney(currentPlayerId, toPlayerId, amount.toString());
     });
@@ -831,7 +823,11 @@ export default function MonopolyBanker({
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <div className="flex justify-center mb-4">
-              <img src="/images/Monopoly_Logo.svg" alt="Monopoly" className="w-64 h-auto" />
+              <img
+                src="/images/Monopoly_Logo.svg"
+                alt="Monopoly"
+                className="w-64 h-auto"
+              />
             </div>
             <h1 className="text-5xl font-bold mb-2 text-amber-400">
               MONOPOLY BANKER
@@ -914,7 +910,11 @@ export default function MonopolyBanker({
                                   : "bg-zinc-900 border-amber-900/30 hover:border-amber-600"
                               }`}
                             >
-                              <img src={piece.icon} alt={piece.name} className="w-6 h-6 mx-auto" />
+                              <img
+                                src={piece.icon}
+                                alt={piece.name}
+                                className="w-6 h-6 mx-auto"
+                              />
                               <div className="text-xs mt-1">{piece.name}</div>
                             </button>
                           );
@@ -996,8 +996,14 @@ export default function MonopolyBanker({
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <img src="/images/Banker.svg" alt="Banker" className="w-12 h-12" />
-              <h1 className="text-2xl font-bold text-amber-400">MONOPOLY BANKER</h1>
+              <img
+                src="/images/Banker.svg"
+                alt="Banker"
+                className="w-12 h-12"
+              />
+              <h1 className="text-2xl font-bold text-amber-400">
+                MONOPOLY BANKER
+              </h1>
             </div>
             <button
               onClick={() => {
@@ -1073,12 +1079,28 @@ export default function MonopolyBanker({
               <div className="mt-3 bg-zinc-800 p-3 rounded-lg border border-amber-900/30 text-center">
                 <div className="flex justify-center gap-3 mb-2">
                   {[lastRoll.d1, lastRoll.d2].map((die, idx) => {
-                    const DiceIconComponent = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6][die - 1];
-                    return <DiceIconComponent key={idx} className="w-10 h-10 text-amber-400" />;
+                    const DiceIconComponent = [
+                      Dice1,
+                      Dice2,
+                      Dice3,
+                      Dice4,
+                      Dice5,
+                      Dice6,
+                    ][die - 1];
+                    return (
+                      <DiceIconComponent
+                        key={idx}
+                        className="w-10 h-10 text-amber-400"
+                      />
+                    );
                   })}
                 </div>
-                <p className="text-xl font-bold text-amber-400">Total: {lastRoll.total}</p>
-                {lastRoll.isDoubles && <p className="text-green-400 text-sm mt-1">Doubles!</p>}
+                <p className="text-xl font-bold text-amber-400">
+                  Total: {lastRoll.total}
+                </p>
+                {lastRoll.isDoubles && (
+                  <p className="text-green-400 text-sm mt-1">Doubles!</p>
+                )}
               </div>
             )}
           </div>
@@ -1126,10 +1148,16 @@ export default function MonopolyBanker({
                     <div
                       className={`w-14 h-14 ${player.color} rounded flex items-center justify-center p-1`}
                     >
-                      <img src={player.piece.icon} alt={player.piece.name} className="w-full h-full object-contain" />
+                      <img
+                        src={player.piece.icon}
+                        alt={player.piece.name}
+                        className="w-full h-full object-contain"
+                      />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-amber-50">{player.name}</h3>
+                      <h3 className="text-xl font-bold text-amber-50">
+                        {player.name}
+                      </h3>
                       <div className="text-2xl font-bold text-amber-400">
                         ${player.balance.toLocaleString()}
                       </div>
@@ -1154,7 +1182,11 @@ export default function MonopolyBanker({
                       onClick={() => setShowPayPlayerModal(true)}
                       className="bg-orange-700 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
                     >
-                      <img src="/images/Payment.svg" alt="Pay" className="w-4 h-4" />
+                      <img
+                        src="/images/Payment.svg"
+                        alt="Pay"
+                        className="w-4 h-4"
+                      />
                       Pay
                     </button>
 
@@ -1168,144 +1200,183 @@ export default function MonopolyBanker({
                       }}
                       className="bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
                     >
-                      <img src="/images/Bank.svg" alt="Bank" className="w-4 h-4" />
+                      <img
+                        src="/images/Bank.svg"
+                        alt="Bank"
+                        className="w-4 h-4"
+                      />
                       Receive
                     </button>
                   </div>
                 )}
 
-                  {/* Properties Section */}
-                  {player.properties.length > 0 && (
-                    <div className="mt-3 border-t border-amber-900/30 pt-3">
-                      <h4 className="text-xs font-bold text-amber-500 mb-2">
-                        Properties
-                      </h4>
-                      <div className="space-y-1">
-                        {player.properties.map((prop, idx) => {
-                          const property = PROPERTIES.find(
-                            (p) => p.name === prop.name
-                          );
-                          if (!property) return null;
-                          return (
-                            <div
-                              key={idx}
-                              className="flex items-center justify-between text-xs bg-zinc-900/50 p-2 rounded"
-                            >
-                              <div className="flex items-center gap-2">
-                                {property.group === 'railroad' ? (
-                                  <img src="/images/Railroad.svg" alt="Railroad" className="w-4 h-4" />
-                                ) : property.group === 'utility' ? (
-                                  property.name === 'Electric Company' ? (
-                                    <img src="/images/Electric_Company.svg" alt="Electric" className="w-4 h-4" />
-                                  ) : (
-                                    <img src="/images/Waterworks.svg" alt="Water" className="w-4 h-4" />
-                                  )
+                {/* Properties Section */}
+                {player.properties.length > 0 && (
+                  <div className="mt-3 border-t border-amber-900/30 pt-3">
+                    <h4 className="text-xs font-bold text-amber-500 mb-2">
+                      Properties
+                    </h4>
+                    <div className="space-y-1">
+                      {player.properties.map((prop, idx) => {
+                        const property = PROPERTIES.find(
+                          (p) => p.name === prop.name
+                        );
+                        if (!property) return null;
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between text-xs bg-zinc-900/50 p-2 rounded"
+                          >
+                            <div className="flex items-center gap-2">
+                              {property.group === "railroad" ? (
+                                <img
+                                  src="/images/Railroad.svg"
+                                  alt="Railroad"
+                                  className="w-4 h-4"
+                                />
+                              ) : property.group === "utility" ? (
+                                property.name === "Electric Company" ? (
+                                  <img
+                                    src="/images/Electric_Company.svg"
+                                    alt="Electric"
+                                    className="w-4 h-4"
+                                  />
                                 ) : (
-                                  <div
-                                    className={`w-3 h-3 rounded ${property.color}`}
-                                  ></div>
-                                )}
-                                <span className="text-amber-100">
-                                  {prop.name}
-                                </span>
-                                {prop.hotel ? (
-                                  <span className="flex items-center gap-0.5">
-                                    <img src="/images/Hotel.svg" alt="Hotel" className="w-4 h-4" />
-                                  </span>
-                                ) : prop.houses > 0 ? (
-                                  <span className="flex items-center gap-0.5">
-                                    {Array.from({ length: prop.houses }).map((_, i) => (
-                                      <img key={i} src="/images/House.svg" alt="House" className="w-3 h-3" />
-                                    ))}
-                                  </span>
-                                ) : null}
-                              </div>
-
-                              {/* Manage button only for current user */}
-                              {isCurrentUser && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedProperty(prop.name);
-                                    setCurrentPlayer(player.id);
-                                  }}
-                                  className="text-amber-400 hover:text-amber-300"
-                                >
-                                  Manage
-                                </button>
+                                  <img
+                                    src="/images/Waterworks.svg"
+                                    alt="Water"
+                                    className="w-4 h-4"
+                                  />
+                                )
+                              ) : (
+                                <div
+                                  className={`w-3 h-3 rounded ${property.color}`}
+                                ></div>
                               )}
+                              <span className="text-amber-100">
+                                {prop.name}
+                              </span>
+                              {prop.hotel ? (
+                                <span className="flex items-center gap-0.5">
+                                  <img
+                                    src="/images/Hotel.svg"
+                                    alt="Hotel"
+                                    className="w-4 h-4"
+                                  />
+                                </span>
+                              ) : prop.houses > 0 ? (
+                                <span className="flex items-center gap-0.5">
+                                  {Array.from({ length: prop.houses }).map(
+                                    (_, i) => (
+                                      <img
+                                        key={i}
+                                        src="/images/House.svg"
+                                        alt="House"
+                                        className="w-3 h-3"
+                                      />
+                                    )
+                                  )}
+                                </span>
+                              ) : null}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
 
-        {/* Buy Property Modal */}
-          {showBuyProperty && currentPlayer !== null && (
-            <Modal onClose={() => setShowBuyProperty(false)}>
-              <h3 className="text-xl font-bold text-amber-400 mb-4">
-                Buy Property
-              </h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {PROPERTIES.filter(
-                  (prop) =>
-                    !players.some((p) =>
-                      p.properties.some((owned) => owned.name === prop.name)
-                    )
-                ).map((property) => (
-                  <div
-                    key={property.name}
-                    className="flex items-center justify-between bg-zinc-800 p-3 rounded"
-                  >
-                    <div className="flex items-center gap-2">
-                      {property.group === 'railroad' ? (
-                        <img src="/images/Railroad.svg" alt="Railroad" className="w-5 h-5" />
-                      ) : property.group === 'utility' ? (
-                        property.name === 'Electric Company' ? (
-                          <img src="/images/Electric_Company.svg" alt="Electric" className="w-5 h-5" />
-                        ) : (
-                          <img src="/images/Waterworks.svg" alt="Water" className="w-5 h-5" />
-                        )
-                      ) : (
-                        <div
-                          className={`w-4 h-4 rounded ${property.color}`}
-                        ></div>
-                      )}
-                      <span className="text-amber-100 font-bold">
-                        {property.name}
-                      </span>
-                      <span className="text-amber-400 ml-2">
-                        ${property.price}
-                      </span>
+                            {/* Manage button only for current user */}
+                            {isCurrentUser && (
+                              <button
+                                onClick={() => {
+                                  setSelectedProperty(prop.name);
+                                  setCurrentPlayer(player.id);
+                                }}
+                                className="text-amber-400 hover:text-amber-300"
+                              >
+                                Manage
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <button
-                      onClick={() => {
-                        buyProperty(currentPlayer, property);
-                        setShowBuyProperty(false);
-                      }}
-                      className="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors"
-                    >
-                      Buy
-                    </button>
-                  </div>
-                ))}
-                {PROPERTIES.filter(
-                  (prop) =>
-                    !players.some((p) =>
-                      p.properties.some((owned) => owned.name === prop.name)
-                    )
-                ).length === 0 && (
-                  <div className="text-amber-400 text-center">
-                    All properties are owned.
                   </div>
                 )}
               </div>
-            </Modal>
-          )}
+            );
+          })}
+        </div>
+
+        {/* Buy Property Modal */}
+        {showBuyProperty && currentPlayer !== null && (
+          <Modal onClose={() => setShowBuyProperty(false)}>
+            <h3 className="text-xl font-bold text-amber-400 mb-4">
+              Buy Property
+            </h3>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {PROPERTIES.filter(
+                (prop) =>
+                  !players.some((p) =>
+                    p.properties.some((owned) => owned.name === prop.name)
+                  )
+              ).map((property) => (
+                <div
+                  key={property.name}
+                  className="flex items-center justify-between bg-zinc-800 p-3 rounded"
+                >
+                  <div className="flex items-center gap-2">
+                    {property.group === "railroad" ? (
+                      <img
+                        src="/images/Railroad.svg"
+                        alt="Railroad"
+                        className="w-5 h-5"
+                      />
+                    ) : property.group === "utility" ? (
+                      property.name === "Electric Company" ? (
+                        <img
+                          src="/images/Electric_Company.svg"
+                          alt="Electric"
+                          className="w-5 h-5"
+                        />
+                      ) : (
+                        <img
+                          src="/images/Waterworks.svg"
+                          alt="Water"
+                          className="w-5 h-5"
+                        />
+                      )
+                    ) : (
+                      <div
+                        className={`w-4 h-4 rounded ${property.color}`}
+                      ></div>
+                    )}
+                    <span className="text-amber-100 font-bold">
+                      {property.name}
+                    </span>
+                    <span className="text-amber-400 ml-2">
+                      ${property.price}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      buyProperty(currentPlayer, property);
+                      setShowBuyProperty(false);
+                    }}
+                    className="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                  >
+                    Buy
+                  </button>
+                </div>
+              ))}
+              {PROPERTIES.filter(
+                (prop) =>
+                  !players.some((p) =>
+                    p.properties.some((owned) => owned.name === prop.name)
+                  )
+              ).length === 0 && (
+                <div className="text-amber-400 text-center">
+                  All properties are owned.
+                </div>
+              )}
+            </div>
+          </Modal>
+        )}
 
         {/* Transaction Modal */}
         {transactionMode && currentPlayer !== null && (
@@ -1459,7 +1530,11 @@ export default function MonopolyBanker({
                         disabled={playerProp?.houses >= 5}
                         className="w-full bg-green-700 hover:bg-green-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors flex items-center justify-center gap-2"
                       >
-                        <img src="/images/House.svg" alt="House" className="w-5 h-5" />
+                        <img
+                          src="/images/House.svg"
+                          alt="House"
+                          className="w-5 h-5"
+                        />
                         Add House (${HOUSE_COST})
                       </button>
 
@@ -1472,7 +1547,11 @@ export default function MonopolyBanker({
                         }
                         className="w-full bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors flex items-center justify-center gap-2"
                       >
-                        <img src="/images/House.svg" alt="House" className="w-5 h-5" />
+                        <img
+                          src="/images/House.svg"
+                          alt="House"
+                          className="w-5 h-5"
+                        />
                         Remove House
                       </button>
 
@@ -1496,7 +1575,9 @@ export default function MonopolyBanker({
         <PayPlayerModal
           isOpen={showPayPlayerModal}
           onClose={() => setShowPayPlayerModal(false)}
-          currentPlayer={players.find(p => p.id === currentPlayerId) || players[0]}
+          currentPlayer={
+            players.find((p) => p.id === currentPlayerId) || players[0]
+          }
           allPlayers={players}
           onPayRent={handlePayRentClick}
           onCustomAmount={handleCustomAmountClick}
@@ -1508,7 +1589,9 @@ export default function MonopolyBanker({
             setShowRentSelector(false);
             setSelectedLandlord(null);
           }}
-          landlord={players.find(p => p.id === selectedLandlord) || players[0]}
+          landlord={
+            players.find((p) => p.id === selectedLandlord) || players[0]
+          }
           allPlayers={players}
           propertyDefinitions={PROPERTIES}
           onPayRent={handlePayRent}

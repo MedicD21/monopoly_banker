@@ -1,14 +1,24 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { useNavigate } from "react-router-dom";
 import {
   createGame,
   joinGameByCode,
   addPlayer,
   updatePlayer,
   startGame as startGameService,
-  getGame
-} from '../firebase/gameService';
-import { subscribeToGame, subscribeToPlayers, setupPresence } from '../firebase/realtimeService';
+  getGame,
+} from "../firebase/gameService";
+import {
+  subscribeToGame,
+  subscribeToPlayers,
+  setupPresence,
+} from "../firebase/realtimeService";
 
 interface Player {
   id: string;
@@ -36,7 +46,7 @@ interface Game {
   id: string;
   code: string;
   hostId: string;
-  status: 'lobby' | 'playing' | 'finished';
+  status: "lobby" | "playing" | "finished";
   config: GameConfig;
   currentTurn?: string;
   createdAt: number;
@@ -51,7 +61,11 @@ interface GameContextType {
   // Actions
   hostGame: (config: GameConfig) => Promise<void>;
   joinGame: (code: string) => Promise<void>;
-  updatePlayerSettings: (name: string, pieceId: string, color: string) => Promise<void>;
+  updatePlayerSettings: (
+    name: string,
+    pieceId: string,
+    color: string
+  ) => Promise<void>;
   toggleReady: () => Promise<void>;
   startGame: () => Promise<void>;
   leaveGame: () => void;
@@ -62,7 +76,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export function useGame() {
   const context = useContext(GameContext);
   if (!context) {
-    throw new Error('useGame must be used within a GameProvider');
+    throw new Error("useGame must be used within a GameProvider");
   }
   return context;
 }
@@ -87,7 +101,7 @@ export function GameProvider({ children }: GameProviderProps) {
       setGame(updatedGame);
 
       // Navigate to game screen when game starts
-      if (updatedGame.status === 'playing') {
+      if (updatedGame.status === "playing") {
         navigate(`/game/${updatedGame.id}`);
       }
     });
@@ -115,19 +129,24 @@ export function GameProvider({ children }: GameProviderProps) {
 
   const hostGame = async (config: GameConfig) => {
     try {
+      console.log("hostGame: generating playerId");
       // Generate a temporary player ID for the host
-      const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const playerId = `player_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
       setCurrentPlayerId(playerId);
 
+      console.log("hostGame: creating game");
       // Create the game
       const gameId = await createGame(playerId, config);
+      console.log("hostGame: gameId", gameId);
 
       // Add host as first player
       await addPlayer(gameId, {
         id: playerId,
-        name: '',
-        pieceId: '',
-        color: '',
+        name: "",
+        pieceId: "",
+        color: "",
         balance: config.startingMoney,
         properties: [],
         isReady: false,
@@ -135,26 +154,30 @@ export function GameProvider({ children }: GameProviderProps) {
         isConnected: true,
         lastSeen: Date.now(),
       });
+      console.log("hostGame: host player added");
 
       // Navigate to lobby
       navigate(`/lobby/${gameId}`);
+      console.log("hostGame: navigated to lobby");
     } catch (error) {
-      console.error('Error hosting game:', error);
-      alert('Failed to create game. Please try again.');
+      console.error("Error hosting game:", error);
+      alert("Failed to create game. Please try again.");
     }
   };
 
   const joinGame = async (code: string) => {
     try {
       // Generate a temporary player ID
-      const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const playerId = `player_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
       setCurrentPlayerId(playerId);
 
       // Find game by code
       const gameId = await joinGameByCode(code);
 
       if (!gameId) {
-        alert('Game not found. Please check the code and try again.');
+        alert("Game not found. Please check the code and try again.");
         return;
       }
 
@@ -172,9 +195,9 @@ export function GameProvider({ children }: GameProviderProps) {
       // Add player to game
       await addPlayer(gameId, {
         id: playerId,
-        name: '',
-        pieceId: '',
-        color: '',
+        name: "",
+        pieceId: "",
+        color: "",
         balance: config.startingMoney,
         properties: [],
         isReady: false,
@@ -186,19 +209,23 @@ export function GameProvider({ children }: GameProviderProps) {
       // Navigate to lobby
       navigate(`/lobby/${gameId}`);
     } catch (error) {
-      console.error('Error joining game:', error);
-      alert('Failed to join game. Please try again.');
+      console.error("Error joining game:", error);
+      alert("Failed to join game. Please try again.");
     }
   };
 
-  const updatePlayerSettings = async (name: string, pieceId: string, color: string) => {
+  const updatePlayerSettings = async (
+    name: string,
+    pieceId: string,
+    color: string
+  ) => {
     if (!game?.id || !currentPlayerId) return;
 
     try {
       await updatePlayer(game.id, currentPlayerId, { name, pieceId, color });
     } catch (error) {
-      console.error('Error updating player settings:', error);
-      alert('Failed to update settings. Please try again.');
+      console.error("Error updating player settings:", error);
+      alert("Failed to update settings. Please try again.");
     }
   };
 
@@ -206,11 +233,13 @@ export function GameProvider({ children }: GameProviderProps) {
     if (!game?.id || !currentPlayerId) return;
 
     try {
-      const currentPlayer = players.find(p => p.id === currentPlayerId);
-      await updatePlayer(game.id, currentPlayerId, { isReady: !currentPlayer?.isReady });
+      const currentPlayer = players.find((p) => p.id === currentPlayerId);
+      await updatePlayer(game.id, currentPlayerId, {
+        isReady: !currentPlayer?.isReady,
+      });
     } catch (error) {
-      console.error('Error toggling ready:', error);
-      alert('Failed to toggle ready status. Please try again.');
+      console.error("Error toggling ready:", error);
+      alert("Failed to toggle ready status. Please try again.");
     }
   };
 
@@ -220,15 +249,15 @@ export function GameProvider({ children }: GameProviderProps) {
     try {
       await startGameService(game.id);
     } catch (error) {
-      console.error('Error starting game:', error);
-      alert('Failed to start game. Please try again.');
+      console.error("Error starting game:", error);
+      alert("Failed to start game. Please try again.");
     }
   };
 
   const leaveGame = () => {
     setGame(null);
     setCurrentPlayerId(null);
-    navigate('/');
+    navigate("/");
   };
 
   const value: GameContextType = {
