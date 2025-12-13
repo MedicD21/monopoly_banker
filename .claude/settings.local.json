@@ -17,7 +17,9 @@
       "Bash(timeout 5 npm run dev)",
       "Bash(npm install:*)",
       "Bash(npm run dev:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(grep:*)",
+      "Bash(npx cap:*)"
     ]
   }
 }

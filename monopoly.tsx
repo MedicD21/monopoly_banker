@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   DollarSign,
   Dice1,
@@ -13,6 +13,7 @@ import {
   Building2,
   X,
   Banknote,
+  Gavel,
 } from "lucide-react";
 import NumberPadModal from "./src/components/NumberPadModal";
 import PayPlayerModal from "./src/components/PayPlayerModal";
@@ -22,6 +23,8 @@ import TaxModal from "./src/components/TaxModal";
 import BankruptcyModal from "./src/components/BankruptcyModal";
 import WinnerModal from "./src/components/WinnerModal";
 import ResetModal from "./src/components/ResetModal";
+import AuctionModal from "./src/components/AuctionModal";
+import PropertySelectorModal from "./src/components/PropertySelectorModal";
 import {
   subscribeToPlayers,
   subscribeToGame,
@@ -46,8 +49,8 @@ const STARTING_MONEY = 1500;
 const PASS_GO_AMOUNT = 200;
 const HOUSE_COST = 50;
 const HOTEL_COST = 200;
-const TOTAL_HOUSES = 32; // Classic Monopoly house limit
-const TOTAL_HOTELS = 12; // Classic Monopoly hotel limit
+const TOTAL_HOUSES = 32; // Classic house limit
+const TOTAL_HOTELS = 12; // Classic hotel limit
 
 const GAME_PIECES = [
   { id: "car", name: "Racecar", icon: "/images/Racecar.svg" },
@@ -270,7 +273,7 @@ const PLAYER_COLORS = [
   "bg-teal-600",
 ];
 
-interface MonopolyBankerProps {
+interface DigitalBankerProps {
   gameId?: string;
   gameCode?: string;
   initialPlayers?: any[];
@@ -285,13 +288,13 @@ interface MonopolyBankerProps {
   };
 }
 
-export default function MonopolyBanker({
+export default function DigitalBanker({
   gameId,
   gameCode,
   initialPlayers,
   currentPlayerId: firebasePlayerId,
   gameConfig,
-}: MonopolyBankerProps = {}) {
+}: DigitalBankerProps = {}) {
   const isMultiplayer = !!gameId;
 
   const [screen, setScreen] = useState(isMultiplayer ? "play" : "setup");
@@ -333,7 +336,13 @@ export default function MonopolyBanker({
   ]);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [currentPlayerId, setCurrentPlayerId] = useState(0); // For player-specific view
-  const [lastRoll, setLastRoll] = useState(null);
+  const [lastRoll, setLastRoll] = useState<{
+    d1: number;
+    d2: number;
+    d3?: number | null;
+    total: number;
+    isDoubles: boolean;
+  } | null>(null);
   const [transactionMode, setTransactionMode] = useState(null);
   const [transactionAmount, setTransactionAmount] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -360,6 +369,8 @@ export default function MonopolyBanker({
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [winner, setWinner] = useState(null);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showAuctionModal, setShowAuctionModal] = useState(false);
+  const [auctionProperty, setAuctionProperty] = useState<any>(null);
 
   // Firebase sync for multiplayer
   useEffect(() => {
@@ -438,15 +449,19 @@ export default function MonopolyBanker({
 
     if (!rollingPlayer) return;
 
+    const speedDieEnabled = gameConfig?.speedDie || false;
+
     setDiceRolling(true);
     let rollCount = 0;
     const rollInterval = setInterval(() => {
       const tempD1 = Math.floor(Math.random() * 6) + 1;
       const tempD2 = Math.floor(Math.random() * 6) + 1;
+      const tempD3 = speedDieEnabled ? Math.floor(Math.random() * 6) + 1 : null;
       setLastRoll({
         d1: tempD1,
         d2: tempD2,
-        total: tempD1 + tempD2,
+        d3: tempD3,
+        total: tempD1 + tempD2 + (tempD3 || 0),
         isDoubles: tempD1 === tempD2,
       });
       rollCount++;
@@ -455,10 +470,14 @@ export default function MonopolyBanker({
         clearInterval(rollInterval);
         const finalD1 = Math.floor(Math.random() * 6) + 1;
         const finalD2 = Math.floor(Math.random() * 6) + 1;
+        const finalD3 = speedDieEnabled
+          ? Math.floor(Math.random() * 6) + 1
+          : null;
         const finalRoll = {
           d1: finalD1,
           d2: finalD2,
-          total: finalD1 + finalD2,
+          d3: finalD3,
+          total: finalD1 + finalD2 + (finalD3 || 0),
           isDoubles: finalD1 === finalD2,
         };
         setLastRoll(finalRoll);
@@ -1146,7 +1165,21 @@ export default function MonopolyBanker({
   };
 
   const passGo = (playerId) => {
-    updateBalance(playerId, PASS_GO_AMOUNT);
+    const doubleGoEnabled = gameConfig?.doubleGoOnLanding || false;
+    const passGoAmountToUse = gameConfig?.passGoAmount || PASS_GO_AMOUNT;
+    const amount = doubleGoEnabled ? passGoAmountToUse * 2 : passGoAmountToUse;
+    updateBalance(playerId, amount);
+
+    if (doubleGoEnabled) {
+      const player = players.find((p) => p.id === playerId);
+      if (player) {
+        alert(
+          `🎉 ${
+            player.name
+          } landed on GO! Double bonus: $${amount.toLocaleString()}`
+        );
+      }
+    }
   };
 
   // Enhanced pay system handlers
@@ -1373,6 +1406,52 @@ export default function MonopolyBanker({
     );
   };
 
+  const handleStartAuction = (property: any) => {
+    setAuctionProperty(property);
+    setShowAuctionModal(true);
+  };
+
+  const handleAuctionComplete = async (
+    winnerId: string,
+    winningBid: number
+  ) => {
+    const winner = players.find((p) => p.id === winnerId);
+    if (!winner || !auctionProperty) return;
+
+    // Deduct money from winner
+    const newBalance = winner.balance - winningBid;
+    setPlayers((prev) =>
+      prev.map((p) => (p.id === winnerId ? { ...p, balance: newBalance } : p))
+    );
+
+    // Add property to winner
+    const propertyToAdd = {
+      ...auctionProperty,
+      houses: 0,
+      hotel: false,
+      mortgaged: false,
+    };
+
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === winnerId
+          ? { ...p, properties: [...(p.properties || []), propertyToAdd] }
+          : p
+      )
+    );
+
+    if (isMultiplayer && gameId) {
+      await updatePlayerBalance(gameId, winnerId, newBalance);
+      await addPropertyToPlayer(gameId, winnerId, propertyToAdd);
+    }
+
+    alert(
+      `🎉 ${winner.name} won ${
+        auctionProperty.name
+      } for $${winningBid.toLocaleString()}!`
+    );
+  };
+
   const handleNewGameSamePlayers = () => {
     // Reset game state but keep players
     const resetPlayers = players.map((p) => ({
@@ -1452,10 +1531,16 @@ export default function MonopolyBanker({
 
   if (screen === "setup") {
     return (
-      <div className="min-h-screen bg-black text-amber-50 p-8">
+      <div
+        className="min-h-screen bg-black text-amber-50 p-8 relative overflow-hidden"
+        style={{ paddingTop: "max(2rem, env(safe-area-inset-top))" }}
+      >
         {/* Error Toast */}
         {errorMessage && (
-          <div className="fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-pulse">
+          <div
+            className="fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+            style={{ top: "max(1rem, env(safe-area-inset-top))" }}
+          >
             {errorMessage}
           </div>
         )}
@@ -1464,13 +1549,13 @@ export default function MonopolyBanker({
           <div className="text-center mb-12">
             <div className="flex justify-center mb-4">
               <img
-                src="/images/Monopoly_Logo.svg"
-                alt="Monopoly"
+                src="/images/Digital_Banker_Logo.svg"
+                alt="Digital Banker"
                 className="w-64 h-auto"
               />
             </div>
             <h1 className="text-5xl font-bold mb-2 text-amber-400">
-              MONOPOLY BANKER
+              DIGITAL BANKER
             </h1>
             <p className="text-amber-600">Digital Banking System</p>
           </div>
@@ -1623,63 +1708,30 @@ export default function MonopolyBanker({
   }
 
   return (
-    <div className="min-h-screen bg-black text-amber-50 p-2 sm:p-4 relative overflow-hidden">
-      {/* Global Animated Background Effects */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        {/* Floating money symbols */}
-        <div className="absolute top-[10%] left-[15%] text-6xl opacity-5 text-green-400 animate-float-slow">
-          $
-        </div>
-        <div className="absolute top-[25%] right-[20%] text-5xl opacity-5 text-amber-400 animate-float-medium">
-          $
-        </div>
-        <div className="absolute top-[60%] left-[25%] text-7xl opacity-5 text-green-300 animate-float-fast">
-          $
-        </div>
-        <div className="absolute bottom-[20%] right-[15%] text-6xl opacity-5 text-amber-500 animate-float-slow">
-          $
-        </div>
-
-        {/* Floating dice */}
-        <div className="absolute top-[40%] right-[30%] text-5xl opacity-5 animate-float-medium">
-          🎲
-        </div>
-        <div className="absolute bottom-[35%] left-[10%] text-4xl opacity-5 animate-float-fast">
-          🎲
-        </div>
-
-        {/* Gradient orbs */}
-        <div className="absolute top-[15%] right-[10%] w-64 h-64 bg-gradient-to-br from-amber-600/10 to-transparent rounded-full blur-3xl animate-float-slow"></div>
-        <div className="absolute bottom-[20%] left-[5%] w-80 h-80 bg-gradient-to-tr from-green-600/10 to-transparent rounded-full blur-3xl animate-float-medium"></div>
-        <div className="absolute top-[50%] left-[40%] w-72 h-72 bg-gradient-to-bl from-blue-600/10 to-transparent rounded-full blur-3xl animate-float-fast"></div>
-      </div>
-
+    <div
+      className="min-h-screen bg-black text-amber-50 p-2 sm:p-4 relative overflow-hidden"
+      style={{
+        paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+        paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+      }}
+    >
       {/* Error Toast */}
       {errorMessage && (
-        <div className="fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-pulse">
+        <div
+          className="fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+          style={{ top: "max(1rem, env(safe-area-inset-top))" }}
+        >
           {errorMessage}
         </div>
       )}
       <div className="max-w-7xl mx-auto relative z-10">
         {/* BANKER CARD - Reorganized with all main actions */}
         <div className="relative bg-zinc-900 rounded-lg p-4 mb-4 border border-amber-900/30 overflow-hidden">
-          {/* Animated Background Effects */}
-          <div className="absolute inset-0 opacity-10 pointer-events-none">
-            {/* Floating coins animation */}
-            <div className="absolute top-0 left-1/4 w-8 h-8 bg-amber-400 rounded-full animate-float-slow"></div>
-            <div className="absolute top-1/3 right-1/4 w-6 h-6 bg-amber-500 rounded-full animate-float-medium"></div>
-            <div className="absolute bottom-1/4 left-1/3 w-10 h-10 bg-amber-300 rounded-full animate-float-fast"></div>
-
-            {/* Diagonal stripes */}
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-900/5 via-transparent to-amber-900/5"></div>
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent animate-shimmer"></div>
-          </div>
-
           {/* Header */}
           <div className="relative flex flex-col items-center mb-4">
             <div className="flex items-center gap-4 mb-3">
               <h1 className="text-3xl font-bold text-amber-400 drop-shadow-lg text-center">
-                MONOPOLY BANKER
+                DIGITAL BANKER
               </h1>
             </div>
             <button
@@ -1699,10 +1751,11 @@ export default function MonopolyBanker({
             </div>
           )}
 
-          {/* Free Parking Display */}
-          {(gameConfig?.freeParkingJackpot ||
-            (isMultiplayer && freeParkingBalance > 0)) && (
-            <div className="flex justify-center mb-3">
+          {/* Pro Features Row - Free Parking & Auction */}
+          <div className="flex justify-center gap-3 mb-3 flex-wrap">
+            {/* Free Parking Display */}
+            {(gameConfig?.freeParkingJackpot ||
+              (isMultiplayer && freeParkingBalance > 0)) && (
               <div className="bg-green-900/30 border-2 border-green-600 rounded-lg px-4 py-2">
                 <div className="text-center">
                   <div className="text-xs text-green-400 font-bold">
@@ -1720,8 +1773,45 @@ export default function MonopolyBanker({
                   </button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Auction Button */}
+            {gameConfig?.auctionProperties && (
+              <div className="bg-purple-900/30 border-2 border-purple-600 rounded-lg px-4 py-2">
+                <div className="text-center">
+                  <div className="text-xs text-purple-400 font-bold">
+                    PROPERTY AUCTION
+                  </div>
+                  <div className="text-sm text-purple-300 mt-1 mb-2">
+                    Start an auction
+                  </div>
+                  <button
+                    onClick={() => {
+                      // Show property selector
+                      const propertyName = prompt(
+                        "Enter property name to auction:"
+                      );
+                      if (propertyName) {
+                        const property = PROPERTIES.find(
+                          (p) =>
+                            p.name.toLowerCase() === propertyName.toLowerCase()
+                        );
+                        if (property) {
+                          handleStartAuction(property);
+                        } else {
+                          alert("Property not found!");
+                        }
+                      }
+                    }}
+                    className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded text-xs transition-colors flex items-center gap-1 mx-auto"
+                  >
+                    <Gavel className="w-3 h-3" />
+                    Start Auction
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Building Counter Display */}
           {(() => {
@@ -1833,22 +1923,27 @@ export default function MonopolyBanker({
             {lastRoll && (
               <div className="mt-3 bg-zinc-800 p-3 rounded-lg border border-amber-900/30 text-center">
                 <div className="flex justify-center gap-3 mb-2">
-                  {[lastRoll.d1, lastRoll.d2].map((die, idx) => {
-                    const DiceIconComponent = [
-                      Dice1,
-                      Dice2,
-                      Dice3,
-                      Dice4,
-                      Dice5,
-                      Dice6,
-                    ][die - 1];
-                    return (
-                      <DiceIconComponent
-                        key={idx}
-                        className="w-10 h-10 text-amber-400"
-                      />
-                    );
-                  })}
+                  {[lastRoll.d1, lastRoll.d2, lastRoll.d3]
+                    .filter((d) => d !== null && d !== undefined)
+                    .map((die, idx) => {
+                      if (!die) return null;
+                      const DiceIconComponent = [
+                        Dice1,
+                        Dice2,
+                        Dice3,
+                        Dice4,
+                        Dice5,
+                        Dice6,
+                      ][die - 1];
+                      return (
+                        <DiceIconComponent
+                          key={idx}
+                          className={`w-10 h-10 ${
+                            idx === 2 ? "text-blue-400" : "text-amber-400"
+                          }`}
+                        />
+                      );
+                    })}
                 </div>
                 <p className="text-xl font-bold text-amber-400">
                   Total: {lastRoll.total}
@@ -1864,14 +1959,23 @@ export default function MonopolyBanker({
         {(showDice || diceRolling) && lastRoll && (
           <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
             <div
-              className={`bg-zinc-900 border-2 border-amber-600 rounded-lg p-4 sm:p-8 ${
-                diceRolling ? "animate-pulse" : ""
-              }`}
+              className="bg-zinc-900 border-2 border-amber-600 rounded-lg p-4 sm:p-8"
             >
               <div className="flex gap-3 sm:gap-6 items-center justify-center text-amber-400">
                 <DiceIcon value={lastRoll.d1} />
                 <div className="text-2xl sm:text-4xl font-bold">+</div>
                 <DiceIcon value={lastRoll.d2} />
+                {lastRoll.d3 && (
+                  <>
+                    <div className="text-2xl sm:text-4xl font-bold">+</div>
+                    <div className="relative">
+                      <DiceIcon value={lastRoll.d3} />
+                      <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs px-1 rounded">
+                        Speed
+                      </div>
+                    </div>
+                  </>
+                )}
                 <div className="text-2xl sm:text-4xl font-bold">=</div>
                 <div className="text-3xl sm:text-5xl font-bold text-amber-400">
                   {lastRoll.total}
@@ -2604,6 +2708,23 @@ export default function MonopolyBanker({
           onClose={() => setShowResetModal(false)}
           onNewGameSamePlayers={handleNewGameSamePlayers}
           onCompleteReset={handleCompleteReset}
+        />
+
+        {/* Auction Modal */}
+        <AuctionModal
+          isOpen={showAuctionModal}
+          onClose={() => {
+            setShowAuctionModal(false);
+            setAuctionProperty(null);
+          }}
+          propertyName={auctionProperty?.name || ""}
+          propertyPrice={auctionProperty?.price || 0}
+          players={players.map((p) => ({
+            id: p.id,
+            name: p.name,
+            balance: p.balance,
+          }))}
+          onAuctionComplete={handleAuctionComplete}
         />
       </div>
     </div>

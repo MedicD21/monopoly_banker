@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
-import MonopolyBanker from '../../monopoly';
+import DigitalBanker from '../../monopoly';
 
 export default function GamePage() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -50,7 +50,7 @@ export default function GamePage() {
   }
 
   return (
-    <MonopolyBanker
+    <DigitalBanker
       gameId={game.id}
       gameCode={game.code}
       initialPlayers={players}

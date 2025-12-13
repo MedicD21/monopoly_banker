@@ -14,7 +14,7 @@ export default function StartScreen({ onHost, onJoin }: StartScreenProps) {
           <div className="flex justify-center mb-6">
             <img
               src="/images/digitalbankerlogo.svg"
-              alt="Monopoly"
+              alt="Digital Banker"
               className="w-auto h-auto"
             />
           </div>

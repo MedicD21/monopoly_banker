@@ -119,6 +119,18 @@ export async function updateGameStatus(
   });
 }
 
+// Update game
+export async function updateGame(
+  gameId: string,
+  updates: Partial<Game>
+): Promise<void> {
+  const gameRef = doc(db, "games", gameId);
+  await updateDoc(gameRef, {
+    ...updates,
+    lastActivity: Date.now(),
+  });
+}
+
 // Log a game event
 export async function logEvent(
   gameId: string,

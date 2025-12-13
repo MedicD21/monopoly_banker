@@ -37,7 +37,17 @@ export default function LobbyScreen({
   const [selectedPiece, setSelectedPiece] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
 
+  // Debug logging
+  console.log('LobbyScreen:', {
+    isHost,
+    currentPlayerId,
+    players,
+    playersLength: players.length
+  });
+
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
+
+  console.log('currentPlayer:', currentPlayer);
   const allReady = players.length >= 2 && players.every((p) => p.isReady);
   const gameUrl = `${window.location.origin}?join=${gameCode}`;
 
@@ -49,14 +59,25 @@ export default function LobbyScreen({
     .filter((p) => p.id !== currentPlayerId)
     .map((p) => p.color);
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     if (name && selectedPiece && selectedColor) {
-      onPlayerUpdate(name, selectedPiece, selectedColor);
+      await onPlayerUpdate(name, selectedPiece, selectedColor);
     }
   };
 
+  const handleReadyClick = async () => {
+    console.log('handleReadyClick called', { name, selectedPiece, selectedColor });
+    await handleSaveSettings();
+    console.log('handleSaveSettings completed');
+    // Small delay to ensure Firebase has updated
+    await new Promise(resolve => setTimeout(resolve, 300));
+    console.log('About to call onToggleReady');
+    await onToggleReady();
+    console.log('onToggleReady completed');
+  };
+
   return (
-    <div className="min-h-screen bg-black text-amber-50 p-4">
+    <div className="min-h-screen bg-black text-amber-50 p-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-amber-400">Game Lobby</h1>
@@ -196,10 +217,7 @@ export default function LobbyScreen({
                 </div>
 
                 <button
-                  onClick={() => {
-                    handleSaveSettings();
-                    onToggleReady();
-                  }}
+                  onClick={handleReadyClick}
                   disabled={!name || !selectedPiece || !selectedColor}
                   className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-3 rounded transition-colors"
                 >

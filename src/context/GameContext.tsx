@@ -40,6 +40,7 @@ interface GameContextType {
   toggleReady: () => Promise<void>;
   startGame: () => Promise<void>;
   leaveGame: () => void;
+  updateGameSettings?: (config: Partial<GameConfig>) => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -61,21 +62,21 @@ export function GameProvider({ children }: GameProviderProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const location = useLocation();
 
-  // Store a playerId per game in localStorage: key = monopoly_playerId_{gameId}
+  // Store a playerId per game in localStorage: key = digitalbanker_playerId_{gameId}
   const [currentPlayerId, setCurrentPlayerIdState] = useState<string | null>(
     null
   );
 
   // Helper to get playerId for a game from localStorage
   const getStoredPlayerId = (gameId: string) => {
-    return localStorage.getItem(`monopoly_playerId_${gameId}`);
+    return localStorage.getItem(`digitalbanker_playerId_${gameId}`);
   };
   // Helper to set playerId for a game in localStorage
   const setStoredPlayerId = (gameId: string, playerId: string | null) => {
     if (playerId) {
-      localStorage.setItem(`monopoly_playerId_${gameId}`, playerId);
+      localStorage.setItem(`digitalbanker_playerId_${gameId}`, playerId);
     } else {
-      localStorage.removeItem(`monopoly_playerId_${gameId}`);
+      localStorage.removeItem(`digitalbanker_playerId_${gameId}`);
     }
   };
   const navigate = useNavigate();
@@ -91,6 +92,17 @@ export function GameProvider({ children }: GameProviderProps) {
   };
 
   const isHost = game?.hostId === currentPlayerId;
+
+  // Debug logging for isHost
+  useEffect(() => {
+    if (game && currentPlayerId) {
+      console.log('GameContext isHost check:', {
+        gameHostId: game.hostId,
+        currentPlayerId,
+        isHost: game.hostId === currentPlayerId
+      });
+    }
+  }, [game?.hostId, currentPlayerId]);
 
   // Subscribe to game updates
   // Restore game state on mount if gameId is in URL and currentPlayerId is set
@@ -149,36 +161,34 @@ export function GameProvider({ children }: GameProviderProps) {
 
   const hostGame = async (config: GameConfig) => {
     try {
-      // Generate a temporary player ID for the host
-      const tempPlayerId = `player_${Date.now()}_${Math.random()
+      // Generate a new player ID for the host
+      const playerId = `player_${Date.now()}_${Math.random()
         .toString(36)
         .substr(2, 9)}`;
-      // Create the game
-      const gameId = await createGame(tempPlayerId, config);
-      // Check if we already have a playerId for this game
-      let playerId = getStoredPlayerId(gameId);
-      if (!playerId) {
-        playerId = tempPlayerId;
-        setStoredPlayerId(gameId, playerId);
-      }
+
+      // Create the game with this playerId as host
+      const gameId = await createGame(playerId, config);
+
+      // Store this playerId for this game
+      setStoredPlayerId(gameId, playerId);
       setCurrentPlayerId(playerId, gameId);
 
-      // Only add host as first player if not already present
-      const existingHost = await getPlayer(gameId, playerId);
-      if (!existingHost) {
-        await addPlayer(gameId, {
-          id: playerId,
-          name: "",
-          pieceId: "",
-          color: "",
-          balance: config.startingMoney,
-          properties: [],
-          isReady: false,
-          isHost: true,
-          isConnected: true,
-          lastSeen: Date.now(),
-        });
-      }
+      console.log('hostGame: created game', { gameId, playerId });
+
+      // Add host as first player
+      await addPlayer(gameId, {
+        id: playerId,
+        name: "",
+        pieceId: "",
+        color: "",
+        balance: config.startingMoney,
+        properties: [],
+        isReady: false,
+        isHost: true,
+        isConnected: true,
+        lastSeen: Date.now(),
+      });
+
       navigate(`/lobby/${gameId}`);
     } catch (error) {
       console.error("Error hosting game:", error);
@@ -261,9 +271,18 @@ export function GameProvider({ children }: GameProviderProps) {
     if (!game?.id || !currentPlayerId) return;
 
     try {
-      const currentPlayer = players.find((p) => p.id === currentPlayerId);
+      // Fetch the latest player state from Firebase to avoid race conditions
+      const currentPlayerData = await getPlayer(game.id, currentPlayerId);
+      const currentIsReady = currentPlayerData?.isReady || false;
+
+      console.log('toggleReady:', {
+        currentPlayerId,
+        currentIsReady,
+        newReadyState: !currentIsReady
+      });
+
       await updatePlayer(game.id, currentPlayerId, {
-        isReady: !currentPlayer?.isReady,
+        isReady: !currentIsReady,
       });
     } catch (error) {
       console.error("Error toggling ready:", error);
@@ -291,6 +310,20 @@ export function GameProvider({ children }: GameProviderProps) {
     navigate("/");
   };
 
+  const updateGameSettings = async (config: Partial<GameConfig>) => {
+    if (!game?.id || !isHost) return;
+
+    try {
+      const { updateGame } = await import("../firebase/gameService");
+      await updateGame(game.id, {
+        config: { ...game.config, ...config },
+      });
+    } catch (error) {
+      console.error("Error updating game settings:", error);
+      alert("Failed to update game settings. Please try again.");
+    }
+  };
+
   const value: GameContextType = {
     game,
     players,
@@ -302,6 +335,7 @@ export function GameProvider({ children }: GameProviderProps) {
     toggleReady,
     startGame,
     leaveGame,
+    updateGameSettings,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

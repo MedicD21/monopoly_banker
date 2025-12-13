@@ -122,7 +122,7 @@ export default function RentSelector({
     } else if (landlordProp.houses > 0) {
       return `${landlordProp.houses} house${landlordProp.houses > 1 ? 's' : ''}`;
     } else if (hasMonopoly) {
-      return 'MONOPOLY (2× base)';
+      return 'Color set (2× base)';
     } else {
       return 'base';
     }
