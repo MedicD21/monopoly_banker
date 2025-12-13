@@ -58,7 +58,9 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
         </div>
 
         <div className="bg-zinc-900 rounded-lg p-6 border border-amber-900/30 mb-6">
-          <h2 className="text-xl font-bold text-red-400 mb-4">Game Variants</h2>
+          <h2 className="text-xl font-bold text-emerald-600 mb-4">
+            Game Variants
+          </h2>
 
           <div className="space-y-4">
             <label className="flex items-center justify-between p-3 bg-zinc-800 rounded cursor-pointer hover:bg-zinc-700 transition-colors">
