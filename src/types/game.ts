@@ -21,6 +21,7 @@ export interface Player {
   isReady?: boolean; // For lobby
   isConnected: boolean;
   lastSeen: number;
+  doublesCount?: number; // Track consecutive doubles for jail rule
 }
 
 export interface GameConfig {
@@ -41,6 +42,7 @@ export interface Game {
   createdAt: number;
   lastActivity: number;
   lastDiceRoll?: number; // For utility rent calculations
+  freeParkingBalance?: number; // Free Parking jackpot (if enabled)
 }
 
 export interface GameEvent {

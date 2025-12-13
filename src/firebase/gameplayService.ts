@@ -218,3 +218,67 @@ export async function unmortgageProperty(
     },
   });
 }
+
+// Add money to Free Parking
+export async function addToFreeParking(
+  gameId: string,
+  amount: number
+): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  const gameSnap = await getDoc(gameRef);
+
+  if (gameSnap.exists()) {
+    const gameData = gameSnap.data();
+    const currentBalance = gameData.freeParkingBalance || 0;
+
+    await updateDoc(gameRef, {
+      freeParkingBalance: currentBalance + amount,
+      lastActivity: Date.now(),
+    });
+  }
+
+  await logEvent(gameId, {
+    type: 'transaction',
+    playerId: 'system',
+    data: {
+      action: 'addToFreeParking',
+      amount,
+    },
+  });
+}
+
+// Claim Free Parking money
+export async function claimFreeParking(
+  gameId: string,
+  playerId: string
+): Promise<number> {
+  const gameRef = doc(db, 'games', gameId);
+  const gameSnap = await getDoc(gameRef);
+
+  if (!gameSnap.exists()) return 0;
+
+  const gameData = gameSnap.data();
+  const amount = gameData.freeParkingBalance || 0;
+
+  if (amount > 0) {
+    // Give money to player
+    await updatePlayerBalance(gameId, playerId, amount);
+
+    // Reset Free Parking balance
+    await updateDoc(gameRef, {
+      freeParkingBalance: 0,
+      lastActivity: Date.now(),
+    });
+
+    await logEvent(gameId, {
+      type: 'transaction',
+      playerId,
+      data: {
+        action: 'claimFreeParking',
+        amount,
+      },
+    });
+  }
+
+  return amount;
+}
