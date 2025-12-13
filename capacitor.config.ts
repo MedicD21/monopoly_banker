@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "Monopoly Banker",
-  appName: "com.dushin.monopolybanker",
+  appId: "com.dushin.monopolybanker.app",
+  appName: "Monopoly Banker",
   webDir: "dist",
 };
 
