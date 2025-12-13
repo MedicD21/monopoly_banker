@@ -1529,16 +1529,28 @@ export default function MonopolyBanker({
       )}
       <div className="max-w-7xl mx-auto">
         {/* BANKER CARD - Reorganized with all main actions */}
-        <div className="bg-zinc-900 rounded-lg p-4 mb-4 border border-amber-900/30">
+        <div className="relative bg-zinc-900 rounded-lg p-4 mb-4 border border-amber-900/30 overflow-hidden">
+          {/* Animated Background Effects */}
+          <div className="absolute inset-0 opacity-10">
+            {/* Floating coins animation */}
+            <div className="absolute top-0 left-1/4 w-8 h-8 bg-amber-400 rounded-full animate-float-slow"></div>
+            <div className="absolute top-1/3 right-1/4 w-6 h-6 bg-amber-500 rounded-full animate-float-medium"></div>
+            <div className="absolute bottom-1/4 left-1/3 w-10 h-10 bg-amber-300 rounded-full animate-float-fast"></div>
+
+            {/* Diagonal stripes */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-900/5 via-transparent to-amber-900/5"></div>
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent animate-shimmer"></div>
+          </div>
+
           {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+          <div className="relative flex flex-col items-center mb-4">
+            <div className="flex items-center gap-4 mb-2">
               <img
                 src="/images/Banker.svg"
                 alt="Banker"
-                className="w-12 h-12"
+                className="w-20 h-20 drop-shadow-lg"
               />
-              <h1 className="text-2xl font-bold text-amber-400">
+              <h1 className="text-3xl font-bold text-amber-400 drop-shadow-lg">
                 MONOPOLY BANKER
               </h1>
             </div>

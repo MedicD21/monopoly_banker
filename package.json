@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
     "firebase": "^12.6.0",
     "lucide-react": "^0.263.1",
     "phosphor-react": "^1.4.1",
