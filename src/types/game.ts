@@ -22,6 +22,7 @@ export interface Player {
   isConnected: boolean;
   lastSeen: number;
   doublesCount?: number; // Track consecutive doubles for jail rule
+  isBankrupt?: boolean; // Track if player is bankrupt
 }
 
 export interface GameConfig {

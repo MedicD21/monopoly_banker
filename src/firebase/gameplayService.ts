@@ -261,8 +261,17 @@ export async function claimFreeParking(
   const amount = gameData.freeParkingBalance || 0;
 
   if (amount > 0) {
-    // Give money to player
-    await updatePlayerBalance(gameId, playerId, amount);
+    // Get current player balance
+    const playerRef = doc(db, 'games', gameId, 'players', playerId);
+    const playerSnap = await getDoc(playerRef);
+
+    if (playerSnap.exists()) {
+      const currentBalance = playerSnap.data().balance || 0;
+      const newBalance = currentBalance + amount;
+
+      // Give money to player
+      await updatePlayerBalance(gameId, playerId, newBalance);
+    }
 
     // Reset Free Parking balance
     await updateDoc(gameRef, {

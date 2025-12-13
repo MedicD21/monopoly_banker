@@ -19,7 +19,12 @@ import PayPlayerModal from "./src/components/PayPlayerModal";
 import RentSelector from "./src/components/RentSelector";
 import TradeModal from "./src/components/TradeModal";
 import TaxModal from "./src/components/TaxModal";
-import { subscribeToPlayers, subscribeToGame } from "./src/firebase/realtimeService";
+import BankruptcyModal from "./src/components/BankruptcyModal";
+import WinnerModal from "./src/components/WinnerModal";
+import {
+  subscribeToPlayers,
+  subscribeToGame,
+} from "./src/firebase/realtimeService";
 import {
   updatePlayerBalance,
   transferMoney as transferMoneyFirebase,
@@ -349,6 +354,10 @@ export default function MonopolyBanker({
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [showTaxModal, setShowTaxModal] = useState(false);
   const [freeParkingBalance, setFreeParkingBalance] = useState(0);
+  const [showBankruptcyModal, setShowBankruptcyModal] = useState(false);
+  const [bankruptPlayer, setBankruptPlayer] = useState(null);
+  const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const [winner, setWinner] = useState(null);
 
   // Firebase sync for multiplayer
   useEffect(() => {
@@ -385,6 +394,41 @@ export default function MonopolyBanker({
       }
     }
   }, [isMultiplayer, firebasePlayerId, players]);
+
+  // Check for bankruptcy and winner
+  useEffect(() => {
+    if (players.length === 0) return;
+
+    // Check each player for bankruptcy (balance <= 0 and no properties)
+    players.forEach((player) => {
+      if (
+        !player.isBankrupt &&
+        player.balance <= 0 &&
+        player.properties.length === 0
+      ) {
+        // Mark player as bankrupt
+        setBankruptPlayer(player);
+        setShowBankruptcyModal(true);
+
+        // Update player state
+        setPlayers((prev) =>
+          prev.map((p) => (p.id === player.id ? { ...p, isBankrupt: true } : p))
+        );
+
+        // Update Firebase if multiplayer
+        if (isMultiplayer && gameId) {
+          updatePlayer(gameId, player.id, { isBankrupt: true });
+        }
+      }
+    });
+
+    // Check for winner (only one non-bankrupt player remaining)
+    const nonBankruptPlayers = players.filter((p) => !p.isBankrupt);
+    if (nonBankruptPlayers.length === 1 && players.length > 1) {
+      setWinner(nonBankruptPlayers[0]);
+      setShowWinnerModal(true);
+    }
+  }, [players, isMultiplayer, gameId]);
 
   const rollDice = async () => {
     const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
@@ -1322,7 +1366,9 @@ export default function MonopolyBanker({
       await claimFreeParking(gameId, playerIdToUse);
     }
 
-    alert(`${player.name} collected $${amount.toLocaleString()} from Free Parking!`);
+    alert(
+      `${player.name} collected $${amount.toLocaleString()} from Free Parking!`
+    );
   };
 
   const DiceIcon = ({ value }) => {
@@ -1520,18 +1566,48 @@ export default function MonopolyBanker({
   }
 
   return (
-    <div className="min-h-screen bg-black text-amber-50 p-2 sm:p-4">
+    <div className="min-h-screen bg-black text-amber-50 p-2 sm:p-4 relative overflow-hidden">
+      {/* Global Animated Background Effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {/* Floating money symbols */}
+        <div className="absolute top-[10%] left-[15%] text-6xl opacity-5 text-green-400 animate-float-slow">
+          $
+        </div>
+        <div className="absolute top-[25%] right-[20%] text-5xl opacity-5 text-amber-400 animate-float-medium">
+          $
+        </div>
+        <div className="absolute top-[60%] left-[25%] text-7xl opacity-5 text-green-300 animate-float-fast">
+          $
+        </div>
+        <div className="absolute bottom-[20%] right-[15%] text-6xl opacity-5 text-amber-500 animate-float-slow">
+          $
+        </div>
+
+        {/* Floating dice */}
+        <div className="absolute top-[40%] right-[30%] text-5xl opacity-5 animate-float-medium">
+          🎲
+        </div>
+        <div className="absolute bottom-[35%] left-[10%] text-4xl opacity-5 animate-float-fast">
+          🎲
+        </div>
+
+        {/* Gradient orbs */}
+        <div className="absolute top-[15%] right-[10%] w-64 h-64 bg-gradient-to-br from-amber-600/10 to-transparent rounded-full blur-3xl animate-float-slow"></div>
+        <div className="absolute bottom-[20%] left-[5%] w-80 h-80 bg-gradient-to-tr from-green-600/10 to-transparent rounded-full blur-3xl animate-float-medium"></div>
+        <div className="absolute top-[50%] left-[40%] w-72 h-72 bg-gradient-to-bl from-blue-600/10 to-transparent rounded-full blur-3xl animate-float-fast"></div>
+      </div>
+
       {/* Error Toast */}
       {errorMessage && (
         <div className="fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-pulse">
           {errorMessage}
         </div>
       )}
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto relative z-10">
         {/* BANKER CARD - Reorganized with all main actions */}
         <div className="relative bg-zinc-900 rounded-lg p-4 mb-4 border border-amber-900/30 overflow-hidden">
           {/* Animated Background Effects */}
-          <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0 opacity-10 pointer-events-none">
             {/* Floating coins animation */}
             <div className="absolute top-0 left-1/4 w-8 h-8 bg-amber-400 rounded-full animate-float-slow"></div>
             <div className="absolute top-1/3 right-1/4 w-6 h-6 bg-amber-500 rounded-full animate-float-medium"></div>
@@ -1544,13 +1620,8 @@ export default function MonopolyBanker({
 
           {/* Header */}
           <div className="relative flex flex-col items-center mb-4">
-            <div className="flex items-center gap-4 mb-2">
-              <img
-                src="/images/Banker.svg"
-                alt="Banker"
-                className="w-20 h-20 drop-shadow-lg"
-              />
-              <h1 className="text-3xl font-bold text-amber-400 drop-shadow-lg">
+            <div className="flex items-center gap-4 mb-3">
+              <h1 className="text-3xl font-bold text-amber-400 drop-shadow-lg text-center">
                 MONOPOLY BANKER
               </h1>
             </div>
@@ -1582,11 +1653,14 @@ export default function MonopolyBanker({
           )}
 
           {/* Free Parking Display */}
-          {(gameConfig?.freeParkingJackpot || (isMultiplayer && freeParkingBalance > 0)) && (
+          {(gameConfig?.freeParkingJackpot ||
+            (isMultiplayer && freeParkingBalance > 0)) && (
             <div className="flex justify-center mb-3">
               <div className="bg-green-900/30 border-2 border-green-600 rounded-lg px-4 py-2">
                 <div className="text-center">
-                  <div className="text-xs text-green-400 font-bold">FREE PARKING</div>
+                  <div className="text-xs text-green-400 font-bold">
+                    FREE PARKING
+                  </div>
                   <div className="text-2xl font-bold text-green-300">
                     ${freeParkingBalance.toLocaleString()}
                   </div>
@@ -1642,50 +1716,58 @@ export default function MonopolyBanker({
           })()}
 
           {/* Banker Action Buttons */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <button
-              onClick={() => {
-                const playerIdToUse = isMultiplayer
-                  ? firebasePlayerId
-                  : currentPlayerId;
-                if (playerIdToUse === null) {
-                  showError("Please select which player you are first");
-                  return;
-                }
-                passGo(playerIdToUse);
-              }}
-              className="bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded font-bold transition-colors flex items-center gap-2"
-            >
-              <img src="/images/Go.svg" alt="GO" className="w-5 h-5" />
-              Pass GO
-            </button>
+          <div className="flex flex-col items-center gap-2 mb-4">
+            {/* First Row: Pass GO and Buy Property */}
+            <div className="flex gap-2 w-full">
+              <button
+                onClick={() => {
+                  const playerIdToUse = isMultiplayer
+                    ? firebasePlayerId
+                    : currentPlayerId;
+                  if (playerIdToUse === null) {
+                    showError("Please select which player you are first");
+                    return;
+                  }
+                  passGo(playerIdToUse);
+                }}
+                className="flex-1 bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <img src="/images/Go.svg" alt="GO" className="w-auto h-10" />
+                Pass GO
+              </button>
 
-            <button
-              onClick={() => {
-                const playerIdToUse = isMultiplayer
-                  ? firebasePlayerId
-                  : currentPlayerId;
-                if (playerIdToUse === null) {
-                  showError("Please select which player you are first");
-                  return;
-                }
-                setShowBuyProperty(true);
-              }}
-              className="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded font-bold transition-colors flex items-center gap-2"
-            >
-              <img
-                src="/images/property.svg"
-                alt="property"
-                className="w-4 h-4"
-              />
-              Buy Property
-            </button>
+              <button
+                onClick={() => {
+                  const playerIdToUse = isMultiplayer
+                    ? firebasePlayerId
+                    : currentPlayerId;
+                  if (playerIdToUse === null) {
+                    showError("Please select which player you are first");
+                    return;
+                  }
+                  setShowBuyProperty(true);
+                }}
+                className="flex-1 bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <img
+                  src="/images/property.svg"
+                  alt="property"
+                  className="w-auto h-10"
+                />
+                Buy Property
+              </button>
+            </div>
 
+            {/* Second Row: Banker Pays centered */}
             <button
               onClick={handleBankerPays}
               className="bg-green-300 hover:bg-green-200 text-black px-4 py-2 rounded font-bold transition-colors flex items-center gap-2"
             >
-              <img src="/images/Money.svg" alt="money" className="w-auto h-5" />
+              <img
+                src="/images/Banker.svg"
+                alt="Banker"
+                className="w-auto h-20"
+              />
               Banker Pays
             </button>
           </div>
@@ -2435,9 +2517,32 @@ export default function MonopolyBanker({
           onOpenCustomTaxNumberPad={() => {
             setNumberPadTitle("Custom Tax Amount");
             setNumberPadCallback(() => (amount) => {
-              handlePayTax(amount, 'Custom Tax');
+              handlePayTax(amount, "Custom Tax");
             });
             setShowNumberPad(true);
+          }}
+        />
+
+        {/* Bankruptcy Modal */}
+        <BankruptcyModal
+          isOpen={showBankruptcyModal}
+          playerName={bankruptPlayer?.name || ""}
+          onClose={() => {
+            setShowBankruptcyModal(false);
+            setBankruptPlayer(null);
+          }}
+        />
+
+        {/* Winner Modal */}
+        <WinnerModal
+          isOpen={showWinnerModal}
+          winnerName={winner?.name || ""}
+          winnerPieceIcon={
+            GAME_PIECES.find((p) => p.id === winner?.pieceId)?.icon || ""
+          }
+          onClose={() => {
+            setShowWinnerModal(false);
+            setWinner(null);
           }}
         />
       </div>
