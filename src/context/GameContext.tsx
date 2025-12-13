@@ -93,16 +93,6 @@ export function GameProvider({ children }: GameProviderProps) {
 
   const isHost = game?.hostId === currentPlayerId;
 
-  // Debug logging for isHost
-  useEffect(() => {
-    if (game && currentPlayerId) {
-      console.log('GameContext isHost check:', {
-        gameHostId: game.hostId,
-        currentPlayerId,
-        isHost: game.hostId === currentPlayerId
-      });
-    }
-  }, [game?.hostId, currentPlayerId]);
 
   // Subscribe to game updates
   // Restore game state on mount if gameId is in URL and currentPlayerId is set
@@ -172,8 +162,6 @@ export function GameProvider({ children }: GameProviderProps) {
       // Store this playerId for this game
       setStoredPlayerId(gameId, playerId);
       setCurrentPlayerId(playerId, gameId);
-
-      console.log('hostGame: created game', { gameId, playerId });
 
       // Add host as first player
       await addPlayer(gameId, {
@@ -274,12 +262,6 @@ export function GameProvider({ children }: GameProviderProps) {
       // Fetch the latest player state from Firebase to avoid race conditions
       const currentPlayerData = await getPlayer(game.id, currentPlayerId);
       const currentIsReady = currentPlayerData?.isReady || false;
-
-      console.log('toggleReady:', {
-        currentPlayerId,
-        currentIsReady,
-        newReadyState: !currentIsReady
-      });
 
       await updatePlayer(game.id, currentPlayerId, {
         isReady: !currentIsReady,

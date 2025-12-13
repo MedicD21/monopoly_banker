@@ -202,9 +202,7 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
             setError(null);
             setLoading(true);
             try {
-              console.log("Creating game with config:", config);
               await onCreateGame(config);
-              console.log("Game creation triggered");
             } catch (e: any) {
               setError(e?.message || "Failed to create game.");
               console.error("Error in HostSetup onCreateGame:", e);

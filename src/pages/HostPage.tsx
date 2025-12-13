@@ -13,10 +13,8 @@ export default function HostPage() {
   };
 
   const handleCreateGame = async (config: GameConfig) => {
-    console.log("handleCreateGame called");
     await hostGame(config);
     // Navigation to lobby happens in GameContext
-    console.log("handleCreateGame finished");
   };
 
   return <HostSetup onBack={handleBack} onCreateGame={handleCreateGame} />;

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
 
 interface ProContextType {
   isPro: boolean;
@@ -10,22 +11,67 @@ interface ProContextType {
 
 const ProContext = createContext<ProContextType | undefined>(undefined);
 
+// RevenueCat API Keys (set these in your .env file or Capacitor config)
+const REVENUECAT_API_KEY_IOS = import.meta.env.VITE_REVENUECAT_IOS_KEY || 'your_ios_key_here';
+const REVENUECAT_API_KEY_ANDROID = import.meta.env.VITE_REVENUECAT_ANDROID_KEY || 'your_android_key_here';
+const PRO_ENTITLEMENT_ID = 'pro'; // RevenueCat entitlement ID
+const PRO_PRODUCT_ID = 'digital_banker_pro'; // Product ID in App Store/Play Store
+
 export function ProProvider({ children }: { children: React.ReactNode }) {
   const [isPro, setIsPro] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user has pro features
-    checkProStatus();
+    // Initialize RevenueCat and check pro status
+    initializeRevenueCat();
   }, []);
 
-  const checkProStatus = async () => {
+  const initializeRevenueCat = async () => {
     setIsLoading(true);
     try {
-      // For now, check localStorage
-      // TODO: Replace with actual in-app purchase verification
-      const proStatus = localStorage.getItem('digital_banker_pro');
-      setIsPro(proStatus === 'true');
+      if (Capacitor.isNativePlatform()) {
+        // Configure RevenueCat
+        const platform = Capacitor.getPlatform();
+        const apiKey = platform === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
+
+        await Purchases.configure({
+          apiKey,
+          appUserID: undefined, // Let RevenueCat generate anonymous ID
+        });
+
+        // Set log level for debugging (remove in production)
+        if (import.meta.env.DEV) {
+          await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
+        }
+
+        // Check current entitlements
+        await checkProStatus();
+      } else {
+        // Web platform - use localStorage for testing
+        const proStatus = localStorage.getItem('digital_banker_pro');
+        setIsPro(proStatus === 'true');
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Error initializing RevenueCat:', error);
+      setIsPro(false);
+      setIsLoading(false);
+    }
+  };
+
+  const checkProStatus = async () => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const customerInfo = await Purchases.getCustomerInfo();
+
+        // Check if user has the pro entitlement
+        const hasPro = customerInfo.customerInfo.entitlements.active[PRO_ENTITLEMENT_ID] !== undefined;
+        setIsPro(hasPro);
+      } else {
+        // Web fallback
+        const proStatus = localStorage.getItem('digital_banker_pro');
+        setIsPro(proStatus === 'true');
+      }
     } catch (error) {
       console.error('Error checking pro status:', error);
       setIsPro(false);
@@ -37,32 +83,49 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
   const purchasePro = async (): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // TODO: Implement actual in-app purchase flow
-      // For development, we'll simulate a purchase
-
       if (Capacitor.isNativePlatform()) {
-        // In production, this would call native IAP APIs
-        // Example flow:
-        // 1. Initialize IAP
-        // 2. Load products
-        // 3. Purchase product with ID "digital_banker_pro"
-        // 4. Verify receipt
-        // 5. Grant access
+        // Get available packages
+        const offerings = await Purchases.getOfferings();
 
-        // For now, simulate purchase
+        if (offerings.current === null || offerings.current === undefined) {
+          throw new Error('No offerings available');
+        }
+
+        // Find the pro package (assuming it's in the current offering)
+        const proPackage = offerings.current.availablePackages.find(
+          pkg => pkg.product.identifier === PRO_PRODUCT_ID
+        );
+
+        if (!proPackage) {
+          throw new Error('Pro package not found');
+        }
+
+        // Purchase the package
+        const purchaseResult = await Purchases.purchasePackage({
+          aPackage: proPackage,
+        });
+
+        // Check if purchase was successful
+        const hasPro = purchaseResult.customerInfo.entitlements.active[PRO_ENTITLEMENT_ID] !== undefined;
+        setIsPro(hasPro);
+
+        return hasPro;
+      } else {
+        // Web fallback - simulate purchase for testing
         await new Promise(resolve => setTimeout(resolve, 1000));
         localStorage.setItem('digital_banker_pro', 'true');
         setIsPro(true);
         return true;
-      } else {
-        // Web fallback - just set it for testing
-        localStorage.setItem('digital_banker_pro', 'true');
-        setIsPro(true);
-        return true;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error purchasing pro:', error);
-      return false;
+
+      // Handle user cancellation gracefully
+      if (error.code === '1' || error.message?.includes('user cancelled')) {
+        return false;
+      }
+
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -71,14 +134,24 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
   const restorePurchases = async (): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // TODO: Implement actual restore purchases flow
-      // For now, check localStorage
-      const proStatus = localStorage.getItem('digital_banker_pro');
-      if (proStatus === 'true') {
-        setIsPro(true);
-        return true;
+      if (Capacitor.isNativePlatform()) {
+        // Restore purchases through RevenueCat
+        const customerInfo = await Purchases.restorePurchases();
+
+        // Check if user has pro entitlement after restore
+        const hasPro = customerInfo.customerInfo.entitlements.active[PRO_ENTITLEMENT_ID] !== undefined;
+        setIsPro(hasPro);
+
+        return hasPro;
+      } else {
+        // Web fallback
+        const proStatus = localStorage.getItem('digital_banker_pro');
+        if (proStatus === 'true') {
+          setIsPro(true);
+          return true;
+        }
+        return false;
       }
-      return false;
     } catch (error) {
       console.error('Error restoring purchases:', error);
       return false;

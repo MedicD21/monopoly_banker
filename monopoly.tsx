@@ -14,17 +14,22 @@ import {
   X,
   Banknote,
   Gavel,
+  Clock,
 } from "lucide-react";
 import NumberPadModal from "./src/components/NumberPadModal";
 import PayPlayerModal from "./src/components/PayPlayerModal";
 import RentSelector from "./src/components/RentSelector";
 import TradeModal from "./src/components/TradeModal";
+import TradeOfferModal from "./src/components/TradeOfferModal";
 import TaxModal from "./src/components/TaxModal";
 import BankruptcyModal from "./src/components/BankruptcyModal";
 import WinnerModal from "./src/components/WinnerModal";
 import ResetModal from "./src/components/ResetModal";
 import AuctionModal from "./src/components/AuctionModal";
 import PropertySelectorModal from "./src/components/PropertySelectorModal";
+import ToastNotification from "./src/components/ToastNotification";
+import HistoryModal from "./src/components/HistoryModal";
+import { HistoryEntry, TradeOffer } from "./src/types/game";
 import {
   subscribeToPlayers,
   subscribeToGame,
@@ -42,6 +47,15 @@ import {
   unmortgageProperty as unmortgagePropertyFirebase,
   addToFreeParking,
   claimFreeParking,
+  startAuction as startAuctionFirebase,
+  placeAuctionBid as placeAuctionBidFirebase,
+  dropOutAuction as dropOutAuctionFirebase,
+  endAuction as endAuctionFirebase,
+  addHistoryEntry as addHistoryEntryFirebase,
+  proposeTrade,
+  acceptTrade,
+  rejectTrade,
+  clearTrade,
 } from "./src/firebase/gameplayService";
 import { updatePlayer } from "./src/firebase/gameService";
 
@@ -51,6 +65,8 @@ const HOUSE_COST = 50;
 const HOTEL_COST = 200;
 const TOTAL_HOUSES = 32; // Classic house limit
 const TOTAL_HOTELS = 12; // Classic hotel limit
+const idsMatch = (a: string | number, b: string | number) =>
+  String(a) === String(b);
 
 const GAME_PIECES = [
   { id: "car", name: "Racecar", icon: "/images/Racecar.svg" },
@@ -360,7 +376,9 @@ export default function DigitalBanker({
   const [selectedLandlord, setSelectedLandlord] = useState(null);
   const [showNumberPad, setShowNumberPad] = useState(false);
   const [numberPadTitle, setNumberPadTitle] = useState("Enter Amount");
-  const [numberPadCallback, setNumberPadCallback] = useState(null);
+  const [numberPadCallback, setNumberPadCallback] = useState<
+    ((amount: number) => void) | null
+  >(null);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [showTaxModal, setShowTaxModal] = useState(false);
   const [freeParkingBalance, setFreeParkingBalance] = useState(0);
@@ -371,6 +389,16 @@ export default function DigitalBanker({
   const [showResetModal, setShowResetModal] = useState(false);
   const [showAuctionModal, setShowAuctionModal] = useState(false);
   const [auctionProperty, setAuctionProperty] = useState<any>(null);
+  const [showAuctionSelector, setShowAuctionSelector] = useState(false);
+  const [auctionState, setAuctionState] = useState<any>(null);
+  const [resolvedAuctionKey, setResolvedAuctionKey] = useState<string | null>(
+    null
+  );
+  const [toastMessage, setToastMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [gameHistory, setGameHistory] = useState<HistoryEntry[]>([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
 
   // Firebase sync for multiplayer
   useEffect(() => {
@@ -385,13 +413,52 @@ export default function DigitalBanker({
     return () => unsubscribe();
   }, [isMultiplayer, gameId]);
 
-  // Subscribe to game updates (for Free Parking balance)
+  // Subscribe to game updates (for Free Parking balance and history)
   useEffect(() => {
     if (!isMultiplayer || !gameId) return;
 
     const unsubscribe = subscribeToGame(gameId, (gameData) => {
       if (gameData.freeParkingBalance !== undefined) {
         setFreeParkingBalance(gameData.freeParkingBalance);
+      }
+
+      // Sync game history across all players
+      if (gameData.history) {
+        setGameHistory(gameData.history);
+      }
+
+      // Sync auction state across all players
+      if (gameData.auction) {
+        setAuctionState(gameData.auction);
+
+        if (gameData.auction.active) {
+          const propertyDef = PROPERTIES.find(
+            (p) =>
+              p.name.toLowerCase() ===
+              gameData.auction.propertyName?.toLowerCase()
+          );
+          setAuctionProperty(
+            propertyDef || {
+              name: gameData.auction.propertyName,
+              price: gameData.auction.propertyPrice,
+            }
+          );
+          setShowAuctionModal(true);
+        } else {
+          setShowAuctionModal(false);
+          setAuctionProperty(null);
+        }
+      } else {
+        setAuctionState(null);
+        setShowAuctionModal(false);
+        setAuctionProperty(null);
+      }
+
+      // Sync trade offers across all players
+      if (gameData.tradeOffer) {
+        setTradeOffer(gameData.tradeOffer);
+      } else {
+        setTradeOffer(null);
       }
     });
 
@@ -485,6 +552,16 @@ export default function DigitalBanker({
         setShowDice(true);
         setTimeout(() => setShowDice(false), 3000);
 
+        // Add to history
+        const diceString = finalD3
+          ? `${finalD1} + ${finalD2} + ${finalD3} = ${finalRoll.total}`
+          : `${finalD1} + ${finalD2} = ${finalRoll.total}`;
+        addHistoryEntry(
+          'dice',
+          `${rollingPlayer.name} rolled ${diceString}${finalRoll.isDoubles ? ' (Doubles!)' : ''}`,
+          rollingPlayer.name
+        );
+
         // Handle doubles tracking and three-doubles-in-a-row jail rule
         const currentDoublesCount = rollingPlayer.doublesCount || 0;
 
@@ -563,6 +640,36 @@ export default function DigitalBanker({
   const showError = (message) => {
     setErrorMessage(message);
     setTimeout(() => setErrorMessage(""), 3000);
+  };
+
+  const showToastMessage = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+  };
+
+  const addHistoryEntry = async (
+    type: HistoryEntry['type'],
+    message: string,
+    playerName?: string
+  ) => {
+    const entry = {
+      type,
+      message,
+      playerName,
+    };
+
+    // In multiplayer mode, sync to Firebase
+    if (isMultiplayer && gameId) {
+      await addHistoryEntryFirebase(gameId, entry);
+    } else {
+      // In single player mode, update local state
+      const localEntry: HistoryEntry = {
+        id: `${Date.now()}_${Math.random()}`,
+        timestamp: Date.now(),
+        ...entry,
+      };
+      setGameHistory((prev) => [...prev, localEntry]);
+    }
   };
 
   const startGame = () => {
@@ -682,6 +789,13 @@ export default function DigitalBanker({
       await transferMoneyFirebase(gameId, fromId, toId, amt);
     }
 
+    // Add to history
+    addHistoryEntry(
+      'transaction',
+      `${fromPlayer.name} paid ${toPlayer.name} $${amt.toLocaleString()}`,
+      fromPlayer.name
+    );
+
     setTransactionMode(null);
     setRentMode(null);
     setTransactionAmount("");
@@ -734,6 +848,13 @@ export default function DigitalBanker({
       await addPropertyToPlayer(gameId, playerId, newProperty);
     }
 
+    // Add to history
+    addHistoryEntry(
+      'property',
+      `${player.name} bought ${property.name} for $${property.price.toLocaleString()}`,
+      player.name
+    );
+
     setTransactionMode(null);
   };
 
@@ -768,6 +889,13 @@ export default function DigitalBanker({
       await updatePlayerBalance(gameId, playerId, newBalance);
       await removePropertyFromPlayer(gameId, playerId, propertyName);
     }
+
+    // Add to history
+    addHistoryEntry(
+      'property',
+      `${player.name} sold ${propertyName} for $${refund.toLocaleString()}`,
+      player.name
+    );
   };
 
   const mortgageProperty = async (playerId, propertyName) => {
@@ -1170,15 +1298,14 @@ export default function DigitalBanker({
     const amount = doubleGoEnabled ? passGoAmountToUse * 2 : passGoAmountToUse;
     updateBalance(playerId, amount);
 
-    if (doubleGoEnabled) {
-      const player = players.find((p) => p.id === playerId);
-      if (player) {
-        alert(
-          `🎉 ${
-            player.name
-          } landed on GO! Double bonus: $${amount.toLocaleString()}`
-        );
-      }
+    const player = players.find((p) => p.id === playerId);
+    if (player) {
+      const message = doubleGoEnabled
+        ? `🎉 ${player.name} landed on GO! Double bonus: $${amount.toLocaleString()}`
+        : `${player.name} passed GO and collected $${amount.toLocaleString()}`;
+
+      showToastMessage(message);
+      addHistoryEntry('passGo', message, player.name);
     }
   };
 
@@ -1223,6 +1350,97 @@ export default function DigitalBanker({
     }
   };
 
+  // Execute a trade (used for accepting trades and single-player trades)
+  const executeTrade = async (
+    fromPlayerId,
+    toPlayerId,
+    offerMoney,
+    offerProperties,
+    requestMoney,
+    requestProperties
+  ) => {
+    const fromPlayer = players.find((p) => p.id === fromPlayerId);
+    const toPlayer = players.find((p) => p.id === toPlayerId);
+
+    if (!fromPlayer || !toPlayer) return;
+
+    // Transfer money
+    if (offerMoney > 0 || requestMoney > 0) {
+      const netTransfer = requestMoney - offerMoney;
+      if (netTransfer > 0) {
+        await transferMoney(
+          toPlayerId,
+          fromPlayerId,
+          Math.abs(netTransfer).toString()
+        );
+      } else if (netTransfer < 0) {
+        await transferMoney(
+          fromPlayerId,
+          toPlayerId,
+          Math.abs(netTransfer).toString()
+        );
+      }
+    }
+
+    // Transfer properties from fromPlayer to toPlayer
+    for (const propName of offerProperties) {
+      const prop = fromPlayer.properties.find((p) => p.name === propName);
+      if (!prop) continue;
+
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.id === fromPlayerId
+            ? {
+                ...p,
+                properties: p.properties.filter((pr) => pr.name !== propName),
+              }
+            : p.id === toPlayerId
+            ? { ...p, properties: [...p.properties, prop] }
+            : p
+        )
+      );
+
+      if (isMultiplayer && gameId) {
+        await removePropertyFromPlayer(gameId, fromPlayerId, propName);
+        await addPropertyToPlayer(gameId, toPlayerId, prop);
+      }
+    }
+
+    // Transfer properties from toPlayer to fromPlayer
+    for (const propName of requestProperties) {
+      const prop = toPlayer.properties.find((p) => p.name === propName);
+      if (!prop) continue;
+
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.id === toPlayerId
+            ? {
+                ...p,
+                properties: p.properties.filter((pr) => pr.name !== propName),
+              }
+            : p.id === fromPlayerId
+            ? { ...p, properties: [...p.properties, prop] }
+            : p
+        )
+      );
+
+      if (isMultiplayer && gameId) {
+        await removePropertyFromPlayer(gameId, toPlayerId, propName);
+        await addPropertyToPlayer(gameId, fromPlayerId, prop);
+      }
+    }
+
+    // Add to history
+    await addHistoryEntry(
+      "transaction",
+      `${fromPlayer.name} and ${toPlayer.name} completed a trade`
+    );
+
+    // Show success message
+    setToastMessage("Trade completed successfully!");
+    setShowToast(true);
+  };
+
   const handleProposeTrade = async (
     toPlayerId,
     offerMoney,
@@ -1232,6 +1450,7 @@ export default function DigitalBanker({
   ) => {
     const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
     if (!playerIdToUse) return;
+    if (isMultiplayer && !gameId) return;
 
     const fromPlayer = players.find((p) => p.id === playerIdToUse);
     const toPlayer = players.find((p) => p.id === toPlayerId);
@@ -1249,90 +1468,126 @@ export default function DigitalBanker({
       return;
     }
 
-    // Create trade summary
-    let tradeSummary = `Trade with ${toPlayer.name}:\n\n`;
-    tradeSummary += `You give:\n`;
-    if (offerMoney > 0) tradeSummary += `- $${offerMoney.toLocaleString()}\n`;
-    offerProperties.forEach((p) => (tradeSummary += `- ${p}\n`));
-    tradeSummary += `\nYou receive:\n`;
-    if (requestMoney > 0)
-      tradeSummary += `- $${requestMoney.toLocaleString()}\n`;
-    requestProperties.forEach((p) => (tradeSummary += `- ${p}\n`));
-    tradeSummary += `\nAccept this trade?`;
+    // In multiplayer, create a trade offer that the other player can accept/reject/counter
+    if (isMultiplayer) {
+      await proposeTrade(gameId, {
+        fromPlayerId: String(playerIdToUse),
+        toPlayerId: String(toPlayerId),
+        offerMoney,
+        offerProperties,
+        requestMoney,
+        requestProperties,
+        isCounterOffer: false,
+      });
 
-    if (!window.confirm(tradeSummary)) {
+      // Close the trade modal
+      setShowTradeModal(false);
+
+      // Show toast notification
+      setToastMessage(`Trade offer sent to ${toPlayer.name}`);
+      setShowToast(true);
+    } else {
+      // In single player, execute immediately with confirmation
+      const tradeSummary = `Trade with ${toPlayer.name}:\n\nYou give:\n${
+        offerMoney > 0 ? `- $${offerMoney.toLocaleString()}\n` : ""
+      }${offerProperties.join("\n- ")}\n\nYou receive:\n${
+        requestMoney > 0 ? `- $${requestMoney.toLocaleString()}\n` : ""
+      }${requestProperties.join("\n- ")}\n\nAccept this trade?`;
+
+      if (!window.confirm(tradeSummary)) {
+        return;
+      }
+
+      await executeTrade(
+        playerIdToUse,
+        toPlayerId,
+        offerMoney,
+        offerProperties,
+        requestMoney,
+        requestProperties
+      );
+    }
+  };
+
+  const handleAcceptTrade = async () => {
+    if (!tradeOffer || !gameId) return;
+
+    // Execute the trade
+    await executeTrade(
+      tradeOffer.fromPlayerId,
+      tradeOffer.toPlayerId,
+      tradeOffer.offerMoney,
+      tradeOffer.offerProperties,
+      tradeOffer.requestMoney,
+      tradeOffer.requestProperties
+    );
+
+    // Clear the trade offer
+    await clearTrade(gameId);
+  };
+
+  const handleRejectTrade = async () => {
+    if (!tradeOffer || !gameId) return;
+
+    const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+    const fromPlayer = players.find((p) => p.id === tradeOffer.fromPlayerId);
+    const toPlayer = players.find((p) => p.id === tradeOffer.toPlayerId);
+
+    // Clear the trade offer
+    await clearTrade(gameId);
+
+    // Show notification
+    if (String(playerIdToUse) === String(tradeOffer.toPlayerId)) {
+      setToastMessage(`Trade offer from ${fromPlayer?.name} rejected`);
+    } else {
+      setToastMessage(`${toPlayer?.name} rejected your trade offer`);
+    }
+    setShowToast(true);
+  };
+
+  const handleCounterOffer = async (
+    offerMoney: number,
+    offerProperties: string[],
+    requestMoney: number,
+    requestProperties: string[]
+  ) => {
+    if (!tradeOffer || !gameId) return;
+
+    const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+    if (!playerIdToUse) return;
+
+    const fromPlayer = players.find((p) => p.id === playerIdToUse);
+    const toPlayer = players.find(
+      (p) => p.id === tradeOffer.fromPlayerId
+    );
+
+    if (!fromPlayer || !toPlayer) return;
+
+    // Validate the counter offer
+    if (offerMoney > fromPlayer.balance) {
+      alert("You don't have enough money to offer!");
       return;
     }
 
-    // Execute trade
-    // Transfer money
-    if (offerMoney > 0 || requestMoney > 0) {
-      const netTransfer = requestMoney - offerMoney;
-      if (netTransfer > 0) {
-        await transferMoney(
-          toPlayerId,
-          playerIdToUse,
-          Math.abs(netTransfer).toString()
-        );
-      } else if (netTransfer < 0) {
-        await transferMoney(
-          playerIdToUse,
-          toPlayerId,
-          Math.abs(netTransfer).toString()
-        );
-      }
+    if (requestMoney > toPlayer.balance) {
+      alert("They don't have enough money!");
+      return;
     }
 
-    // Transfer properties from current player to other player
-    for (const propName of offerProperties) {
-      const prop = fromPlayer.properties.find((p) => p.name === propName);
-      if (!prop) continue;
+    // Create counter offer (swap from/to since we're countering)
+    await proposeTrade(gameId, {
+      fromPlayerId: String(playerIdToUse),
+      toPlayerId: String(tradeOffer.fromPlayerId),
+      offerMoney,
+      offerProperties,
+      requestMoney,
+      requestProperties,
+      isCounterOffer: true,
+    });
 
-      // Remove from current player
-      setPlayers((prev) =>
-        prev.map((p) =>
-          p.id === playerIdToUse
-            ? {
-                ...p,
-                properties: p.properties.filter((pr) => pr.name !== propName),
-              }
-            : p.id === toPlayerId
-            ? { ...p, properties: [...p.properties, prop] }
-            : p
-        )
-      );
-
-      if (isMultiplayer && gameId) {
-        await removePropertyFromPlayer(gameId, playerIdToUse, propName);
-        await addPropertyToPlayer(gameId, toPlayerId, prop);
-      }
-    }
-
-    // Transfer properties from other player to current player
-    for (const propName of requestProperties) {
-      const prop = toPlayer.properties.find((p) => p.name === propName);
-      if (!prop) continue;
-
-      setPlayers((prev) =>
-        prev.map((p) =>
-          p.id === toPlayerId
-            ? {
-                ...p,
-                properties: p.properties.filter((pr) => pr.name !== propName),
-              }
-            : p.id === playerIdToUse
-            ? { ...p, properties: [...p.properties, prop] }
-            : p
-        )
-      );
-
-      if (isMultiplayer && gameId) {
-        await removePropertyFromPlayer(gameId, toPlayerId, propName);
-        await addPropertyToPlayer(gameId, playerIdToUse, prop);
-      }
-    }
-
-    alert("Trade completed successfully!");
+    // Show notification
+    setToastMessage(`Counter offer sent to ${toPlayer.name}`);
+    setShowToast(true);
   };
 
   const handlePayTax = async (amount, taxType) => {
@@ -1401,30 +1656,128 @@ export default function DigitalBanker({
       await claimFreeParking(gameId, playerIdToUse);
     }
 
+    // Add to history
+    addHistoryEntry(
+      'freeParking',
+      `${player.name} collected $${amount.toLocaleString()} from Free Parking!`,
+      player.name
+    );
+
     alert(
       `${player.name} collected $${amount.toLocaleString()} from Free Parking!`
     );
   };
 
-  const handleStartAuction = (property: any) => {
+  const handleStartAuction = async (property: any) => {
     setAuctionProperty(property);
+    setAuctionState({
+      active: true,
+      propertyName: property.name,
+      propertyPrice: property.price,
+      startedBy: isMultiplayer ? firebasePlayerId : currentPlayerId,
+      bids: [],
+      dropouts: [],
+    });
     setShowAuctionModal(true);
+
+    if (isMultiplayer && gameId && firebasePlayerId) {
+      await startAuctionFirebase(
+        gameId,
+        property.name,
+        property.price,
+        firebasePlayerId.toString()
+      );
+    }
   };
 
-  const handleAuctionComplete = async (
-    winnerId: string,
-    winningBid: number
+  const handlePlaceAuctionBid = async (
+    playerId: string | number,
+    amount: number
   ) => {
-    const winner = players.find((p) => p.id === winnerId);
-    if (!winner || !auctionProperty) return;
+    if (!auctionState || !auctionState.active) return;
+    const bidder = players.find((p) => idsMatch(p.id, playerId));
+    if (!bidder) return;
 
-    // Deduct money from winner
-    const newBalance = winner.balance - winningBid;
-    setPlayers((prev) =>
-      prev.map((p) => (p.id === winnerId ? { ...p, balance: newBalance } : p))
+    const bid = {
+      playerId,
+      playerName: bidder.name,
+      amount,
+      timestamp: Date.now(),
+    };
+
+    setAuctionState((prev) =>
+      prev
+        ? { ...prev, bids: [...(prev.bids || []), bid] }
+        : {
+            active: true,
+            propertyName: "",
+            propertyPrice: 0,
+            bids: [bid],
+            dropouts: [],
+          }
     );
 
-    // Add property to winner
+    if (isMultiplayer && gameId) {
+      await placeAuctionBidFirebase(gameId, {
+        ...bid,
+        playerId: playerId.toString(),
+      });
+    }
+  };
+
+  const handleDropOutAuction = async (playerId: string | number) => {
+    setAuctionState((prev) =>
+      prev
+        ? {
+            ...prev,
+            dropouts: prev.dropouts?.some((d) => idsMatch(d, playerId))
+              ? prev.dropouts
+              : [...(prev.dropouts || []), playerId],
+          }
+        : prev
+    );
+
+    if (isMultiplayer && gameId) {
+      await dropOutAuctionFirebase(gameId, playerId.toString());
+    }
+  };
+
+  const handleAuctionComplete = async () => {
+    const canResolve =
+      !isMultiplayer ||
+      (auctionState?.startedBy &&
+        firebasePlayerId &&
+        idsMatch(auctionState.startedBy, firebasePlayerId));
+
+    // If this client isn't the resolver in multiplayer, just wait for sync
+    if (!canResolve) return;
+
+    if (!auctionProperty || !auctionState || !auctionState.bids?.length) {
+      alert("No bids placed! Property remains unowned.");
+      setShowAuctionModal(false);
+      setAuctionState(null);
+      setAuctionProperty(null);
+      if (isMultiplayer && gameId) {
+        await endAuctionFirebase(gameId);
+      }
+      // Allow immediately starting another auction
+      setShowAuctionSelector(true);
+      return;
+    }
+
+    const highestBid = auctionState.bids.reduce(
+      (max, bid) => (bid.amount > max.amount ? bid : max),
+      auctionState.bids[0]
+    );
+
+    const winner = players.find((p) => idsMatch(p.id, highestBid.playerId));
+    if (!winner) return;
+
+    const newBalance = Math.max(0, winner.balance - highestBid.amount);
+    setPlayers((prev) =>
+      prev.map((p) => (p.id === winner.id ? { ...p, balance: newBalance } : p))
+    );
+
     const propertyToAdd = {
       ...auctionProperty,
       houses: 0,
@@ -1434,21 +1787,33 @@ export default function DigitalBanker({
 
     setPlayers((prev) =>
       prev.map((p) =>
-        p.id === winnerId
+        p.id === winner.id
           ? { ...p, properties: [...(p.properties || []), propertyToAdd] }
           : p
       )
     );
 
     if (isMultiplayer && gameId) {
-      await updatePlayerBalance(gameId, winnerId, newBalance);
-      await addPropertyToPlayer(gameId, winnerId, propertyToAdd);
+      await updatePlayerBalance(gameId, winner.id, newBalance);
+      await addPropertyToPlayer(gameId, winner.id, propertyToAdd);
+      await endAuctionFirebase(gameId);
     }
+
+    setShowAuctionModal(false);
+    setAuctionState(null);
+    setAuctionProperty(null);
+
+    // Add to history
+    addHistoryEntry(
+      'auction',
+      `🎉 ${winner.name} won ${auctionProperty.name} for $${highestBid.amount.toLocaleString()}!`,
+      winner.name
+    );
 
     alert(
       `🎉 ${winner.name} won ${
         auctionProperty.name
-      } for $${winningBid.toLocaleString()}!`
+      } for $${highestBid.amount.toLocaleString()}!`
     );
   };
 
@@ -1493,18 +1858,20 @@ export default function DigitalBanker({
   };
 
   const handleCompleteReset = () => {
-    // Go back to the very first screen
-    setScreen("home");
-    setPlayers([]);
-    setNumPlayers(0);
-    setPlayerNames(["", "", "", "", "", "", "", ""]);
-    setPlayerPieces(["", "", "", "", "", "", "", ""]);
-    setPlayerColors(["", "", "", "", "", "", "", ""]);
-    setCurrentPlayerId(0);
-    setFreeParkingBalance(0);
-
-    // If multiplayer, you might want to clean up the Firebase game
-    // This would require a function to delete/end the game
+    if (isMultiplayer) {
+      // In multiplayer mode, navigate back to home page
+      window.location.href = '/';
+    } else {
+      // In single player mode, go back to the setup screen
+      setScreen("home");
+      setPlayers([]);
+      setNumPlayers(0);
+      setPlayerNames(["", "", "", "", "", "", "", ""]);
+      setPlayerPieces(["", "", "", "", "", "", "", ""]);
+      setPlayerColors(["", "", "", "", "", "", "", ""]);
+      setCurrentPlayerId(0);
+      setFreeParkingBalance(0);
+    }
   };
 
   const DiceIcon = ({ value }) => {
@@ -1726,17 +2093,17 @@ export default function DigitalBanker({
       )}
       <div className="max-w-7xl mx-auto relative z-10">
         {/* BANKER CARD - Reorganized with all main actions */}
-        <div className="relative bg-zinc-900 rounded-lg p-4 mb-4 border border-amber-900/30 overflow-hidden">
+        <div className="relative bg-zinc-900 rounded-lg pb-0 mb-2 border border-amber-500 overflow-shown shadow-lg drop-shadow-[0_0_10px_white] ">
           {/* Header */}
-          <div className="relative flex flex-col items-center mb-4">
-            <div className="flex items-center gap-4 mb-3">
-              <h1 className="text-3xl font-bold text-amber-400 drop-shadow-lg text-center">
+          <div className="relative flex-col flex items-center justify-center ">
+            <div className=" relative flex items-center justify-center">
+              <h1 className="text-3xl drop-shadow-[0_0_10px_gold] font-bold text-amber-400 drop-shadow-lg mt-3 text-center">
                 DIGITAL BANKER
               </h1>
             </div>
             <button
               onClick={() => setShowResetModal(true)}
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/30 text-amber-400"
+              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/100 text-amber-400"
             >
               <RotateCcw className="w-4 h-4" />
               Reset
@@ -1756,7 +2123,7 @@ export default function DigitalBanker({
             {/* Free Parking Display */}
             {(gameConfig?.freeParkingJackpot ||
               (isMultiplayer && freeParkingBalance > 0)) && (
-              <div className="bg-green-900/30 border-2 border-green-600 rounded-lg px-4 py-2">
+              <div className="bg-green-900/30 border-2 border-green-600 rounded-3xl px-4 py-2 drop-shadow-[0_0_10px_green]">
                 <div className="text-center">
                   <div className="text-xs text-green-400 font-bold">
                     FREE PARKING
@@ -1777,7 +2144,7 @@ export default function DigitalBanker({
 
             {/* Auction Button */}
             {gameConfig?.auctionProperties && (
-              <div className="bg-purple-900/30 border-2 border-purple-600 rounded-lg px-4 py-2">
+              <div className="bg-purple-900/30 border-2 border-purple-600 drop-shadow-[0_0_10px_purple] rounded-3xl px-4 py-2">
                 <div className="text-center">
                   <div className="text-xs text-purple-400 font-bold">
                     PROPERTY AUCTION
@@ -1786,26 +2153,10 @@ export default function DigitalBanker({
                     Start an auction
                   </div>
                   <button
-                    onClick={() => {
-                      // Show property selector
-                      const propertyName = prompt(
-                        "Enter property name to auction:"
-                      );
-                      if (propertyName) {
-                        const property = PROPERTIES.find(
-                          (p) =>
-                            p.name.toLowerCase() === propertyName.toLowerCase()
-                        );
-                        if (property) {
-                          handleStartAuction(property);
-                        } else {
-                          alert("Property not found!");
-                        }
-                      }
-                    }}
+                    onClick={() => setShowAuctionSelector(true)}
                     className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded text-xs transition-colors flex items-center gap-1 mx-auto"
                   >
-                    <Gavel className="w-3 h-3" />
+                    <Gavel className="w-4 h-4" />
                     Start Auction
                   </button>
                 </div>
@@ -1822,7 +2173,7 @@ export default function DigitalBanker({
                   <img
                     src="/images/House.svg"
                     alt="Houses"
-                    className="w-4 h-4"
+                    className="w-10 h-10 drop-shadow-[0_0_10px_green]"
                   />
                   <span
                     className={`font-bold ${
@@ -1837,7 +2188,7 @@ export default function DigitalBanker({
                   <img
                     src="/images/Hotel.svg"
                     alt="Hotels"
-                    className="w-4 h-4"
+                    className="w-10 h-10 drop-shadow-[0_0_5px_red]"
                   />
                   <span
                     className={`font-bold ${
@@ -1852,69 +2203,75 @@ export default function DigitalBanker({
             );
           })()}
 
-          {/* Banker Action Buttons */}
-          <div className="flex flex-col items-center gap-2 mb-4">
-            {/* First Row: Pass GO and Buy Property */}
-            <div className="flex gap-2 w-full">
-              <button
-                onClick={() => {
-                  const playerIdToUse = isMultiplayer
-                    ? firebasePlayerId
-                    : currentPlayerId;
-                  if (playerIdToUse === null) {
-                    showError("Please select which player you are first");
-                    return;
-                  }
-                  passGo(playerIdToUse);
-                }}
-                className="flex-1 bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded font-bold transition-colors flex items-center justify-center gap-2"
-              >
-                <img src="/images/Go.svg" alt="GO" className="w-auto h-10" />
-                Pass GO
-              </button>
+          {/* First Row: Banker Pays centered */}
+          <button
+            onClick={handleBankerPays}
+            className="bg-green-300 hover:bg-green-200 w-40 h-10 text-black text-xl rounded-xl font-bold transition-colors flex text-center items-center justify-center gap-2 mb-3 mx-auto relative"
+          >
+            <img
+              src="/images/Banker.svg"
+              alt="Banker"
+              className="w-auto h-20 flex right-40 absolute drop-shadow-[0_0_3px_white]"
+            />
+            Banker Pays
+          </button>
+        </div>
 
-              <button
-                onClick={() => {
-                  const playerIdToUse = isMultiplayer
-                    ? firebasePlayerId
-                    : currentPlayerId;
-                  if (playerIdToUse === null) {
-                    showError("Please select which player you are first");
-                    return;
-                  }
-                  setShowBuyProperty(true);
-                }}
-                className="flex-1 bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded font-bold transition-colors flex items-center justify-center gap-2"
-              >
-                <img
-                  src="/images/property.svg"
-                  alt="property"
-                  className="w-auto h-10"
-                />
-                Buy Property
-              </button>
-            </div>
-
-            {/* Second Row: Banker Pays centered */}
+        {/* Banker Action Buttons */}
+        <div className="flex items-center gap-2 mb-2 mt-5 flex-wrap justify-center">
+          {/* Second Row: Pass GO and Buy Property */}
+          <div className="flex gap-2 flex-wrap justify-center w-full">
             <button
-              onClick={handleBankerPays}
-              className="bg-green-300 hover:bg-green-200 text-black px-4 py-2 rounded font-bold transition-colors flex items-center gap-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                const playerIdToUse = isMultiplayer
+                  ? firebasePlayerId
+                  : currentPlayerId;
+                if (playerIdToUse === null) {
+                  showError("Please select which player you are first");
+                  return;
+                }
+                passGo(playerIdToUse);
+              }}
+              className="flex-1 bg-amber-600 hover:bg-amber-500 text-black text-lg drop-shadow-[0_0_10px_amber] -mt-3 mb-9 px-4 py-2 rounded-3xl font-bold transition-colors flex items-center justify-center gap-2"
             >
               <img
-                src="/images/Banker.svg"
-                alt="Banker"
-                className="w-auto h-20"
+                src="/images/Go.svg"
+                alt="GO"
+                className="w-auto h-20 -mt-3 -mb-3 pointer-events-none"
               />
-              Banker Pays
+              Pass GO
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const playerIdToUse = isMultiplayer
+                  ? firebasePlayerId
+                  : currentPlayerId;
+                if (playerIdToUse === null) {
+                  showError("Please select which player you are first");
+                  return;
+                }
+                setShowBuyProperty(true);
+              }}
+              className="flex-1 bg-amber-600 hover:bg-amber-500 text-black text-lg drop-shadow-[0_0_10px_amber] -mt-3 mb-9 px-4 py-2 rounded-3xl font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <img
+                src="/images/property.svg"
+                alt="property"
+                className="w-auto h-20 pb-1 pt-1 -mt-2 -mb-2 pointer-events-none"
+              />
+              Buy Property
             </button>
           </div>
 
           {/* Roll Dice Section */}
-          <div className="border-t border-amber-900/30 pt-4">
+          <div className="w-full border-t border-green-900 -mt-8">
             <button
               onClick={rollDice}
               disabled={diceRolling}
-              className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-lg  font-bold text-lg transition-colors flex items-center justify-center gap-2"
             >
               <Dice1 className="w-6 h-6" />
               {diceRolling ? "Rolling..." : "Roll Dice"}
@@ -1938,14 +2295,14 @@ export default function DigitalBanker({
                       return (
                         <DiceIconComponent
                           key={idx}
-                          className={`w-10 h-10 ${
+                          className={`w-10 h-10  ${
                             idx === 2 ? "text-blue-400" : "text-amber-400"
                           }`}
                         />
                       );
                     })}
                 </div>
-                <p className="text-xl font-bold text-amber-400">
+                <p className="text-xl font-bold text-amber-400 animate-pulse">
                   Total: {lastRoll.total}
                 </p>
                 {lastRoll.isDoubles && (
@@ -1958,9 +2315,7 @@ export default function DigitalBanker({
 
         {(showDice || diceRolling) && lastRoll && (
           <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
-            <div
-              className="bg-zinc-900 border-2 border-amber-600 rounded-lg p-4 sm:p-8"
-            >
+            <div className="bg-zinc-900 border-2 border-amber-600 rounded-lg p-4 sm:p-8">
               <div className="flex gap-3 sm:gap-6 items-center justify-center text-amber-400">
                 <DiceIcon value={lastRoll.d1} />
                 <div className="text-2xl sm:text-4xl font-bold">+</div>
@@ -1982,7 +2337,7 @@ export default function DigitalBanker({
                 </div>
               </div>
               {lastRoll.isDoubles && !diceRolling && (
-                <div className="text-lg sm:text-2xl font-bold text-center mt-2 sm:mt-4 text-amber-400">
+                <div className="text-lg sm:text-2xl font-bold text-center mt-2 sm:mt-4 text-amber-400 animate-pulse">
                   DOUBLES!
                 </div>
               )}
@@ -2024,10 +2379,10 @@ export default function DigitalBanker({
                       })()}
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-amber-50">
+                      <h3 className="text-xl font-bold text-amber-50 text-center">
                         {player.name}
                       </h3>
-                      <div className="text-2xl font-bold text-amber-400">
+                      <div className="text-2xl font-bold text-green-400">
                         ${player.balance.toLocaleString()}
                       </div>
                     </div>
@@ -2043,23 +2398,23 @@ export default function DigitalBanker({
                         <button
                           onClick={() => handlePayRentClick(player.id)}
                           disabled={player.properties.length === 0}
-                          className="bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                          className="w-full h-11 bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1 ml-3"
                         >
                           <img
-                            src="/images/Payment.svg"
+                            src="/images/property.svg"
                             alt="Pay Rent"
-                            className="w-4 h-4"
+                            className="w-auto h-12"
                           />
                           Pay Rent
                         </button>
                         <button
                           onClick={() => handleCustomAmountClick(player.id)}
-                          className="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                          className="w-full h-11 bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
                         >
                           <img
-                            src="/images/Bank.svg"
+                            src="/images/Payment.svg"
                             alt="Pay"
-                            className="w-4 h-4"
+                            className="w-auto h-10"
                           />
                           Pay
                         </button>
@@ -2070,15 +2425,15 @@ export default function DigitalBanker({
 
                 {/* Player-specific action buttons - ONLY SHOW IF THIS IS THE CURRENT USER */}
                 {isCurrentUser && (
-                  <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="flex flex-wrap justify-center gap-2 mb-3">
                     <button
                       onClick={() => setShowPayPlayerModal(true)}
-                      className="bg-orange-700 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                      className="w-auto h-11 bg-orange-700 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
                     >
                       <img
                         src="/images/Payment.svg"
                         alt="Pay"
-                        className="w-4 h-4"
+                        className="w-auto h-12"
                       />
                       Pay
                     </button>
@@ -2086,39 +2441,43 @@ export default function DigitalBanker({
                     <button
                       onClick={() => {
                         setNumberPadTitle("Receive Money");
-                        setNumberPadCallback(() => (amount) => {
+                        setNumberPadCallback(() => (amount: number) => {
                           updateBalance(player.id, amount);
                         });
                         setShowNumberPad(true);
                       }}
-                      className="bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                      className="w-auto h-11 bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
                     >
                       <img
                         src="/images/Bank.svg"
                         alt="Bank"
-                        className="w-4 h-4"
+                        className="w-full h-12"
                       />
                       Receive
                     </button>
 
                     <button
                       onClick={() => setShowTradeModal(true)}
-                      className="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                      className="w-auto h-11 bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
                       disabled={players.length < 2}
                     >
                       <img
                         src="/images/Trade.svg"
                         alt="Trade"
-                        className="w-4 h-4"
+                        className="w-auto h-12"
                       />
                       Trade
                     </button>
 
                     <button
                       onClick={() => setShowTaxModal(true)}
-                      className="bg-red-700 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                      className="w-auto h-11 bg-red-700 hover:bg-red-600 content-center text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
                     >
-                      <DollarSign className="w-4 h-4" />
+                      <img
+                        src="/images/Luxury_Tax.svg"
+                        alt="Tax"
+                        className="w-auto h-12"
+                      />
                       Pay Tax
                     </button>
                   </div>
@@ -2602,6 +2961,92 @@ export default function DigitalBanker({
             </div>
           )}
 
+        {/* History Button - Fixed at bottom */}
+        <div className="fixed bottom-4 right-4 z-40">
+          <button
+            onClick={() => setShowHistoryModal(true)}
+            className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg transition-all transform hover:scale-105 flex items-center gap-2 border-2 border-amber-400"
+          >
+            <Clock className="w-5 h-5" />
+            History
+          </button>
+        </div>
+
+        {/* Auction Property Selector */}
+        {showAuctionSelector && (
+          <Modal onClose={() => setShowAuctionSelector(false)}>
+            <h3 className="text-xl font-bold text-amber-400 mb-4">
+              Select Property to Auction
+            </h3>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {PROPERTIES.filter(
+                (prop) =>
+                  !players.some((p) =>
+                    p.properties.some((owned) => owned.name === prop.name)
+                  )
+              ).map((property) => (
+                <div
+                  key={property.name}
+                  className="flex items-center justify-between bg-zinc-800 p-3 rounded"
+                >
+                  <div className="flex items-center gap-2">
+                    {property.group === "railroad" ? (
+                      <img
+                        src="/images/Railroad.svg"
+                        alt="Railroad"
+                        className="w-5 h-5"
+                      />
+                    ) : property.group === "utility" ? (
+                      property.name === "Electric Company" ? (
+                        <img
+                          src="/images/Electric_Company.svg"
+                          alt="Electric"
+                          className="w-5 h-5"
+                        />
+                      ) : (
+                        <img
+                          src="/images/Waterworks.svg"
+                          alt="Water"
+                          className="w-5 h-5"
+                        />
+                      )
+                    ) : (
+                      <div
+                        className={`w-4 h-4 rounded ${property.color}`}
+                      ></div>
+                    )}
+                    <span className="text-amber-100 font-bold">
+                      {property.name}
+                    </span>
+                    <span className="text-amber-400 ml-2">
+                      ${property.price}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      handleStartAuction(property);
+                      setShowAuctionSelector(false);
+                    }}
+                    className="bg-purple-700 hover:bg-purple-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                  >
+                    Start
+                  </button>
+                </div>
+              ))}
+              {PROPERTIES.filter(
+                (prop) =>
+                  !players.some((p) =>
+                    p.properties.some((owned) => owned.name === prop.name)
+                  )
+              ).length === 0 && (
+                <div className="text-amber-400 text-center">
+                  All properties are owned.
+                </div>
+              )}
+            </div>
+          </Modal>
+        )}
+
         {/* NEW MODALS */}
         <PayPlayerModal
           isOpen={showPayPlayerModal}
@@ -2724,7 +3169,47 @@ export default function DigitalBanker({
             name: p.name,
             balance: p.balance,
           }))}
+          bids={auctionState?.bids || []}
+          dropouts={auctionState?.dropouts || []}
+          currentPlayerId={isMultiplayer ? firebasePlayerId : currentPlayerId}
+          onPlaceBid={handlePlaceAuctionBid}
           onAuctionComplete={handleAuctionComplete}
+          onDropOut={handleDropOutAuction}
+        />
+
+        {/* Toast Notification */}
+        <ToastNotification
+          message={toastMessage}
+          isVisible={showToast}
+          onClose={() => setShowToast(false)}
+        />
+
+        {/* Trade Offer Modal */}
+        {tradeOffer && (
+          <TradeOfferModal
+            isOpen={true}
+            tradeOffer={tradeOffer}
+            fromPlayer={
+              players.find((p) => p.id === tradeOffer.fromPlayerId) ||
+              players[0]
+            }
+            toPlayer={
+              players.find((p) => p.id === tradeOffer.toPlayerId) || players[0]
+            }
+            currentPlayerId={
+              isMultiplayer ? firebasePlayerId : currentPlayerId
+            }
+            onAccept={handleAcceptTrade}
+            onReject={handleRejectTrade}
+            onCounterOffer={handleCounterOffer}
+          />
+        )}
+
+        {/* History Modal */}
+        <HistoryModal
+          isOpen={showHistoryModal}
+          onClose={() => setShowHistoryModal(false)}
+          history={gameHistory}
         />
       </div>
     </div>

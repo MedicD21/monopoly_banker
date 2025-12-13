@@ -291,3 +291,142 @@ export async function claimFreeParking(
 
   return amount;
 }
+
+// Auction helpers
+export async function startAuction(
+  gameId: string,
+  propertyName: string,
+  propertyPrice: number,
+  startedBy: string
+): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+
+  await updateDoc(gameRef, {
+    auction: {
+      active: true,
+      propertyName,
+      propertyPrice,
+      startedBy,
+      bids: [],
+      dropouts: [],
+      startedAt: Date.now(),
+    },
+    lastActivity: Date.now(),
+  });
+}
+
+export async function placeAuctionBid(
+  gameId: string,
+  bid: { playerId: string; playerName: string; amount: number; timestamp: number }
+): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  await updateDoc(gameRef, {
+    'auction.bids': arrayUnion(bid),
+    lastActivity: Date.now(),
+  });
+}
+
+export async function dropOutAuction(
+  gameId: string,
+  playerId: string
+): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  await updateDoc(gameRef, {
+    'auction.dropouts': arrayUnion(playerId),
+    lastActivity: Date.now(),
+  });
+}
+
+export async function endAuction(gameId: string): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  await updateDoc(gameRef, {
+    auction: {
+      active: false,
+    },
+    lastActivity: Date.now(),
+  });
+}
+
+// Add history entry
+export async function addHistoryEntry(
+  gameId: string,
+  entry: {
+    type: 'dice' | 'transaction' | 'property' | 'passGo' | 'auction' | 'tax' | 'freeParking';
+    message: string;
+    playerName?: string;
+  }
+): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  const historyEntry = {
+    id: `${Date.now()}_${Math.random()}`,
+    timestamp: Date.now(),
+    ...entry,
+  };
+
+  await updateDoc(gameRef, {
+    history: arrayUnion(historyEntry),
+    lastActivity: Date.now(),
+  });
+}
+
+// Trade offer helpers
+export async function proposeTrade(
+  gameId: string,
+  trade: {
+    fromPlayerId: string;
+    toPlayerId: string;
+    offerMoney: number;
+    offerProperties: string[];
+    requestMoney: number;
+    requestProperties: string[];
+    isCounterOffer?: boolean;
+  }
+): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  const tradeOffer = {
+    id: `trade_${Date.now()}_${Math.random()}`,
+    ...trade,
+    status: 'pending' as const,
+    timestamp: Date.now(),
+  };
+
+  await updateDoc(gameRef, {
+    tradeOffer,
+    lastActivity: Date.now(),
+  });
+}
+
+export async function acceptTrade(gameId: string): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  const gameSnap = await getDoc(gameRef);
+
+  if (!gameSnap.exists() || !gameSnap.data().tradeOffer) return;
+
+  const trade = gameSnap.data().tradeOffer;
+
+  await updateDoc(gameRef, {
+    tradeOffer: {
+      ...trade,
+      status: 'accepted',
+    },
+    lastActivity: Date.now(),
+  });
+}
+
+export async function rejectTrade(gameId: string): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+
+  await updateDoc(gameRef, {
+    tradeOffer: null,
+    lastActivity: Date.now(),
+  });
+}
+
+export async function clearTrade(gameId: string): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+
+  await updateDoc(gameRef, {
+    tradeOffer: null,
+    lastActivity: Date.now(),
+  });
+}

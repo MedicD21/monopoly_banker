@@ -33,7 +33,6 @@ export default function LobbyPage() {
   }, [game, gameId, navigate]);
 
   if (!game || !currentPlayerId) {
-    console.log("LobbyPage loading:", { game, players, currentPlayerId });
     return (
       <div className="min-h-screen bg-black text-amber-50 flex items-center justify-center">
         <p>Loading...</p>

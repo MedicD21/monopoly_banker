@@ -19,7 +19,10 @@
       "Bash(npm run dev:*)",
       "Bash(timeout:*)",
       "Bash(grep:*)",
-      "Bash(npx cap:*)"
+      "Bash(npx cap:*)",
+      "Bash(awk:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(xcodebuild:*)"
     ]
   }
 }

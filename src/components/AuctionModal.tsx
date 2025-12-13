@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from "react";
-import { X, Gavel, Clock } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Gavel, UserMinus } from "lucide-react";
+import { AuctionBid } from "../types/game";
 
 interface AuctionModalProps {
   isOpen: boolean;
   onClose: () => void;
   propertyName: string;
   propertyPrice: number;
-  players: Array<{ id: string; name: string; balance: number }>;
-  onAuctionComplete: (winnerId: string, winningBid: number) => void;
-}
-
-interface Bid {
-  playerId: string;
-  playerName: string;
-  amount: number;
-  timestamp: number;
+  players: Array<{ id: string | number; name: string; balance: number }>;
+  bids: AuctionBid[];
+  dropouts: Array<string | number>;
+  currentPlayerId?: string | number | null;
+  onPlaceBid: (playerId: string | number, amount: number) => void;
+  onAuctionComplete: () => void;
+  onDropOut: (playerId: string | number) => void;
 }
 
 export default function AuctionModal({
@@ -23,46 +22,66 @@ export default function AuctionModal({
   propertyName,
   propertyPrice,
   players,
+  bids,
+  dropouts,
+  currentPlayerId,
+  onPlaceBid,
   onAuctionComplete,
+  onDropOut,
 }: AuctionModalProps) {
-  const [countdown, setCountdown] = useState(30); // 30 second countdown
-  const [bids, setBids] = useState<Bid[]>([]);
   const [bidAmount, setBidAmount] = useState("");
-  const [selectedPlayerId, setSelectedPlayerId] = useState(players[0]?.id || "");
+  const [selectedPlayerId, setSelectedPlayerId] = useState<
+    string | number | undefined
+  >(players[0]?.id);
+  const [countdown, setCountdown] = useState(30);
+  const hasCompletedRef = useRef(false);
+
+  const hasDropped = (playerId: string | number | undefined | null) =>
+    dropouts.some((d) => String(d) === String(playerId ?? ""));
+
+  useEffect(() => {
+    if (currentPlayerId !== undefined && currentPlayerId !== null) {
+      setSelectedPlayerId(currentPlayerId);
+    } else if (players[0]) {
+      setSelectedPlayerId(players[0].id);
+    }
+  }, [currentPlayerId, players]);
+
+  // Reset countdown when modal opens or property changes
+  useEffect(() => {
+    if (isOpen) {
+      setCountdown(30);
+      hasCompletedRef.current = false;
+    }
+  }, [isOpen, propertyName]);
+
+  // Reset countdown to 15 seconds on each new bid
+  useEffect(() => {
+    if (isOpen && bids.length > 0) {
+      setCountdown(15);
+      hasCompletedRef.current = false;
+    }
+  }, [bids, isOpen]);
 
   // Countdown timer
   useEffect(() => {
-    if (!isOpen || countdown <= 0) return;
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          // Auction ended
-          handleAuctionEnd();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isOpen, countdown]);
-
-  const handleAuctionEnd = () => {
-    if (bids.length === 0) {
-      alert("No bids placed! Property remains unowned.");
-      onClose();
+    if (!isOpen) return;
+    if (countdown <= 0) {
+      if (!hasCompletedRef.current) {
+        hasCompletedRef.current = true;
+        onAuctionComplete();
+      }
       return;
     }
 
-    // Get highest bid
-    const highestBid = bids.reduce((max, bid) =>
-      bid.amount > max.amount ? bid : max
-    , bids[0]);
+    const timer = setInterval(() => {
+      setCountdown((c) => c - 1);
+    }, 1000);
 
-    onAuctionComplete(highestBid.playerId, highestBid.amount);
-    onClose();
-  };
+    return () => clearInterval(timer);
+  }, [countdown, isOpen, onAuctionComplete]);
+
+  if (!isOpen) return null;
 
   const handlePlaceBid = () => {
     const amount = parseInt(bidAmount);
@@ -72,51 +91,48 @@ export default function AuctionModal({
       return;
     }
 
-    const player = players.find(p => p.id === selectedPlayerId);
+    const player = players.find((p) => p.id === selectedPlayerId);
     if (!player) return;
+
+    if (hasDropped(selectedPlayerId)) {
+      alert("This player has dropped out of the auction.");
+      return;
+    }
 
     if (amount > player.balance) {
       alert("Player doesn't have enough money!");
       return;
     }
 
-    // Check if bid is higher than current highest
-    const currentHighest = bids.length > 0
-      ? Math.max(...bids.map(b => b.amount))
-      : 0;
+    const currentHighest =
+      bids.length > 0 ? Math.max(...bids.map((b) => b.amount)) : 0;
 
     if (amount <= currentHighest) {
       alert(`Bid must be higher than $${currentHighest.toLocaleString()}`);
       return;
     }
 
-    // Add bid
-    setBids([...bids, {
-      playerId: selectedPlayerId,
-      playerName: player.name,
-      amount,
-      timestamp: Date.now(),
-    }]);
+    onPlaceBid(selectedPlayerId, amount);
 
     setBidAmount("");
-
-    // Reset countdown when new bid placed
-    setCountdown(15); // Give 15 seconds after each bid
   };
 
   const handleQuickBid = (increment: number) => {
-    const currentHighest = bids.length > 0
-      ? Math.max(...bids.map(b => b.amount))
-      : 0;
+    const currentHighest =
+      bids.length > 0 ? Math.max(...bids.map((b) => b.amount)) : 0;
     setBidAmount((currentHighest + increment).toString());
   };
 
-  if (!isOpen) return null;
-
-  const highestBid = bids.length > 0 ? Math.max(...bids.map(b => b.amount)) : 0;
-  const highestBidder = bids.length > 0
-    ? bids.find(b => b.amount === highestBid)?.playerName
-    : "None";
+  const highestBid =
+    bids.length > 0 ? Math.max(...bids.map((b) => b.amount)) : 0;
+  const highestBidder =
+    bids.length > 0
+      ? bids.find((b) => b.amount === highestBid)?.playerName
+      : "None";
+  const currentPlayerDropped =
+    currentPlayerId !== undefined && currentPlayerId !== null
+      ? hasDropped(currentPlayerId)
+      : false;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -124,7 +140,9 @@ export default function AuctionModal({
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Gavel className="w-6 h-6 text-amber-400" />
-            <h2 className="text-2xl font-bold text-amber-400">Property Auction</h2>
+            <h2 className="text-2xl font-bold text-amber-400">
+              Property Auction
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -144,20 +162,24 @@ export default function AuctionModal({
 
         {/* Countdown Timer */}
         <div className="bg-red-900/30 border-2 border-red-600 rounded-lg p-3 mb-4">
-          <div className="flex items-center justify-center gap-2">
-            <Clock className="w-5 h-5 text-red-400" />
-            <div className="text-2xl font-bold text-red-400">
+          <div className="flex items-center justify-center gap-2 text-red-200">
+            <span className="text-xs uppercase tracking-wide">
+              Time Remaining
+            </span>
+            <span className="text-2xl font-bold text-red-300">
               {countdown}s
-            </div>
+            </span>
           </div>
           <div className="text-xs text-center text-red-300 mt-1">
-            Time Remaining
+            Bids add 15s. Auction ends at zero or via End button.
           </div>
         </div>
 
         {/* Current Highest Bid */}
         <div className="bg-emerald-900/30 border-2 border-emerald-600 rounded-lg p-3 mb-4">
-          <div className="text-xs text-emerald-400 text-center">HIGHEST BID</div>
+          <div className="text-xs text-emerald-400 text-center">
+            HIGHEST BID
+          </div>
           <div className="text-2xl font-bold text-emerald-300 text-center">
             ${highestBid.toLocaleString()}
           </div>
@@ -218,35 +240,66 @@ export default function AuctionModal({
 
           <button
             onClick={handlePlaceBid}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-black font-bold py-3 rounded transition-colors"
+            disabled={
+              !selectedPlayerId ||
+              currentPlayerDropped ||
+              hasDropped(selectedPlayerId)
+            }
+            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-3 rounded transition-colors"
           >
             Place Bid
           </button>
+
+          <button
+            onClick={() =>
+              currentPlayerId != null && onDropOut(currentPlayerId)
+            }
+            disabled={!currentPlayerId || currentPlayerDropped}
+            className="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-amber-300 font-bold py-2 rounded transition-colors flex items-center justify-center gap-2"
+          >
+            <UserMinus className="w-4 h-4" />
+            Drop Out
+          </button>
+          {currentPlayerDropped && (
+            <div className="text-xs text-center text-red-300 mt-1">
+              You have dropped out of this auction.
+            </div>
+          )}
         </div>
 
         {/* Bid History */}
         {bids.length > 0 && (
           <div className="bg-zinc-800 rounded-lg p-3 max-h-40 overflow-y-auto">
-            <div className="text-xs text-amber-400 font-bold mb-2">BID HISTORY</div>
+            <div className="text-xs text-amber-400 font-bold mb-2">
+              BID HISTORY
+            </div>
             <div className="space-y-1">
-              {bids.slice().reverse().map((bid, idx) => (
-                <div
-                  key={idx}
-                  className="text-sm text-zinc-300 flex justify-between"
-                >
-                  <span>{bid.playerName}</span>
-                  <span className="text-emerald-400 font-bold">
-                    ${bid.amount.toLocaleString()}
-                  </span>
-                </div>
-              ))}
+              {bids
+                .slice()
+                .reverse()
+                .map((bid, idx) => (
+                  <div
+                    key={idx}
+                    className="text-sm text-zinc-300 flex justify-between"
+                  >
+                    <span>{bid.playerName}</span>
+                    <span className="text-emerald-400 font-bold">
+                      ${bid.amount.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
             </div>
           </div>
         )}
 
         {/* Manual End Auction Button */}
         <button
-          onClick={handleAuctionEnd}
+          onClick={() => {
+            if (!hasCompletedRef.current) {
+              hasCompletedRef.current = true;
+              onAuctionComplete();
+            }
+          }}
           disabled={bids.length === 0}
           className="w-full mt-3 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-2 rounded transition-colors"
         >

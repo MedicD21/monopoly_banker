@@ -34,6 +34,44 @@ export interface GameConfig {
   speedDie: boolean;
 }
 
+export interface AuctionBid {
+  playerId: string;
+  playerName: string;
+  amount: number;
+  timestamp: number;
+}
+
+export interface AuctionState {
+  active: boolean;
+  propertyName: string;
+  propertyPrice: number;
+  startedBy: string;
+  bids: AuctionBid[];
+  dropouts: string[];
+  startedAt?: number;
+}
+
+export interface HistoryEntry {
+  id: string;
+  timestamp: number;
+  type: 'dice' | 'transaction' | 'property' | 'passGo' | 'auction' | 'tax' | 'freeParking';
+  message: string;
+  playerName?: string;
+}
+
+export interface TradeOffer {
+  id: string;
+  fromPlayerId: string;
+  toPlayerId: string;
+  offerMoney: number;
+  offerProperties: string[];
+  requestMoney: number;
+  requestProperties: string[];
+  status: 'pending' | 'accepted' | 'rejected' | 'countered';
+  timestamp: number;
+  isCounterOffer?: boolean;
+}
+
 export interface Game {
   id: string;
   code: string; // 5-digit code
@@ -44,6 +82,9 @@ export interface Game {
   lastActivity: number;
   lastDiceRoll?: number; // For utility rent calculations
   freeParkingBalance?: number; // Free Parking jackpot (if enabled)
+  auction?: AuctionState;
+  history?: HistoryEntry[]; // Game history for all players
+  tradeOffer?: TradeOffer; // Active trade offer
 }
 
 export interface GameEvent {

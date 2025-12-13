@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Check, X } from "lucide-react";
-import QRCode from "react-qr-code";
 import { GAME_PIECES, PLAYER_COLORS } from "../types/game";
 
 interface Player {
@@ -37,17 +36,7 @@ export default function LobbyScreen({
   const [selectedPiece, setSelectedPiece] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
 
-  // Debug logging
-  console.log('LobbyScreen:', {
-    isHost,
-    currentPlayerId,
-    players,
-    playersLength: players.length
-  });
-
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
-
-  console.log('currentPlayer:', currentPlayer);
   const allReady = players.length >= 2 && players.every((p) => p.isReady);
   const gameUrl = `${window.location.origin}?join=${gameCode}`;
 
@@ -66,14 +55,10 @@ export default function LobbyScreen({
   };
 
   const handleReadyClick = async () => {
-    console.log('handleReadyClick called', { name, selectedPiece, selectedColor });
     await handleSaveSettings();
-    console.log('handleSaveSettings completed');
     // Small delay to ensure Firebase has updated
     await new Promise(resolve => setTimeout(resolve, 300));
-    console.log('About to call onToggleReady');
     await onToggleReady();
-    console.log('onToggleReady completed');
   };
 
   return (
@@ -90,26 +75,22 @@ export default function LobbyScreen({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Game Code & QR Code */}
+          {/* Game Code */}
           <div className="bg-zinc-900 rounded-lg p-6 border border-amber-900/30">
             <h2 className="text-xl font-bold text-emerald-600 mb-4 text-center">
               Join Code
             </h2>
-            <div className="text-center mb-4">
-              <div className="text-6xl font-bold text-amber-400 tracking-widest mb-2">
+            <div className="text-center">
+              <div className="text-8xl font-bold text-amber-400 tracking-widest mb-4">
                 {gameCode}
               </div>
-              <p className="text-sm text-amber-600">
+              <p className="text-lg text-amber-600 mb-2">
                 Share this code with other players
               </p>
+              <p className="text-sm text-amber-700">
+                Players can join at {gameUrl}
+              </p>
             </div>
-
-            <div className="bg-green-300 p-4 rounded-lg inline-block flex items-center justify-center">
-              <QRCode value={gameUrl} size={150} />
-            </div>
-            <p className="text-xs text-amber-600 mt-2 text-center">
-              Scan to join instantly
-            </p>
           </div>
 
           {/* Your Setup */}
