@@ -1,10 +1,12 @@
 import React from 'react';
+import { RotateCcw } from 'lucide-react';
 
 interface WinnerModalProps {
   isOpen: boolean;
   winnerName: string;
   winnerPieceIcon: string;
   onClose: () => void;
+  onReset: () => void;
 }
 
 export default function WinnerModal({
@@ -12,6 +14,7 @@ export default function WinnerModal({
   winnerName,
   winnerPieceIcon,
   onClose,
+  onReset,
 }: WinnerModalProps) {
   if (!isOpen) return null;
 
@@ -50,13 +53,25 @@ export default function WinnerModal({
             Congratulations! You've won the game!
           </p>
 
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-3 px-6 rounded-lg transition-colors"
-          >
-            Finish Game
-          </button>
+          {/* Buttons */}
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => {
+                onReset();
+                onClose();
+              }}
+              className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <RotateCcw className="w-5 h-5" />
+              Play Again
+            </button>
+            <button
+              onClick={onClose}
+              className="bg-zinc-700 hover:bg-zinc-600 text-amber-200 font-bold py-3 px-6 rounded-lg transition-colors"
+            >
+              Finish Game
+            </button>
+          </div>
         </div>
       </div>
     </div>

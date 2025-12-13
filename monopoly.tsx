@@ -21,6 +21,7 @@ import TradeModal from "./src/components/TradeModal";
 import TaxModal from "./src/components/TaxModal";
 import BankruptcyModal from "./src/components/BankruptcyModal";
 import WinnerModal from "./src/components/WinnerModal";
+import ResetModal from "./src/components/ResetModal";
 import {
   subscribeToPlayers,
   subscribeToGame,
@@ -358,6 +359,7 @@ export default function MonopolyBanker({
   const [bankruptPlayer, setBankruptPlayer] = useState(null);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [winner, setWinner] = useState(null);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   // Firebase sync for multiplayer
   useEffect(() => {
@@ -1371,6 +1373,61 @@ export default function MonopolyBanker({
     );
   };
 
+  const handleNewGameSamePlayers = () => {
+    // Reset game state but keep players
+    const resetPlayers = players.map((p) => ({
+      ...p,
+      balance: STARTING_MONEY,
+      properties: [],
+      doublesCount: 0,
+      isBankrupt: false,
+    }));
+
+    setPlayers(resetPlayers);
+    setFreeParkingBalance(0);
+    setLastRoll(null);
+    setDiceRolling(false);
+
+    // Reset any active modals
+    setShowBuyProperty(false);
+    setShowPayPlayerModal(false);
+    setShowRentSelector(false);
+    setShowNumberPad(false);
+    setShowTradeModal(false);
+    setShowTaxModal(false);
+
+    // If multiplayer, reset the game in Firebase
+    if (isMultiplayer && gameId) {
+      // Reset each player in Firebase
+      resetPlayers.forEach((player) => {
+        updatePlayer(gameId, player.id, {
+          balance: STARTING_MONEY,
+          properties: [],
+          doublesCount: 0,
+          isBankrupt: false,
+        });
+      });
+
+      // Reset game state
+      resetGameFirebase(gameId);
+    }
+  };
+
+  const handleCompleteReset = () => {
+    // Go back to the very first screen
+    setScreen("home");
+    setPlayers([]);
+    setNumPlayers(0);
+    setPlayerNames(["", "", "", "", "", "", "", ""]);
+    setPlayerPieces(["", "", "", "", "", "", "", ""]);
+    setPlayerColors(["", "", "", "", "", "", "", ""]);
+    setCurrentPlayerId(0);
+    setFreeParkingBalance(0);
+
+    // If multiplayer, you might want to clean up the Firebase game
+    // This would require a function to delete/end the game
+  };
+
   const DiceIcon = ({ value }) => {
     const icons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
     const Icon = icons[value - 1];
@@ -1626,17 +1683,7 @@ export default function MonopolyBanker({
               </h1>
             </div>
             <button
-              onClick={() => {
-                if (window.confirm("Reset game?")) {
-                  setScreen("setup");
-                  setPlayers([]);
-                  setNumPlayers(0);
-                  setPlayerNames(["", "", "", "", "", "", "", ""]);
-                  setPlayerPieces(["", "", "", "", "", "", "", ""]);
-                  setPlayerColors(["", "", "", "", "", "", "", ""]);
-                  setCurrentPlayerId(0);
-                }
-              }}
+              onClick={() => setShowResetModal(true)}
               className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/30 text-amber-400"
             >
               <RotateCcw className="w-4 h-4" />
@@ -2544,6 +2591,19 @@ export default function MonopolyBanker({
             setShowWinnerModal(false);
             setWinner(null);
           }}
+          onReset={() => {
+            setShowWinnerModal(false);
+            setWinner(null);
+            setShowResetModal(true);
+          }}
+        />
+
+        {/* Reset Modal */}
+        <ResetModal
+          isOpen={showResetModal}
+          onClose={() => setShowResetModal(false)}
+          onNewGameSamePlayers={handleNewGameSamePlayers}
+          onCompleteReset={handleCompleteReset}
         />
       </div>
     </div>
