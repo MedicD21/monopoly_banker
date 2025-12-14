@@ -82,7 +82,7 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
                 <div className="flex-1">
                   <h3 className="text-amber-300 font-bold mb-1">Unlock Pro Features</h3>
                   <p className="text-amber-600 text-sm mb-3">
-                    Get access to all game variants with a one-time purchase of $1.99
+                    Get access to all game variants with a one-time purchase
                   </p>
                   <button
                     onClick={() => setShowProModal(true)}

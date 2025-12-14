@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Crown, Check } from 'lucide-react';
 import { usePro } from '../context/ProContext';
+import { Capacitor } from '@capacitor/core';
+import { Purchases } from '@revenuecat/purchases-capacitor';
 
 interface ProPurchaseModalProps {
   onClose: () => void;
@@ -9,6 +11,32 @@ interface ProPurchaseModalProps {
 export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
   const { purchasePro, restorePurchases, isLoading } = usePro();
   const [purchasing, setPurchasing] = useState(false);
+  const [priceString, setPriceString] = useState('$1.99');
+
+  // Fetch the actual price from RevenueCat
+  useEffect(() => {
+    const fetchPrice = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const offerings = await Purchases.getOfferings();
+          if (offerings.current && offerings.current.availablePackages && offerings.current.availablePackages.length > 0) {
+            const proPackage = offerings.current.availablePackages.find(
+              pkg => pkg.product.identifier === 'digital_banker_pro'
+            ) || offerings.current.availablePackages[0];
+
+            if (proPackage?.product.priceString) {
+              setPriceString(proPackage.product.priceString);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching price:', error);
+          // Keep default $1.99 if fetch fails
+        }
+      }
+    };
+
+    fetchPrice();
+  }, []);
 
   const handlePurchase = async () => {
     setPurchasing(true);
@@ -57,7 +85,7 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             Upgrade to Pro
           </h2>
           <p className="text-amber-600 text-sm">
-            One-time purchase • $1.99
+            One-time purchase • {priceString}
           </p>
         </div>
 
@@ -111,7 +139,7 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             ) : (
               <>
                 <Crown className="w-5 h-5" />
-                Purchase Pro • $1.99
+                Purchase Pro • {priceString}
               </>
             )}
           </button>
@@ -125,7 +153,7 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
           </button>
 
           <p className="text-xs text-gray-500 text-center mt-4">
-            Pro features are tied to your device. One-time payment unlocks all game variants when hosting.
+            Pro features are tied to your Apple ID. One-time payment unlocks all game variants when hosting.
           </p>
         </div>
       </div>
