@@ -84,12 +84,22 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       if (Capacitor.isNativePlatform()) {
+        console.log('🛒 Starting purchase flow...');
+
         // Get available packages
+        console.log('📦 Fetching offerings from RevenueCat...');
         const offerings = await Purchases.getOfferings();
+        console.log('📦 Offerings received:', JSON.stringify(offerings, null, 2));
 
         if (offerings.current === null || offerings.current === undefined) {
-          throw new Error('No offerings available');
+          console.error('❌ No current offering found');
+          throw new Error('No offerings available. Please contact support.');
         }
+
+        console.log('📦 Available packages:', offerings.current.availablePackages.length);
+        offerings.current.availablePackages.forEach((pkg, idx) => {
+          console.log(`  Package ${idx}: ${pkg.product.identifier} - ${pkg.product.title} - ${pkg.product.priceString}`);
+        });
 
         // Find the pro package by product id, otherwise fall back to the first available
         const proPackage =
@@ -98,16 +108,24 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
           ) || offerings.current.availablePackages[0];
 
         if (!proPackage) {
-          throw new Error('Pro package not found');
+          console.error('❌ Pro package not found in offerings');
+          throw new Error('Pro package not found. Please contact support.');
         }
 
+        console.log('✅ Found package:', proPackage.product.identifier);
+        console.log('💰 Price:', proPackage.product.priceString);
+
         // Purchase the package
+        console.log('💳 Initiating purchase...');
         const purchaseResult = await Purchases.purchasePackage({
           aPackage: proPackage,
         });
+        console.log('✅ Purchase completed!');
+        console.log('📄 Customer info:', JSON.stringify(purchaseResult.customerInfo, null, 2));
 
         // Check if purchase was successful
         const hasPro = purchaseResult.customerInfo.entitlements.active[PRO_ENTITLEMENT_ID] !== undefined;
+        console.log('🎉 Has Pro entitlement:', hasPro);
         setIsPro(hasPro);
 
         return hasPro;
@@ -119,21 +137,31 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
     } catch (error: any) {
-      console.error('Error purchasing pro:', error);
+      console.error('❌ Purchase error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error details:', JSON.stringify(error, null, 2));
 
       // Handle user cancellation gracefully
       if (error.code === '1' || error.message?.includes('user cancelled') || error.message?.includes('cancelled')) {
-        console.log('Purchase cancelled by user');
+        console.log('🚫 Purchase cancelled by user');
+        alert('Purchase cancelled');
         return false;
       }
 
-      // Handle specific RevenueCat errors
+      // Handle specific RevenueCat errors with user-friendly messages
       if (error.code === '2') {
-        console.error('Store problem - product not available');
+        console.error('❌ Store problem - product not available');
+        alert('Product not available in the App Store. Please try again later.');
       } else if (error.code === '3') {
-        console.error('Purchase not allowed - check parental controls or restrictions');
+        console.error('❌ Purchase not allowed - check parental controls or restrictions');
+        alert('Purchase not allowed. Please check Screen Time or parental controls.');
       } else if (error.code === '4') {
-        console.error('Product already purchased');
+        console.error('❌ Product already purchased');
+        alert('You already own this product. Try "Restore Purchases" instead.');
+      } else {
+        // Generic error
+        alert(`Purchase failed: ${error.message || 'Unknown error'}`);
       }
 
       // Return false instead of throwing to prevent infinite spinner

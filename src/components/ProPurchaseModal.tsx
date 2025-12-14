@@ -47,13 +47,11 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
       if (success) {
         alert('🎉 Pro features unlocked! You can now access all game variants.');
         onClose();
-      } else {
-        alert('Purchase cancelled or failed. Please try again.');
       }
+      // Error handling is done in ProContext, so we don't need to show another alert here
     } catch (error) {
       setPurchasing(false);
-      console.error('Purchase error:', error);
-      alert(`Purchase error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Unexpected purchase error:', error);
     }
   };
 
