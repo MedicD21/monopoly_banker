@@ -91,10 +91,11 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
           throw new Error('No offerings available');
         }
 
-        // Find the pro package (assuming it's in the current offering)
-        const proPackage = offerings.current.availablePackages.find(
-          pkg => pkg.product.identifier === PRO_PRODUCT_ID
-        );
+        // Find the pro package by product id, otherwise fall back to the first available
+        const proPackage =
+          offerings.current.availablePackages.find(
+            (pkg) => pkg.product.identifier === PRO_PRODUCT_ID
+          ) || offerings.current.availablePackages[0];
 
         if (!proPackage) {
           throw new Error('Pro package not found');
