@@ -69,208 +69,218 @@ const idsMatch = (a: string | number, b: string | number) =>
   String(a) === String(b);
 
 const GAME_PIECES = [
-  { id: "car", name: "Racecar", icon: "/images/Racecar.svg" },
-  { id: "ship", name: "Battleship", icon: "/images/Battleship.svg" },
+  { id: "car", name: "Car", icon: "/images/Racecar.svg" },
+  { id: "ship", name: "Ship", icon: "/images/Battleship.svg" },
   { id: "cat", name: "Cat", icon: "/images/cat.svg" },
   { id: "dog", name: "Dog", icon: "/images/Scottie.svg" },
   { id: "wheelbarrow", name: "Wheelbarrow", icon: "/images/Wheelbarrow.svg" },
-  { id: "hat", name: "Top Hat", icon: "/images/Top_Hat.svg" },
-  { id: "thimble", name: "Thimble", icon: "/images/Thimble.svg" },
+  { id: "hat", name: "Hat", icon: "/images/Top_Hat.svg" },
+  { id: "thimble", name: "Sewing", icon: "/images/Thimble.svg" },
   { id: "iron", name: "Iron", icon: "/images/Iron.svg" },
 ];
 
 const PROPERTIES = [
+  // Purple Properties - Low Value District
   {
-    name: "Mediterranean Ave",
+    name: "Maple Lane",
     price: 60,
     rent: [2, 10, 30, 90, 160, 250],
     color: "bg-purple-700",
     group: "purple",
   },
   {
-    name: "Baltic Ave",
+    name: "Oak Street",
     price: 60,
     rent: [4, 20, 60, 180, 320, 450],
     color: "bg-purple-700",
     group: "purple",
   },
+  // Light Blue Properties - Residential Area
   {
-    name: "Oriental Ave",
+    name: "Pine Avenue",
     price: 100,
     rent: [6, 30, 90, 270, 400, 550],
     color: "bg-cyan-600",
     group: "lightblue",
   },
   {
-    name: "Vermont Ave",
+    name: "Birch Boulevard",
     price: 100,
     rent: [6, 30, 90, 270, 400, 550],
     color: "bg-cyan-600",
     group: "lightblue",
   },
   {
-    name: "Connecticut Ave",
+    name: "Cedar Court",
     price: 120,
     rent: [8, 40, 100, 300, 450, 600],
     color: "bg-cyan-600",
     group: "lightblue",
   },
+  // Pink Properties - Suburban District
   {
-    name: "St. Charles Place",
+    name: "Willow Way",
     price: 140,
     rent: [10, 50, 150, 450, 625, 750],
     color: "bg-pink-600",
     group: "pink",
   },
   {
-    name: "States Ave",
+    name: "Elm Plaza",
     price: 140,
     rent: [10, 50, 150, 450, 625, 750],
     color: "bg-pink-600",
     group: "pink",
   },
   {
-    name: "Virginia Ave",
+    name: "Aspen Drive",
     price: 160,
     rent: [12, 60, 180, 500, 700, 900],
     color: "bg-pink-600",
     group: "pink",
   },
+  // Orange Properties - Commercial Zone
   {
-    name: "St. James Place",
+    name: "Sycamore Square",
     price: 180,
     rent: [14, 70, 200, 550, 750, 950],
     color: "bg-orange-600",
     group: "orange",
   },
   {
-    name: "Tennessee Ave",
+    name: "Redwood Road",
     price: 180,
     rent: [14, 70, 200, 550, 750, 950],
     color: "bg-orange-600",
     group: "orange",
   },
   {
-    name: "New York Ave",
+    name: "Magnolia Mile",
     price: 200,
     rent: [16, 80, 220, 600, 800, 1000],
     color: "bg-orange-600",
     group: "orange",
   },
+  // Red Properties - Business District
   {
-    name: "Kentucky Ave",
+    name: "Hickory Heights",
     price: 220,
     rent: [18, 90, 250, 700, 875, 1050],
     color: "bg-red-700",
     group: "red",
   },
   {
-    name: "Indiana Ave",
+    name: "Spruce Parkway",
     price: 220,
     rent: [18, 90, 250, 700, 875, 1050],
     color: "bg-red-700",
     group: "red",
   },
   {
-    name: "Illinois Ave",
+    name: "Poplar Plaza",
     price: 240,
     rent: [20, 100, 300, 750, 925, 1100],
     color: "bg-red-700",
     group: "red",
   },
+  // Yellow Properties - Upscale Area
   {
-    name: "Atlantic Ave",
+    name: "Cypress Circle",
     price: 260,
     rent: [22, 110, 330, 800, 975, 1150],
     color: "bg-yellow-600",
     group: "yellow",
   },
   {
-    name: "Ventnor Ave",
+    name: "Juniper Junction",
     price: 260,
     rent: [22, 110, 330, 800, 975, 1150],
     color: "bg-yellow-600",
     group: "yellow",
   },
   {
-    name: "Marvin Gardens",
+    name: "Sequoia Summit",
     price: 280,
     rent: [24, 120, 360, 850, 1025, 1200],
     color: "bg-yellow-600",
     group: "yellow",
   },
+  // Green Properties - Premium District
   {
-    name: "Pacific Ave",
+    name: "Dogwood Drive",
     price: 300,
     rent: [26, 130, 390, 900, 1100, 1275],
     color: "bg-green-700",
     group: "green",
   },
   {
-    name: "North Carolina Ave",
+    name: "Chestnut Center",
     price: 300,
     rent: [26, 130, 390, 900, 1100, 1275],
     color: "bg-green-700",
     group: "green",
   },
   {
-    name: "Pennsylvania Ave",
+    name: "Laurel Landing",
     price: 320,
     rent: [28, 150, 450, 1000, 1200, 1400],
     color: "bg-green-700",
     group: "green",
   },
+  // Dark Blue Properties - Luxury Estates
   {
-    name: "Park Place",
+    name: "Rosewood Row",
     price: 350,
     rent: [35, 175, 500, 1100, 1300, 1500],
     color: "bg-blue-800",
     group: "darkblue",
   },
   {
-    name: "Boardwalk",
+    name: "Diamond District",
     price: 400,
     rent: [50, 200, 600, 1400, 1700, 2000],
     color: "bg-blue-800",
     group: "darkblue",
   },
+  // Railroads - Transit Lines
   {
-    name: "Reading Railroad",
+    name: "North Line",
     price: 200,
     rent: [25, 50, 100, 200],
     color: "bg-gray-600",
     group: "railroad",
   },
   {
-    name: "Pennsylvania Railroad",
+    name: "South Line",
     price: 200,
     rent: [25, 50, 100, 200],
     color: "bg-gray-600",
     group: "railroad",
   },
   {
-    name: "B&O Railroad",
+    name: "East Line",
     price: 200,
     rent: [25, 50, 100, 200],
     color: "bg-gray-600",
     group: "railroad",
   },
   {
-    name: "Short Line",
+    name: "West Line",
     price: 200,
     rent: [25, 50, 100, 200],
     color: "bg-gray-600",
     group: "railroad",
   },
+  // Utilities
   {
-    name: "Electric Company",
+    name: "Power Grid",
     price: 150,
     rent: [],
     color: "bg-yellow-500",
     group: "utility",
   },
   {
-    name: "Water Works",
+    name: "Water Supply",
     price: 150,
     rent: [],
     color: "bg-blue-400",
@@ -557,8 +567,10 @@ export default function DigitalBanker({
           ? `${finalD1} + ${finalD2} + ${finalD3} = ${finalRoll.total}`
           : `${finalD1} + ${finalD2} = ${finalRoll.total}`;
         addHistoryEntry(
-          'dice',
-          `${rollingPlayer.name} rolled ${diceString}${finalRoll.isDoubles ? ' (Doubles!)' : ''}`,
+          "dice",
+          `${rollingPlayer.name} rolled ${diceString}${
+            finalRoll.isDoubles ? " (Doubles!)" : ""
+          }`,
           rollingPlayer.name
         );
 
@@ -648,7 +660,7 @@ export default function DigitalBanker({
   };
 
   const addHistoryEntry = async (
-    type: HistoryEntry['type'],
+    type: HistoryEntry["type"],
     message: string,
     playerName?: string
   ) => {
@@ -791,7 +803,7 @@ export default function DigitalBanker({
 
     // Add to history
     addHistoryEntry(
-      'transaction',
+      "transaction",
       `${fromPlayer.name} paid ${toPlayer.name} $${amt.toLocaleString()}`,
       fromPlayer.name
     );
@@ -850,8 +862,10 @@ export default function DigitalBanker({
 
     // Add to history
     addHistoryEntry(
-      'property',
-      `${player.name} bought ${property.name} for $${property.price.toLocaleString()}`,
+      "property",
+      `${player.name} bought ${
+        property.name
+      } for $${property.price.toLocaleString()}`,
       player.name
     );
 
@@ -892,7 +906,7 @@ export default function DigitalBanker({
 
     // Add to history
     addHistoryEntry(
-      'property',
+      "property",
       `${player.name} sold ${propertyName} for $${refund.toLocaleString()}`,
       player.name
     );
@@ -1301,11 +1315,13 @@ export default function DigitalBanker({
     const player = players.find((p) => p.id === playerId);
     if (player) {
       const message = doubleGoEnabled
-        ? `🎉 ${player.name} landed on GO! Double bonus: $${amount.toLocaleString()}`
+        ? `🎉 ${
+            player.name
+          } landed on GO! Double bonus: $${amount.toLocaleString()}`
         : `${player.name} passed GO and collected $${amount.toLocaleString()}`;
 
       showToastMessage(message);
-      addHistoryEntry('passGo', message, player.name);
+      addHistoryEntry("passGo", message, player.name);
     }
   };
 
@@ -1316,7 +1332,7 @@ export default function DigitalBanker({
       showError("Please select which player you are first");
       return;
     }
-    setNumberPadTitle("Banker Pays");
+    setNumberPadTitle("Teller Pays");
     setNumberPadCallback(() => (amount) => {
       updateBalance(playerIdToUse, amount);
     });
@@ -1557,9 +1573,7 @@ export default function DigitalBanker({
     if (!playerIdToUse) return;
 
     const fromPlayer = players.find((p) => p.id === playerIdToUse);
-    const toPlayer = players.find(
-      (p) => p.id === tradeOffer.fromPlayerId
-    );
+    const toPlayer = players.find((p) => p.id === tradeOffer.fromPlayerId);
 
     if (!fromPlayer || !toPlayer) return;
 
@@ -1658,7 +1672,7 @@ export default function DigitalBanker({
 
     // Add to history
     addHistoryEntry(
-      'freeParking',
+      "freeParking",
       `${player.name} collected $${amount.toLocaleString()} from Free Parking!`,
       player.name
     );
@@ -1805,8 +1819,10 @@ export default function DigitalBanker({
 
     // Add to history
     addHistoryEntry(
-      'auction',
-      `🎉 ${winner.name} won ${auctionProperty.name} for $${highestBid.amount.toLocaleString()}!`,
+      "auction",
+      `🎉 ${winner.name} won ${
+        auctionProperty.name
+      } for $${highestBid.amount.toLocaleString()}!`,
       winner.name
     );
 
@@ -1860,7 +1876,7 @@ export default function DigitalBanker({
   const handleCompleteReset = () => {
     if (isMultiplayer) {
       // In multiplayer mode, navigate back to home page
-      window.location.href = '/';
+      window.location.href = "/";
     } else {
       // In single player mode, go back to the setup screen
       setScreen("home");
@@ -1916,7 +1932,7 @@ export default function DigitalBanker({
           <div className="text-center mb-12">
             <div className="flex justify-center mb-4">
               <img
-                src="/images/Digital_Banker_Logo.svg"
+                src="/images/digitalbankerlogo.svg"
                 alt="Digital Banker"
                 className="w-64 h-auto"
               />
@@ -2213,7 +2229,7 @@ export default function DigitalBanker({
               alt="Banker"
               className="w-auto h-20 flex right-40 absolute drop-shadow-[0_0_3px_white]"
             />
-            Banker Pays
+            Teller Pays
           </button>
         </div>
 
@@ -3196,9 +3212,7 @@ export default function DigitalBanker({
             toPlayer={
               players.find((p) => p.id === tradeOffer.toPlayerId) || players[0]
             }
-            currentPlayerId={
-              isMultiplayer ? firebasePlayerId : currentPlayerId
-            }
+            currentPlayerId={isMultiplayer ? firebasePlayerId : currentPlayerId}
             onAccept={handleAcceptTrade}
             onReject={handleRejectTrade}
             onCounterOffer={handleCounterOffer}

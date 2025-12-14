@@ -115,12 +115,12 @@ export const PLAYER_COLORS = [
 ];
 
 export const GAME_PIECES: GamePiece[] = [
-  { id: "car", name: "Racecar", icon: "/images/Racecar.svg" },
-  { id: "ship", name: "Battleship", icon: "/images/Battleship.svg" },
+  { id: "car", name: "Car", icon: "/images/Racecar.svg" },
+  { id: "ship", name: "Ship", icon: "/images/Battleship.svg" },
   { id: "cat", name: "Cat", icon: "/images/cat.svg" },
   { id: "dog", name: "Dog", icon: "/images/Scottie.svg" },
   { id: "boot", name: "Boot", icon: "/images/Wheelbarrow.svg" },
-  { id: "hat", name: "Top Hat", icon: "/images/Top_Hat.svg" },
-  { id: "thimble", name: "Thimble", icon: "/images/Thimble.svg" },
+  { id: "hat", name: "Hat", icon: "/images/Top_Hat.svg" },
+  { id: "thimble", name: "Sewing", icon: "/images/Thimble.svg" },
   { id: "iron", name: "Iron", icon: "/images/Iron.svg" },
 ];

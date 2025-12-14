@@ -22,7 +22,8 @@
       "Bash(npx cap:*)",
       "Bash(awk:*)",
       "Bash(npm uninstall:*)",
-      "Bash(xcodebuild:*)"
+      "Bash(xcodebuild:*)",
+      "Bash(file:*)"
     ]
   }
 }

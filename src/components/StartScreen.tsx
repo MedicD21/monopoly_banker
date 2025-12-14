@@ -42,6 +42,18 @@ export default function StartScreen({ onHost, onJoin }: StartScreenProps) {
           <p>Each player uses their own device</p>
           <p>Host creates the game, others join with a code</p>
         </div>
+
+        <div className="mt-8 pt-6 border-t border-amber-900/30 text-center text-zinc-500 text-xs">
+          <p className="mb-2">
+            Digital Banker is an independent companion app for classic board games.
+          </p>
+          <p>
+            Not affiliated with, endorsed by, or associated with Hasbro, Inc. or any board game manufacturer.
+          </p>
+          <p className="mt-2">
+            All property names, game piece designs, and gameplay elements are original creations.
+          </p>
+        </div>
       </div>
     </div>
   );
