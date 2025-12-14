@@ -12,7 +12,8 @@ interface ProContextType {
 const ProContext = createContext<ProContextType | undefined>(undefined);
 
 // RevenueCat API Keys (set these in your .env file or Capacitor config)
-const REVENUECAT_API_KEY_IOS = import.meta.env.VITE_REVENUECAT_IOS_KEY || 'your_ios_key_here';
+const REVENUECAT_API_KEY_IOS =
+  import.meta.env.VITE_REVENUECAT_IOS_KEY || "appl_OhaBkbEneDlMlvjBEhBCMZaJcIu";
 const REVENUECAT_API_KEY_ANDROID = import.meta.env.VITE_REVENUECAT_ANDROID_KEY || 'your_android_key_here';
 const PRO_ENTITLEMENT_ID = 'pro'; // RevenueCat entitlement ID
 const PRO_PRODUCT_ID = 'digital_banker_pro'; // Product ID in App Store/Play Store
@@ -34,17 +35,21 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
         const platform = Capacitor.getPlatform();
         const apiKey = platform === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
 
+        console.log('🔧 Initializing RevenueCat...');
+        console.log('Platform:', platform);
+        console.log('API Key (first 15 chars):', apiKey.substring(0, 15) + '...');
+
         await Purchases.configure({
           apiKey,
           appUserID: undefined, // Let RevenueCat generate anonymous ID
         });
 
-        // Set log level for debugging (remove in production)
-        if (import.meta.env.DEV) {
-          await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
-        }
+        // Enable debug logging for TestFlight testing
+        await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
+        console.log('✅ RevenueCat configured successfully');
 
         // Check current entitlements
+        console.log('🔍 Checking pro status...');
         await checkProStatus();
       } else {
         // Web platform - use localStorage for testing
