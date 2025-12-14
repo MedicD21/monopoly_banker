@@ -40,14 +40,20 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
 
   const handlePurchase = async () => {
     setPurchasing(true);
-    const success = await purchasePro();
-    setPurchasing(false);
+    try {
+      const success = await purchasePro();
+      setPurchasing(false);
 
-    if (success) {
-      alert('🎉 Pro features unlocked! You can now access all game variants.');
-      onClose();
-    } else {
-      alert('Purchase failed. Please try again.');
+      if (success) {
+        alert('🎉 Pro features unlocked! You can now access all game variants.');
+        onClose();
+      } else {
+        alert('Purchase cancelled or failed. Please try again.');
+      }
+    } catch (error) {
+      setPurchasing(false);
+      console.error('Purchase error:', error);
+      alert(`Purchase error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

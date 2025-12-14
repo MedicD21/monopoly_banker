@@ -122,11 +122,22 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
       console.error('Error purchasing pro:', error);
 
       // Handle user cancellation gracefully
-      if (error.code === '1' || error.message?.includes('user cancelled')) {
+      if (error.code === '1' || error.message?.includes('user cancelled') || error.message?.includes('cancelled')) {
+        console.log('Purchase cancelled by user');
         return false;
       }
 
-      throw error;
+      // Handle specific RevenueCat errors
+      if (error.code === '2') {
+        console.error('Store problem - product not available');
+      } else if (error.code === '3') {
+        console.error('Purchase not allowed - check parental controls or restrictions');
+      } else if (error.code === '4') {
+        console.error('Product already purchased');
+      }
+
+      // Return false instead of throwing to prevent infinite spinner
+      return false;
     } finally {
       setIsLoading(false);
     }
