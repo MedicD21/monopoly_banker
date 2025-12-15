@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Crown, Check } from 'lucide-react';
-import { usePro } from '../context/ProContext';
-import { Capacitor } from '@capacitor/core';
-import { Purchases } from '@revenuecat/purchases-capacitor';
+import React, { useState, useEffect } from "react";
+import { X, Crown, Check } from "lucide-react";
+import { usePro } from "../context/ProContext";
+import { Capacitor } from "@capacitor/core";
+import { Purchases } from "@revenuecat/purchases-capacitor";
 
 interface ProPurchaseModalProps {
   onClose: () => void;
@@ -11,7 +11,7 @@ interface ProPurchaseModalProps {
 export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
   const { purchasePro, restorePurchases, isLoading } = usePro();
   const [purchasing, setPurchasing] = useState(false);
-  const [priceString, setPriceString] = useState('$1.99');
+  const [priceString, setPriceString] = useState("$1.99");
 
   // Fetch the actual price from RevenueCat
   useEffect(() => {
@@ -19,17 +19,22 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
       if (Capacitor.isNativePlatform()) {
         try {
           const offerings = await Purchases.getOfferings();
-          if (offerings.current && offerings.current.availablePackages && offerings.current.availablePackages.length > 0) {
-            const proPackage = offerings.current.availablePackages.find(
-              pkg => pkg.product.identifier === 'digital_banker_pro'
-            ) || offerings.current.availablePackages[0];
+          if (
+            offerings.current &&
+            offerings.current.availablePackages &&
+            offerings.current.availablePackages.length > 0
+          ) {
+            const proPackage =
+              offerings.current.availablePackages.find(
+                (pkg) => pkg.product.identifier === "digital_banker_pro"
+              ) || offerings.current.availablePackages[0];
 
             if (proPackage?.product.priceString) {
               setPriceString(proPackage.product.priceString);
             }
           }
         } catch (error) {
-          console.error('Error fetching price:', error);
+          console.error("Error fetching price:", error);
           // Keep default $1.99 if fetch fails
         }
       }
@@ -45,13 +50,15 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
       setPurchasing(false);
 
       if (success) {
-        alert('🎉 Pro features unlocked! You can now access all game variants.');
+        alert(
+          "🎉 Pro features unlocked! You can now access all game variants."
+        );
         onClose();
       }
       // Error handling is done in ProContext, so we don't need to show another alert here
     } catch (error) {
       setPurchasing(false);
-      console.error('Unexpected purchase error:', error);
+      console.error("Unexpected purchase error:", error);
     }
   };
 
@@ -61,10 +68,10 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
     setPurchasing(false);
 
     if (success) {
-      alert('✅ Purchases restored successfully!');
+      alert("✅ Purchases restored successfully!");
       onClose();
     } else {
-      alert('No previous purchases found.');
+      alert("No previous purchases found.");
     }
   };
 
@@ -100,7 +107,9 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-white font-semibold">Free Parking Jackpot</p>
-              <p className="text-gray-400 text-sm">Collect taxes and fees in a jackpot</p>
+              <p className="text-gray-400 text-sm">
+                Collect taxes and fees in a jackpot
+              </p>
             </div>
           </div>
 
@@ -108,7 +117,9 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-white font-semibold">Double GO Bonus</p>
-              <p className="text-gray-400 text-sm">Get $400 when landing on GO</p>
+              <p className="text-gray-400 text-sm">
+                Get $400 when landing on GO
+              </p>
             </div>
           </div>
 
@@ -116,7 +127,9 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-white font-semibold">Property Auctions</p>
-              <p className="text-gray-400 text-sm">Auction unpurchased properties</p>
+              <p className="text-gray-400 text-sm">
+                Auction unpurchased properties
+              </p>
             </div>
           </div>
 
@@ -124,7 +137,9 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-white font-semibold">Speed Die Mode</p>
-              <p className="text-gray-400 text-sm">Roll 3 dice for faster gameplay</p>
+              <p className="text-gray-400 text-sm">
+                Roll 3 dice for faster gameplay
+              </p>
             </div>
           </div>
         </div>
@@ -157,7 +172,8 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
           </button>
 
           <p className="text-xs text-gray-500 text-center mt-4">
-            Pro features are tied to your Apple ID. One-time payment unlocks all game variants when hosting.
+            Pro features are tied to your Apple ID. One-time payment unlocks all
+            game variants when hosting.
           </p>
         </div>
       </div>
