@@ -31,20 +31,25 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
   const initializeRevenueCat = async () => {
     setIsLoading(true);
     try {
+      // Log bundle/platform to verify it matches App Store Connect setup
+      const bundleId = Capacitor.getBundleId();
+      console.log("📦 Bundle ID:", bundleId);
+      const platform = Capacitor.getPlatform();
+      console.log("🧭 Platform:", platform);
+
       if (Capacitor.isNativePlatform()) {
         // Configure RevenueCat
-        const platform = Capacitor.getPlatform();
         const apiKey =
           platform === "ios"
             ? REVENUECAT_API_KEY_IOS
             : REVENUECAT_API_KEY_ANDROID;
 
+        // Show expected product ID for quick sanity check against ASC/RC setup
+        console.log("🛍️ Expected product id:", PRO_PRODUCT_ID);
+
         console.log("🔧 Initializing RevenueCat...");
         console.log("Platform:", platform);
-        console.log(
-          "API Key (first 15 chars):",
-          apiKey.substring(0, 15) + "..."
-        );
+        console.log("API Key (first 15 chars):", apiKey.substring(0, 15) + "...");
 
         await Purchases.configure({
           apiKey,
