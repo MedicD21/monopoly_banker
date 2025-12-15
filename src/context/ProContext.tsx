@@ -31,9 +31,7 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
   const initializeRevenueCat = async () => {
     setIsLoading(true);
     try {
-      // Log bundle/platform to verify it matches App Store Connect setup
-      const bundleId = Capacitor.getBundleId();
-      console.log("📦 Bundle ID:", bundleId);
+      // Log platform to verify it matches App Store Connect setup
       const platform = Capacitor.getPlatform();
       console.log("🧭 Platform:", platform);
       console.log("🛍️ Expected product id:", PRO_PRODUCT_ID);
