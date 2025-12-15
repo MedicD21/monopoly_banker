@@ -50,6 +50,7 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
         await Purchases.configure({
           apiKey,
           appUserID: undefined, // Let RevenueCat generate anonymous ID
+          usesStoreKit2IfAvailable: false, // Prefer StoreKit 1 to ensure StoreKit config is respected in simulator
         });
 
         // Enable debug logging for TestFlight testing
