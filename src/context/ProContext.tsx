@@ -36,6 +36,7 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
       console.log("📦 Bundle ID:", bundleId);
       const platform = Capacitor.getPlatform();
       console.log("🧭 Platform:", platform);
+      console.log("🛍️ Expected product id:", PRO_PRODUCT_ID);
 
       if (Capacitor.isNativePlatform()) {
         // Configure RevenueCat
@@ -43,9 +44,6 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
           platform === "ios"
             ? REVENUECAT_API_KEY_IOS
             : REVENUECAT_API_KEY_ANDROID;
-
-        // Show expected product ID for quick sanity check against ASC/RC setup
-        console.log("🛍️ Expected product id:", PRO_PRODUCT_ID);
 
         console.log("🔧 Initializing RevenueCat...");
         console.log("Platform:", platform);
