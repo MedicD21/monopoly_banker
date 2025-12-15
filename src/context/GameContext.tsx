@@ -15,6 +15,7 @@ import {
   startGame as startGameService,
   getGame,
   getPlayer,
+  updateGame,
 } from "../firebase/gameService";
 import {
   subscribeToGame,
@@ -296,7 +297,6 @@ export function GameProvider({ children }: GameProviderProps) {
     if (!game?.id || !isHost) return;
 
     try {
-      const { updateGame } = await import("../firebase/gameService");
       await updateGame(game.id, {
         config: { ...game.config, ...config },
       });
