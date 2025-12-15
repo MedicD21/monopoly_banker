@@ -1,0 +1,22 @@
+{
+  "identifier": "DigitalBankerStoreKit",
+  "description": "Local StoreKit configuration for simulator testing",
+  "version": 1,
+  "products": [
+    {
+      "displayName": "Digital Banker Pro",
+      "productIdentifier": "digital_banker_pro",
+      "productType": "Non-Consumable",
+      "price": 1.99,
+      "familyShareable": true,
+      "subscriptionGroupIdentifier": null,
+      "localizations": [
+        {
+          "locale": "en_US",
+          "displayName": "Digital Banker Pro",
+          "description": "Unlock Pro features"
+        }
+      ]
+    }
+  ]
+}
