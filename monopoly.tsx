@@ -343,6 +343,88 @@ const BOARD_SPACES = [
   "Diamond District",
 ];
 
+const JAIL_INDEX = 10;
+
+type CardType = "chance" | "community";
+type CardEffect =
+  | { kind: "bank"; amount: number } // positive collects, negative pays bank
+  | { kind: "each"; amount: number } // collect from each (positive) or pay each (negative)
+  | { kind: "move"; position: number; passGo?: boolean }
+  | { kind: "gotoJail" };
+
+interface Card {
+  id: string;
+  type: CardType;
+  text: string;
+  effect: CardEffect;
+}
+
+const CHANCE_CARDS: Card[] = [
+  {
+    id: "chance-go",
+    type: "chance",
+    text: "Advance to GO. Collect $200.",
+    effect: { kind: "move", position: 0, passGo: true },
+  },
+  {
+    id: "chance-bank-dividend",
+    type: "chance",
+    text: "Bank pays you dividend of $50.",
+    effect: { kind: "bank", amount: 50 },
+  },
+  {
+    id: "chance-speeding-fine",
+    type: "chance",
+    text: "Speeding fine $15.",
+    effect: { kind: "bank", amount: -15 },
+  },
+  {
+    id: "chance-jail",
+    type: "chance",
+    text: "Go to Jail. Do not pass GO. Do not collect $200.",
+    effect: { kind: "gotoJail" },
+  },
+  {
+    id: "chance-pay-each",
+    type: "chance",
+    text: "Pay each player $50.",
+    effect: { kind: "each", amount: -50 },
+  },
+];
+
+const COMMUNITY_CARDS: Card[] = [
+  {
+    id: "comm-bank-error",
+    type: "community",
+    text: "Bank error in your favor. Collect $200.",
+    effect: { kind: "bank", amount: 200 },
+  },
+  {
+    id: "comm-doctor",
+    type: "community",
+    text: "Doctor's fee. Pay $50.",
+    effect: { kind: "bank", amount: -50 },
+  },
+  {
+    id: "comm-go",
+    type: "community",
+    text: "Advance to GO. Collect $200.",
+    effect: { kind: "move", position: 0, passGo: true },
+  },
+  {
+    id: "comm-collect-each",
+    type: "community",
+    text: "It is your birthday. Collect $10 from every player.",
+    effect: { kind: "each", amount: 10 },
+  },
+  {
+    id: "comm-go-to-jail",
+    type: "community",
+    text: "Go to Jail. Do not pass GO. Do not collect $200.",
+    effect: { kind: "gotoJail" },
+  },
+];
+
 interface DigitalBankerProps {
   gameId?: string;
   gameCode?: string;
@@ -395,10 +477,158 @@ export default function DigitalBanker({
     newPos: number
   ) => {
     setPlayers((prev) =>
-      prev.map((p) => (p.id === playerId ? { ...p, position: newPos } : p))
+      prev.map((p) =>
+        p.id === playerId ? { ...p, position: newPos } : p
+      )
     );
     if (isMultiplayer && gameId) {
       await updatePlayer(gameId, playerId as string, { position: newPos });
+    }
+  };
+
+  const updateJailStatus = async (
+    playerId: string | number,
+    inJail: boolean,
+    jailTurns = 0,
+    position?: number
+  ) => {
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? {
+              ...p,
+              inJail,
+              jailTurns,
+              position: position !== undefined ? position : p.position,
+            }
+          : p
+      )
+    );
+    if (isMultiplayer && gameId) {
+      await updatePlayer(gameId, playerId as string, {
+        inJail,
+        jailTurns,
+        position: position !== undefined ? position : undefined,
+      });
+    }
+  };
+
+  const pushBotLog = (msg: string) => {
+    setBotTurnLog((prev) => [...prev.slice(-3), msg]);
+  };
+
+  const getPropertyDef = (name: string) =>
+    PROPERTIES.find((p) => p.name.toLowerCase() === name.toLowerCase());
+
+  const getOwnerOfProperty = (propertyName: string) => {
+    for (const p of players) {
+      if (p.properties.some((pr) => pr.name === propertyName)) {
+        return p;
+      }
+    }
+    return null;
+  };
+
+  const drawCard = (type: CardType): Card => {
+    const pool = type === "chance" ? CHANCE_CARDS : COMMUNITY_CARDS;
+    const idx = Math.floor(Math.random() * pool.length);
+    return pool[idx];
+  };
+
+  const handleDrawCard = (type: CardType) => {
+    const playerIdToUse = isMultiplayer
+      ? firebasePlayerId
+      : activePlayer?.id ?? currentPlayerId;
+    if (playerIdToUse === null || playerIdToUse === undefined) {
+      showError("Select a player first");
+      return;
+    }
+    const card = drawCard(type);
+    setCardModal({ open: true, card, playerId: playerIdToUse });
+  };
+
+  const applyCard = async (card: Card, playerId: string | number) => {
+    const player = players.find((p) => p.id === playerId);
+    if (!player) return;
+
+    const effect = card.effect;
+    if (effect.kind === "bank") {
+      await updateBalance(playerId, effect.amount);
+      pushBotLog(`${player.name}: ${effect.amount >= 0 ? "+" : ""}$${Math.abs(effect.amount)}`);
+    } else if (effect.kind === "each") {
+      // positive = collect from each, negative = pay each
+      const others = players.filter((p) => p.id !== playerId && !p.isBankrupt);
+      for (const other of others) {
+        if (effect.amount >= 0) {
+          await transferMoney(other.id, playerId, effect.amount.toString());
+        } else {
+          await transferMoney(playerId, other.id, Math.abs(effect.amount).toString());
+        }
+      }
+      pushBotLog(
+        `${player.name} ${effect.amount >= 0 ? "collects" : "pays"} $${Math.abs(
+          effect.amount
+        )} ${effect.amount >= 0 ? "from" : "to"} each`
+      );
+    } else if (effect.kind === "move") {
+      const currentPos = player.position ?? 0;
+      const boardSize = BOARD_SPACES.length;
+      const wrapped = effect.position < currentPos && effect.passGo;
+      if (wrapped) {
+        await updateBalance(playerId, PASS_GO_AMOUNT);
+      }
+      await updatePlayerPosition(playerId, effect.position);
+      pushBotLog(`${player.name} moves to ${BOARD_SPACES[effect.position] || "space"}`);
+    } else if (effect.kind === "gotoJail") {
+      await updateJailStatus(playerId, true, 0, JAIL_INDEX);
+      pushBotLog(`${player.name} sent to Jail`);
+    }
+
+    setCardModal({ open: false });
+  };
+
+  const botHandleLanding = async (
+    bot: any,
+    propertyName: string,
+    rollTotal: number
+  ) => {
+    const property = getPropertyDef(propertyName);
+    if (!property) return;
+
+    const owner = getOwnerOfProperty(propertyName);
+    const botBalance = bot.balance ?? 0;
+
+    // If unowned and affordable, buy
+    if (!owner && botBalance >= property.price) {
+      pushBotLog(`${bot.name} buys ${propertyName} for $${property.price}`);
+      await buyProperty(bot.id, property);
+      return;
+    }
+
+    // If owned by someone else and not mortgaged, pay rent
+    if (owner && owner.id !== bot.id) {
+      const ownerProp = owner.properties.find((pr) => pr.name === propertyName);
+      if (ownerProp?.mortgaged) {
+        pushBotLog(`${propertyName} is mortgaged, no rent due`);
+        return;
+      }
+
+      let rentAmount = 0;
+      if (property.group === "utility") {
+        const utilityCount = owner.properties.filter((pr) => {
+          const prop = PROPERTIES.find((p) => p.name === pr.name);
+          return prop?.group === "utility";
+        }).length;
+        const multiplier = utilityCount === 2 ? 10 : 4;
+        rentAmount = rollTotal * multiplier;
+      } else {
+        rentAmount = calculateRent(owner.id, propertyName);
+      }
+
+      if (rentAmount > 0) {
+        pushBotLog(`${bot.name} pays $${rentAmount} rent to ${owner.name}`);
+        await transferMoney(bot.id, owner.id, rentAmount.toString());
+      }
     }
   };
 
@@ -409,6 +639,25 @@ export default function DigitalBanker({
 
     setIsBotTakingTurn(true);
     setBotTurnMessage(`${active.name} is rolling...`);
+    pushBotLog(`${active.name} rolling...`);
+    // Jail handling
+    if (active.inJail) {
+      const turns = active.jailTurns ?? 0;
+      if (turns >= 2 && active.balance >= 50) {
+        pushBotLog(`${active.name} pays $50 bail and leaves Jail`);
+        await updateBalance(active.id, -50);
+        await updateJailStatus(active.id, false, 0, JAIL_INDEX);
+      } else {
+        pushBotLog(`${active.name} remains in Jail (turn ${turns + 1})`);
+        await updateJailStatus(active.id, true, turns + 1, JAIL_INDEX);
+        setBotTurnMessage(`${active.name} ends turn`);
+        await sleep(400);
+        setIsBotTakingTurn(false);
+        goToNextTurn();
+        return;
+      }
+    }
+
     const roll = await rollDice(active.id);
     if (!roll) {
       setIsBotTakingTurn(false);
@@ -426,15 +675,36 @@ export default function DigitalBanker({
       setBotTurnMessage(`${active.name} passed GO +$${PASS_GO_AMOUNT}`);
       await updateBalance(active.id, PASS_GO_AMOUNT);
       await sleep(400);
+      pushBotLog(`${active.name} collected $${PASS_GO_AMOUNT} at GO`);
     }
 
     await updatePlayerPosition(active.id, newPos);
-    const landed = BOARD_SPACES[newPos] || "Unknown";
+    const landed = getSpaceName(newPos);
     addHistoryEntry(
       "dice",
       `${active.name} rolled to ${landed}`,
       active.name
     );
+    pushBotLog(`${active.name} landed on ${landed}`);
+
+    // Chance / Community draw
+    if (landed === "Chance" || landed === "Community Chest") {
+      const card = drawCard(landed === "Chance" ? "chance" : "community");
+      pushBotLog(`${active.name} draws: ${card.text}`);
+      await applyCard(card, active.id);
+    } else if (
+      landed !== "Luxury Tax" &&
+      landed !== "Income Tax" &&
+      landed !== "Free Parking" &&
+      landed !== "Go To Jail" &&
+      landed !== "Just Visiting / Jail"
+    ) {
+      // Basic property / rent handling
+      await botHandleLanding(active, landed, roll.total);
+    } else if (landed === "Go To Jail") {
+      await updateJailStatus(active.id, true, 0, JAIL_INDEX);
+      pushBotLog(`${active.name} sent to Jail`);
+    }
 
     setBotTurnMessage(`${active.name} ends turn`);
     await sleep(400);
@@ -525,6 +795,12 @@ export default function DigitalBanker({
   const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
   const activePlayer = players[activeTurnIndex] || null;
   const isActiveBot = !isMultiplayer && !!activePlayer?.isBot;
+  const [cardModal, setCardModal] = useState<{
+    open: boolean;
+    card?: Card;
+    playerId?: string | number;
+  }>({ open: false });
+  const getSpaceName = (index: number) => BOARD_SPACES[index] || `Space ${index}`;
 
   // Firebase sync for multiplayer
   useEffect(() => {
@@ -2263,6 +2539,15 @@ export default function DigitalBanker({
             <p className="text-sm text-amber-100">
               {botTurnMessage || "Bot is taking actions..."}
             </p>
+            {botTurnLog.length > 0 && (
+              <div className="mt-3 text-left text-xs text-amber-300 max-w-xs mx-auto space-y-1">
+                {botTurnLog.map((msg, idx) => (
+                  <div key={idx} className="bg-zinc-800/80 px-2 py-1 rounded border border-amber-900/40">
+                    {msg}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2274,6 +2559,33 @@ export default function DigitalBanker({
           style={{ top: "max(1rem, env(safe-area-inset-top))" }}
         >
           {errorMessage}
+        </div>
+      )}
+      {/* Card Modal */}
+      {cardModal.open && cardModal.card && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4">
+          <div className="bg-zinc-900 border border-amber-500 rounded-lg p-6 max-w-md w-full shadow-lg">
+            <p className="text-sm uppercase text-amber-400 font-semibold mb-2">
+              {cardModal.card.type === "chance" ? "Chance" : "Community Chest"}
+            </p>
+            <p className="text-lg text-amber-50 font-bold mb-4">
+              {cardModal.card.text}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setCardModal({ open: false })}
+                className="px-4 py-2 rounded bg-zinc-800 text-amber-200 hover:bg-zinc-700 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => applyCard(cardModal.card!, cardModal.playerId!)}
+                className="px-4 py-2 rounded bg-amber-600 text-black font-bold hover:bg-amber-500 transition-colors"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
         </div>
       )}
       <div className="max-w-7xl mx-auto relative z-10">
@@ -2353,6 +2665,29 @@ export default function DigitalBanker({
                 </div>
               </div>
             )}
+
+            {/* Chance / Community */}
+            <div className="bg-amber-900/20 border-2 border-amber-600 rounded-3xl px-4 py-2">
+              <div className="text-center">
+                <div className="text-xs text-amber-400 font-bold">
+                  CARDS
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <button
+                    onClick={() => handleDrawCard("chance")}
+                    className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-1 px-3 rounded text-xs transition-colors"
+                  >
+                    Draw Chance
+                  </button>
+                  <button
+                    onClick={() => handleDrawCard("community")}
+                    className="bg-amber-800 hover:bg-amber-700 text-amber-50 font-bold py-1 px-3 rounded text-xs transition-colors"
+                  >
+                    Draw Community
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Building Counter Display */}
