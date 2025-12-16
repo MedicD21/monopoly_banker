@@ -2916,7 +2916,13 @@ export default function DigitalBanker({
               <div className="text-xs text-amber-300 mb-2">
                 End Turn visible (forced): true
                 <br />
-                Logic: players.length === 0: {String(players.length === 0)} | isActiveBot: {String(isActiveBot)} | isBotTakingTurn: {String(isBotTakingTurn)} | isMultiplayer: {String(isMultiplayer)} | firebasePlayerId: {String(firebasePlayerId)} | activeTurnIndex: {String(activeTurnIndex)} | players[activeTurnIndex]?.id: {String(players[activeTurnIndex]?.id)}
+                Logic: players.length === 0: {String(players.length === 0)} |
+                isActiveBot: {String(isActiveBot)} | isBotTakingTurn:{" "}
+                {String(isBotTakingTurn)} | isMultiplayer:{" "}
+                {String(isMultiplayer)} | firebasePlayerId:{" "}
+                {String(firebasePlayerId)} | activeTurnIndex:{" "}
+                {String(activeTurnIndex)} | players[activeTurnIndex]?.id:{" "}
+                {String(players[activeTurnIndex]?.id)}
               </div>
               <button
                 onClick={() => {
@@ -2924,7 +2930,7 @@ export default function DigitalBanker({
                 }}
                 // Force enabled for debug
                 className="w-full bg-zinc-800 hover:bg-zinc-700 text-amber-200 py-2 rounded-lg font-semibold text-sm transition-colors border-2 border-red-500"
-                style={{ outline: '2px solid red' }}
+                style={{ outline: "2px solid red" }}
               >
                 End Turn (FORCED)
               </button>
@@ -3826,26 +3832,25 @@ export default function DigitalBanker({
           onCompleteReset={handleCompleteReset}
         />
 
-            {/* Auction Button (FORCED VISIBLE for debug) */}
-            <div className="bg-purple-900/30 border-2 border-purple-600 drop-shadow-[0_0_10px_purple] rounded-3xl px-4 py-2">
-              <div className="text-center">
-                <div className="text-xs text-purple-400 font-bold">
-                  PROPERTY AUCTION (FORCED)
-                </div>
-                <div className="text-sm text-purple-300 mt-1 mb-2">
-                  Start an auction
-                </div>
-                <button
-                  onClick={() => setShowAuctionSelector(true)}
-                  className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded text-xs transition-colors flex items-center gap-1 mx-auto border-2 border-red-500"
-                  style={{ outline: '2px solid red' }}
-                >
-                  <Gavel className="w-4 h-4" />
-                  Start Auction (FORCED)
-                </button>
-              </div>
+        {/* Auction Button (FORCED VISIBLE for debug) */}
+        <div className="bg-purple-900/30 border-2 border-purple-600 drop-shadow-[0_0_10px_purple] rounded-3xl px-4 py-2">
+          <div className="text-center">
+            <div className="text-xs text-purple-400 font-bold">
+              PROPERTY AUCTION (FORCED)
             </div>
-        />
+            <div className="text-sm text-purple-300 mt-1 mb-2">
+              Start an auction
+            </div>
+            <button
+              onClick={() => setShowAuctionSelector(true)}
+              className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded text-xs transition-colors flex items-center gap-1 mx-auto border-2 border-red-500"
+              style={{ outline: "2px solid red" }}
+            >
+              <Gavel className="w-4 h-4" />
+              Start Auction (FORCED)
+            </button>
+          </div>
+        </div>
 
         {/* Toast Notification */}
         <ToastNotification
