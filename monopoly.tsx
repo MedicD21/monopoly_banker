@@ -764,6 +764,16 @@ export default function DigitalBanker({
     "",
     "",
   ]);
+  const [playerIsBot, setPlayerIsBot] = useState([
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ]);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [currentPlayerId, setCurrentPlayerId] = useState(0); // For player-specific view
   const [lastRoll, setLastRoll] = useState<{
@@ -1134,6 +1144,20 @@ export default function DigitalBanker({
     }
   };
 
+  const movePlayerSlot = (index: number, delta: number) => {
+    const target = index + delta;
+    if (target < 0 || target >= numPlayers) return;
+    const swap = <T,>(arr: T[]) => {
+      const copy = [...arr];
+      [copy[index], copy[target]] = [copy[target], copy[index]];
+      return copy;
+    };
+    setPlayerNames((prev) => swap(prev));
+    setPlayerPieces((prev) => swap(prev));
+    setPlayerColors((prev) => swap(prev));
+    setPlayerIsBot((prev) => swap(prev));
+  };
+
   const startGame = () => {
     // Validate player setup
     if (numPlayers < 1 || numPlayers > 8) {
@@ -1183,6 +1207,8 @@ export default function DigitalBanker({
         color: playerColors[i],
         piece: piece,
         position: 0,
+        isBot: !!playerIsBot[i],
+        botAutoPlay: !!playerIsBot[i],
       });
     }
     setPlayers(newPlayers);
@@ -2435,10 +2461,41 @@ export default function DigitalBanker({
                     key={i}
                     className="bg-zinc-800 rounded p-4 border border-amber-900/30"
                   >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="text-lg font-bold text-amber-400">
-                        Player {i + 1}
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="text-lg font-bold text-amber-400">
+                          Player {i + 1}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => movePlayerSlot(i, -1)}
+                            disabled={i === 0}
+                            className="px-3 py-1 rounded bg-zinc-900 text-amber-300 text-xs font-semibold border border-amber-900/40 disabled:opacity-40 disabled:cursor-not-allowed hover:border-amber-500 transition-colors"
+                          >
+                            Move Up
+                          </button>
+                          <button
+                            onClick={() => movePlayerSlot(i, 1)}
+                            disabled={i === numPlayers - 1}
+                            className="px-3 py-1 rounded bg-zinc-900 text-amber-300 text-xs font-semibold border border-amber-900/40 disabled:opacity-40 disabled:cursor-not-allowed hover:border-amber-500 transition-colors"
+                          >
+                            Move Down
+                          </button>
+                        </div>
                       </div>
+                      <label className="flex items-center gap-2 text-sm text-amber-300">
+                        <input
+                          type="checkbox"
+                          checked={!!playerIsBot[i]}
+                          onChange={(e) => {
+                            const updated = [...playerIsBot];
+                            updated[i] = e.target.checked;
+                            setPlayerIsBot(updated);
+                          }}
+                          className="w-5 h-5 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500"
+                        />
+                        CPU Player (auto)
+                      </label>
                     </div>
 
                     <input
