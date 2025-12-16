@@ -3107,11 +3107,11 @@ export default function DigitalBanker({
                       </div>
                     )}
                     {!isCurrentUser && (
-                      <div className="flex gap-2 items-stretch">
+                      <div className="grid grid-cols-2 gap-2 w-full max-w-xs ml-auto">
                         <button
                           onClick={() => handlePayRentClick(player.id)}
                           disabled={player.properties.length === 0}
-                          className="min-w-[8rem] h-12 bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                          className="w-full h-12 bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
                         >
                           <img
                             src="/images/property.svg"
@@ -3122,7 +3122,7 @@ export default function DigitalBanker({
                         </button>
                         <button
                           onClick={() => handleCustomAmountClick(player.id)}
-                          className="min-w-[8rem] h-12 bg-blue-700 hover:bg-blue-600 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                          className="w-full h-12 bg-blue-700 hover:bg-blue-600 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
                         >
                           <img
                             src="/images/Payment.svg"
