@@ -2913,6 +2913,18 @@ export default function DigitalBanker({
             </button>
 
             <div className="mt-2">
+              <div className="text-xs text-amber-300 mb-2">
+                End Turn visible:{" "}
+                {String(
+                  !(
+                    players.length === 0 ||
+                    (isActiveBot && isBotTakingTurn) ||
+                    (isMultiplayer &&
+                      firebasePlayerId !== undefined &&
+                      players[activeTurnIndex]?.id !== firebasePlayerId)
+                  )
+                )}
+              </div>
               <button
                 onClick={() => {
                   // In multiplayer, this should update the turn index in the backend

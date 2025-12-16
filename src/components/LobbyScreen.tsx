@@ -78,7 +78,12 @@ export default function LobbyScreen({
     >
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-amber-400">Game Lobby</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-amber-400">Game Lobby</h1>
+            <div className="text-xs mt-1 text-amber-300">
+              Host status: <span className="font-mono">{String(isHost)}</span>
+            </div>
+          </div>
           <button
             onClick={onLeave}
             className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded font-bold transition-colors"
@@ -303,7 +308,8 @@ export default function LobbyScreen({
             })}
           </div>
 
-          {isHost && (
+          {/* Always show for debug; revert to isHost && (...) for production */}
+          {(isHost || true) && (
             <div className="mt-6 space-y-3">
               {onAddBot && (
                 <div className="grid grid-cols-2 gap-3">
