@@ -19,7 +19,11 @@ export default function LobbyPage() {
     addBot,
     removeBot,
     setBotAutoPlay,
+    randomizePlayerOrder,
   } = useGame();
+  const handleRandomizeOrder = () => {
+    randomizePlayerOrder();
+  };
 
   // Load game if not already loaded
   useEffect(() => {
@@ -72,6 +76,7 @@ export default function LobbyPage() {
       onAddBot={addBot}
       onRemoveBot={removeBot}
       onToggleBotAuto={setBotAutoPlay}
+      onRandomizeOrder={handleRandomizeOrder}
     />
   );
 }

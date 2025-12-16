@@ -9,6 +9,8 @@ interface Player {
   color: string;
   isReady: boolean;
   isHost?: boolean;
+  isBot?: boolean;
+  botAutoPlay?: boolean;
 }
 
 interface LobbyScreenProps {
@@ -23,6 +25,7 @@ interface LobbyScreenProps {
   onAddBot?: () => void;
   onRemoveBot?: () => void;
   onToggleBotAuto?: (playerId: string, auto: boolean) => void;
+  onRandomizeOrder?: () => void; // Updated reference
 }
 
 export default function LobbyScreen({
@@ -64,12 +67,15 @@ export default function LobbyScreen({
   const handleReadyClick = async () => {
     await handleSaveSettings();
     // Small delay to ensure Firebase has updated
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 300));
     await onToggleReady();
   };
 
   return (
-    <div className="min-h-screen bg-black text-amber-50 p-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+    <div
+      className="min-h-screen bg-black text-amber-50 p-4"
+      style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+    >
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-amber-400">Game Lobby</h1>
@@ -315,6 +321,14 @@ export default function LobbyScreen({
                     Remove Bot
                   </button>
                 </div>
+              )}
+              {typeof onRandomizeOrder === "function" && (
+                <button
+                  onClick={onRandomizeOrder}
+                  className="w-full bg-blue-700 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors"
+                >
+                  Randomize Player Order
+                </button>
               )}
               <button
                 onClick={onStartGame}

@@ -1,3 +1,4 @@
+import { randomizePlayerOrder } from "../firebase/randomizePlayerOrder";
 import React, {
   createContext,
   useContext,
@@ -23,7 +24,13 @@ import {
   subscribeToPlayers,
   setupPresence,
 } from "../firebase/realtimeService";
-import { Game, GameConfig, Player, GAME_PIECES, PLAYER_COLORS } from "../types/game";
+import {
+  Game,
+  GameConfig,
+  Player,
+  GAME_PIECES,
+  PLAYER_COLORS,
+} from "../types/game";
 
 interface GameContextType {
   game: Game | null;
@@ -97,7 +104,6 @@ export function GameProvider({ children }: GameProviderProps) {
   };
 
   const isHost = game?.hostId === currentPlayerId;
-
 
   // Subscribe to game updates
   // Restore game state on mount if gameId is in URL and currentPlayerId is set
@@ -310,6 +316,12 @@ export function GameProvider({ children }: GameProviderProps) {
     }
   };
 
+  // Host-only: randomize player order
+  const handleRandomizePlayerOrder = async () => {
+    if (!isHost || !game?.id) return;
+    await randomizePlayerOrder(game.id);
+  };
+
   // Host-only: add a bot player with auto-assigned name/piece/color and auto-ready
   const addBot = async () => {
     if (!isHost || !game?.id) return;
@@ -382,6 +394,7 @@ export function GameProvider({ children }: GameProviderProps) {
     addBot,
     removeBot,
     setBotAutoPlay,
+    randomizePlayerOrder: handleRandomizePlayerOrder,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

@@ -57,7 +57,7 @@ import {
   rejectTrade,
   clearTrade,
 } from "./src/firebase/gameplayService";
-import { updatePlayer } from "./src/firebase/gameService";
+import { updatePlayer, updateGame } from "./src/firebase/gameService";
 
 const STARTING_MONEY = 1500;
 const PASS_GO_AMOUNT = 200;
@@ -459,7 +459,7 @@ export default function DigitalBanker({
   const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
   const [botTurnLog, setBotTurnLog] = useState<string[]>([]);
 
-  const goToNextTurn = () => {
+  const goToNextTurn = async () => {
     if (players.length === 0) return;
     let next = activeTurnIndex;
     for (let i = 0; i < players.length; i++) {
@@ -469,7 +469,20 @@ export default function DigitalBanker({
         break;
       }
     }
-    setActiveTurnIndex(next);
+    if (isMultiplayer && gameId) {
+      // Store the new turn index in the game document
+      await updateGame(gameId, { activeTurnIndex: next });
+    } else {
+      setActiveTurnIndex(next);
+    }
+    const nextPlayer = players[next];
+    if (nextPlayer) {
+      const msg = `It's ${nextPlayer.name}'s turn`;
+      setTurnToast(msg);
+      setToastMessage(msg);
+      setShowToast(true);
+      setTimeout(() => setTurnToast(null), 2000);
+    }
   };
 
   const updatePlayerPosition = async (
@@ -477,9 +490,7 @@ export default function DigitalBanker({
     newPos: number
   ) => {
     setPlayers((prev) =>
-      prev.map((p) =>
-        p.id === playerId ? { ...p, position: newPos } : p
-      )
+      prev.map((p) => (p.id === playerId ? { ...p, position: newPos } : p))
     );
     if (isMultiplayer && gameId) {
       await updatePlayer(gameId, playerId as string, { position: newPos });
@@ -522,7 +533,7 @@ export default function DigitalBanker({
 
   const getOwnerOfProperty = (propertyName: string) => {
     for (const p of players) {
-      if (p.properties.some((pr) => pr.name === propertyName)) {
+      if (p.properties.some((pr: any) => pr.name === propertyName)) {
         return p;
       }
     }
@@ -554,7 +565,11 @@ export default function DigitalBanker({
     const effect = card.effect;
     if (effect.kind === "bank") {
       await updateBalance(playerId, effect.amount);
-      pushBotLog(`${player.name}: ${effect.amount >= 0 ? "+" : ""}$${Math.abs(effect.amount)}`);
+      pushBotLog(
+        `${player.name}: ${effect.amount >= 0 ? "+" : ""}$${Math.abs(
+          effect.amount
+        )}`
+      );
     } else if (effect.kind === "each") {
       // positive = collect from each, negative = pay each
       const others = players.filter((p) => p.id !== playerId && !p.isBankrupt);
@@ -562,7 +577,11 @@ export default function DigitalBanker({
         if (effect.amount >= 0) {
           await transferMoney(other.id, playerId, effect.amount.toString());
         } else {
-          await transferMoney(playerId, other.id, Math.abs(effect.amount).toString());
+          await transferMoney(
+            playerId,
+            other.id,
+            Math.abs(effect.amount).toString()
+          );
         }
       }
       pushBotLog(
@@ -578,7 +597,9 @@ export default function DigitalBanker({
         await updateBalance(playerId, PASS_GO_AMOUNT);
       }
       await updatePlayerPosition(playerId, effect.position);
-      pushBotLog(`${player.name} moves to ${BOARD_SPACES[effect.position] || "space"}`);
+      pushBotLog(
+        `${player.name} moves to ${BOARD_SPACES[effect.position] || "space"}`
+      );
     } else if (effect.kind === "gotoJail") {
       await updateJailStatus(playerId, true, 0, JAIL_INDEX);
       pushBotLog(`${player.name} sent to Jail`);
@@ -607,7 +628,9 @@ export default function DigitalBanker({
 
     // If owned by someone else and not mortgaged, pay rent
     if (owner && owner.id !== bot.id) {
-      const ownerProp = owner.properties.find((pr) => pr.name === propertyName);
+      const ownerProp = owner.properties.find(
+        (pr: any) => pr.name === propertyName
+      );
       if (ownerProp?.mortgaged) {
         pushBotLog(`${propertyName} is mortgaged, no rent due`);
         return;
@@ -615,8 +638,8 @@ export default function DigitalBanker({
 
       let rentAmount = 0;
       if (property.group === "utility") {
-        const utilityCount = owner.properties.filter((pr) => {
-          const prop = PROPERTIES.find((p) => p.name === pr.name);
+        const utilityCount = owner.properties.filter((pr: any) => {
+          const prop = PROPERTIES.find((p: any) => p.name === pr.name);
           return prop?.group === "utility";
         }).length;
         const multiplier = utilityCount === 2 ? 10 : 4;
@@ -681,11 +704,7 @@ export default function DigitalBanker({
 
     await updatePlayerPosition(active.id, newPos);
     const landed = getSpaceName(newPos);
-    addHistoryEntry(
-      "dice",
-      `${active.name} rolled to ${landed}`,
-      active.name
-    );
+    addHistoryEntry("dice", `${active.name} rolled to ${landed}`, active.name);
     pushBotLog(`${active.name} landed on ${landed}`);
 
     // Chance / Community draw
@@ -759,7 +778,7 @@ export default function DigitalBanker({
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [showDice, setShowDice] = useState(false);
-  const [rentMode, setRentMode] = useState(null);
+  // const [rentMode, setRentMode] = useState(null); // Unused
   const [showBuyProperty, setShowBuyProperty] = useState(false);
   const [utilityDiceRoll, setUtilityDiceRoll] = useState("");
   const [diceRolling, setDiceRolling] = useState(false);
@@ -786,9 +805,7 @@ export default function DigitalBanker({
   const [auctionProperty, setAuctionProperty] = useState<any>(null);
   const [showAuctionSelector, setShowAuctionSelector] = useState(false);
   const [auctionState, setAuctionState] = useState<any>(null);
-  const [resolvedAuctionKey, setResolvedAuctionKey] = useState<string | null>(
-    null
-  );
+  // const [resolvedAuctionKey, setResolvedAuctionKey] = useState<string | null>(null); // Unused
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [gameHistory, setGameHistory] = useState<HistoryEntry[]>([]);
@@ -796,45 +813,41 @@ export default function DigitalBanker({
   const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
   const activePlayer = players[activeTurnIndex] || null;
   const isActiveBot = !isMultiplayer && !!activePlayer?.isBot;
-  const [showBotControlModal, setShowBotControlModal] = useState(false);
   const [cardModal, setCardModal] = useState<{
     open: boolean;
     card?: Card;
     playerId?: string | number;
   }>({ open: false });
-  const getSpaceName = (index: number) => BOARD_SPACES[index] || `Space ${index}`;
+  const getSpaceName = (index: number) =>
+    BOARD_SPACES[index] || `Space ${index}`;
+  const [showBotControlModal, setShowBotControlModal] = useState(false);
+  // const [turnToast, setTurnToast] = useState<string | null>(null); // Unused
 
   // Firebase sync for multiplayer
   useEffect(() => {
     if (!isMultiplayer || !gameId) return;
 
     // Subscribe to player updates
-    const unsubscribe = subscribeToPlayers(gameId, (updatedPlayers) => {
+    const unsubscribePlayers = subscribeToPlayers(gameId, (updatedPlayers) => {
       setPlayers(updatedPlayers);
       setNumPlayers(updatedPlayers.length);
     });
 
-    return () => unsubscribe();
-  }, [isMultiplayer, gameId]);
-
-  // Subscribe to game updates (for Free Parking balance and history)
-  useEffect(() => {
-    if (!isMultiplayer || !gameId) return;
-
-    const unsubscribe = subscribeToGame(gameId, (gameData) => {
+    // Subscribe to game updates (for Free Parking balance, history, turn index, etc.)
+    const unsubscribeGame = subscribeToGame(gameId, (gameData) => {
       if (gameData.freeParkingBalance !== undefined) {
         setFreeParkingBalance(gameData.freeParkingBalance);
       }
-
+      if (typeof gameData.activeTurnIndex === "number") {
+        setActiveTurnIndex(gameData.activeTurnIndex);
+      }
       // Sync game history across all players
       if (gameData.history) {
         setGameHistory(gameData.history);
       }
-
       // Sync auction state across all players
       if (gameData.auction) {
         setAuctionState(gameData.auction);
-
         if (gameData.auction.active) {
           const propertyDef = PROPERTIES.find(
             (p) =>
@@ -857,7 +870,6 @@ export default function DigitalBanker({
         setShowAuctionModal(false);
         setAuctionProperty(null);
       }
-
       // Sync trade offers across all players
       if (gameData.tradeOffer) {
         setTradeOffer(gameData.tradeOffer);
@@ -866,7 +878,10 @@ export default function DigitalBanker({
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribePlayers();
+      unsubscribeGame();
+    };
   }, [isMultiplayer, gameId]);
 
   // Set current player ID in multiplayer mode
@@ -963,7 +978,9 @@ export default function DigitalBanker({
       const rollInterval = setInterval(() => {
         const tempD1 = Math.floor(Math.random() * 6) + 1;
         const tempD2 = Math.floor(Math.random() * 6) + 1;
-        const tempD3 = speedDieEnabled ? Math.floor(Math.random() * 6) + 1 : null;
+        const tempD3 = speedDieEnabled
+          ? Math.floor(Math.random() * 6) + 1
+          : null;
         setLastRoll({
           d1: tempD1,
           d2: tempD2,
@@ -1266,7 +1283,7 @@ export default function DigitalBanker({
     }
 
     const isOwned = players.some((p) =>
-      p.properties.some((pr) => pr.name === property.name)
+      p.properties.some((pr: any) => pr.name === property.name)
     );
     if (isOwned) {
       showError("Property is already owned");
@@ -1311,7 +1328,9 @@ export default function DigitalBanker({
     const property = PROPERTIES.find((p) => p.name === propertyName);
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
-    const playerProp = player.properties.find((pr) => pr.name === propertyName);
+    const playerProp = player.properties.find(
+      (pr: any) => pr.name === propertyName
+    );
     if (!playerProp) return;
     const refund =
       property.price +
@@ -1327,7 +1346,9 @@ export default function DigitalBanker({
           ? {
               ...p,
               balance: newBalance,
-              properties: p.properties.filter((pr) => pr.name !== propertyName),
+              properties: p.properties.filter(
+                (pr: any) => pr.name !== propertyName
+              ),
             }
           : p
       )
@@ -1352,7 +1373,9 @@ export default function DigitalBanker({
     const player = players.find((p) => p.id === playerId);
     if (!player || !property) return;
 
-    const playerProp = player.properties.find((pr) => pr.name === propertyName);
+    const playerProp = player.properties.find(
+      (pr: any) => pr.name === propertyName
+    );
     if (!playerProp) return;
 
     // Can't mortgage if it has houses or hotels
@@ -1377,7 +1400,7 @@ export default function DigitalBanker({
           ? {
               ...p,
               balance: newBalance,
-              properties: p.properties.map((pr) =>
+              properties: p.properties.map((pr: any) =>
                 pr.name === propertyName ? { ...pr, mortgaged: true } : pr
               ),
             }
@@ -1430,7 +1453,7 @@ export default function DigitalBanker({
           ? {
               ...p,
               balance: newBalance,
-              properties: p.properties.map((pr) =>
+              properties: p.properties.map((pr: any) =>
                 pr.name === propertyName ? { ...pr, mortgaged: false } : pr
               ),
             }
@@ -1453,7 +1476,7 @@ export default function DigitalBanker({
   const getHousesInUse = () => {
     let total = 0;
     players.forEach((player) => {
-      player.properties.forEach((prop) => {
+      player.properties.forEach((prop: any) => {
         if (!prop.hotel) {
           total += prop.houses || 0;
         }
@@ -1466,7 +1489,7 @@ export default function DigitalBanker({
   const getHotelsInUse = () => {
     let total = 0;
     players.forEach((player) => {
-      player.properties.forEach((prop) => {
+      player.properties.forEach((prop: any) => {
         if (prop.hotel) {
           total += 1;
         }
@@ -1499,8 +1522,8 @@ export default function DigitalBanker({
     );
 
     // Check if player owns all properties in the group
-    const ownedInGroup = player.properties.filter((pr) => {
-      const prop = PROPERTIES.find((p) => p.name === pr.name);
+    const ownedInGroup = player.properties.filter((pr: any) => {
+      const prop = PROPERTIES.find((p: any) => p.name === pr.name);
       return prop && prop.group === property.group;
     });
 
@@ -1510,7 +1533,9 @@ export default function DigitalBanker({
   const addHouse = async (playerId, propertyName) => {
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
-    const playerProp = player.properties.find((pr) => pr.name === propertyName);
+    const playerProp = player.properties.find(
+      (pr: any) => pr.name === propertyName
+    );
     if (!playerProp) return;
 
     // Check if player has monopoly before allowing house purchase
@@ -1549,7 +1574,7 @@ export default function DigitalBanker({
             return {
               ...p,
               balance: newBalance,
-              properties: p.properties.map((pr) =>
+              properties: p.properties.map((pr: any) =>
                 pr.name === propertyName ? { ...pr, houses: newHouses } : pr
               ),
             };
@@ -1584,7 +1609,7 @@ export default function DigitalBanker({
           return {
             ...p,
             balance: newBalance,
-            properties: p.properties.map((pr) =>
+            properties: p.properties.map((pr: any) =>
               pr.name === propertyName ? { ...pr, houses: newHouses } : pr
             ),
           };
@@ -1649,7 +1674,7 @@ export default function DigitalBanker({
             return {
               ...p,
               balance: newBalance,
-              properties: p.properties.map((pr) =>
+              properties: p.properties.map((pr: any) =>
                 pr.name === propertyName
                   ? { ...pr, houses: 0, hotel: true }
                   : pr
@@ -2548,7 +2573,10 @@ export default function DigitalBanker({
             {botTurnLog.length > 0 && (
               <div className="mt-3 text-left text-xs text-amber-300 max-w-xs mx-auto space-y-1">
                 {botTurnLog.map((msg, idx) => (
-                  <div key={idx} className="bg-zinc-800/80 px-2 py-1 rounded border border-amber-900/40">
+                  <div
+                    key={idx}
+                    className="bg-zinc-800/80 px-2 py-1 rounded border border-amber-900/40"
+                  >
                     {msg}
                   </div>
                 ))}
@@ -2649,7 +2677,8 @@ export default function DigitalBanker({
                   </div>
                 ))}
               <p className="text-xs text-amber-500">
-                Manual bots do not auto-play; use the normal controls to act for them and End Turn to advance.
+                Manual bots do not auto-play; use the normal controls to act for
+                them and End Turn to advance.
               </p>
             </div>
           </div>
@@ -2684,8 +2713,13 @@ export default function DigitalBanker({
           {!isMultiplayer && activePlayer && (
             <div className="text-center text-sm text-amber-300 mb-2 flex items-center justify-center gap-2">
               <span>
-                Turn: <span className="font-bold text-amber-100">{activePlayer.name || "Player"}</span>{" "}
-                {activePlayer.isBot && <span className="text-amber-500">(Bot)</span>}
+                Turn:{" "}
+                <span className="font-bold text-amber-100">
+                  {activePlayer.name || "Player"}
+                </span>{" "}
+                {activePlayer.isBot && (
+                  <span className="text-amber-500">(Bot)</span>
+                )}
               </span>
               {activePlayer.isBot && (
                 <button
@@ -2746,9 +2780,7 @@ export default function DigitalBanker({
             {/* Chance / Community */}
             <div className="bg-amber-900/20 border-2 border-amber-600 rounded-3xl px-4 py-2">
               <div className="text-center">
-                <div className="text-xs text-amber-400 font-bold">
-                  CARDS
-                </div>
+                <div className="text-xs text-amber-400 font-bold">CARDS</div>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <button
                     onClick={() => handleDrawCard("chance")}
@@ -2880,17 +2912,31 @@ export default function DigitalBanker({
               {diceRolling ? "Rolling..." : "Roll Dice"}
             </button>
 
-            {!isMultiplayer && (
-              <div className="mt-2">
-                <button
-                  onClick={goToNextTurn}
-                  disabled={players.length === 0 || (isActiveBot && isBotTakingTurn)}
-                  className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 text-amber-200 disabled:text-zinc-500 py-2 rounded-lg font-semibold text-sm transition-colors"
-                >
-                  End Turn
-                </button>
-              </div>
-            )}
+            <div className="mt-2">
+              <button
+                onClick={() => {
+                  // In multiplayer, this should update the turn index in the backend
+                  if (isMultiplayer) {
+                    // TODO: Implement multiplayer turn advancement (update turn index in backend)
+                    // For now, just call goToNextTurn locally
+                    goToNextTurn();
+                  } else {
+                    goToNextTurn();
+                  }
+                }}
+                disabled={
+                  players.length === 0 ||
+                  (isActiveBot && isBotTakingTurn) ||
+                  // Only allow the active player to end their turn
+                  (isMultiplayer &&
+                    firebasePlayerId !== undefined &&
+                    players[activeTurnIndex]?.id !== firebasePlayerId)
+                }
+                className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 text-amber-200 disabled:text-zinc-500 py-2 rounded-lg font-semibold text-sm transition-colors"
+              >
+                End Turn
+              </button>
+            </div>
 
             {lastRoll && (
               <div className="mt-3 bg-zinc-800 p-3 rounded-lg border border-amber-900/30 text-center">
@@ -2967,6 +3013,18 @@ export default function DigitalBanker({
               ? firebasePlayerId
               : currentPlayerId;
             const isCurrentUser = player.id === playerIdToCompare;
+            // Board position label
+            let positionLabel = null;
+            if (typeof player.position === "number" && player.position >= 0) {
+              positionLabel =
+                BOARD_SPACES[player.position] || `#${player.position}`;
+            }
+            // Jail badge
+            const jailBadge = player.inJail ? (
+              <span className="ml-2 px-2 py-0.5 rounded bg-red-800 text-red-100 text-xs font-bold">
+                JAIL
+              </span>
+            ) : null;
 
             return (
               <div
@@ -2994,8 +3052,14 @@ export default function DigitalBanker({
                       })()}
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-amber-50 text-center">
+                      <h3 className="text-xl font-bold text-amber-50 text-center flex items-center gap-2">
                         {player.name}
+                        {jailBadge}
+                        {positionLabel && (
+                          <span className="ml-1 px-2 py-0.5 rounded bg-zinc-700 text-amber-200 text-xs font-semibold border border-amber-900/40">
+                            {positionLabel}
+                          </span>
+                        )}
                       </h3>
                       <div className="text-2xl font-bold text-green-400">
                         ${player.balance.toLocaleString()}

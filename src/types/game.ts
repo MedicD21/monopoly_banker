@@ -60,7 +60,14 @@ export interface AuctionState {
 export interface HistoryEntry {
   id: string;
   timestamp: number;
-  type: 'dice' | 'transaction' | 'property' | 'passGo' | 'auction' | 'tax' | 'freeParking';
+  type:
+    | "dice"
+    | "transaction"
+    | "property"
+    | "passGo"
+    | "auction"
+    | "tax"
+    | "freeParking";
   message: string;
   playerName?: string;
 }
@@ -73,7 +80,7 @@ export interface TradeOffer {
   offerProperties: string[];
   requestMoney: number;
   requestProperties: string[];
-  status: 'pending' | 'accepted' | 'rejected' | 'countered';
+  status: "pending" | "accepted" | "rejected" | "countered";
   timestamp: number;
   isCounterOffer?: boolean;
 }
@@ -82,10 +89,11 @@ export interface Game {
   id: string;
   code: string; // 5-digit code
   hostId: string;
-  status: 'lobby' | 'playing' | 'ended';
+  status: "lobby" | "playing" | "ended";
   config: GameConfig;
   createdAt: number;
   lastActivity: number;
+  activeTurnIndex: number; // Index of the player whose turn it is
   lastDiceRoll?: number; // For utility rent calculations
   freeParkingBalance?: number; // Free Parking jackpot (if enabled)
   auction?: AuctionState;
@@ -95,7 +103,7 @@ export interface Game {
 
 export interface GameEvent {
   id: string;
-  type: 'transaction' | 'property' | 'dice' | 'passGo';
+  type: "transaction" | "property" | "dice" | "passGo";
   playerId: string;
   data: any;
   timestamp: number;
