@@ -482,6 +482,7 @@ export default function DigitalBanker({
       setToastMessage(msg);
       setShowToast(true);
       setTimeout(() => setTurnToast(null), 2000);
+      maybeStartBotTurn(next);
     }
   };
 
@@ -1156,6 +1157,16 @@ export default function DigitalBanker({
     setPlayerPieces((prev) => swap(prev));
     setPlayerColors((prev) => swap(prev));
     setPlayerIsBot((prev) => swap(prev));
+  };
+
+  const maybeStartBotTurn = (nextIndex: number) => {
+    if (isMultiplayer) return;
+    const nextPlayer = players[nextIndex];
+    if (!nextPlayer || !nextPlayer.isBot || nextPlayer.botAutoPlay === false)
+      return;
+    setTimeout(() => {
+      handleBotTurn();
+    }, 0);
   };
 
   const startGame = () => {
@@ -2834,26 +2845,6 @@ export default function DigitalBanker({
               </div>
             )}
 
-            {/* Chance / Community */}
-            <div className="bg-amber-900/20 border-2 border-amber-600 rounded-3xl px-4 py-2">
-              <div className="text-center">
-                <div className="text-xs text-amber-400 font-bold">CARDS</div>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <button
-                    onClick={() => handleDrawCard("chance")}
-                    className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-1 px-3 rounded text-xs transition-colors"
-                  >
-                    Draw Chance
-                  </button>
-                  <button
-                    onClick={() => handleDrawCard("community")}
-                    className="bg-amber-800 hover:bg-amber-700 text-amber-50 font-bold py-1 px-3 rounded text-xs transition-colors"
-                  >
-                    Draw Community
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Building Counter Display */}
@@ -3131,7 +3122,7 @@ export default function DigitalBanker({
                         </button>
                         <button
                           onClick={() => handleCustomAmountClick(player.id)}
-                          className="min-w-[6.5rem] h-12 bg-blue-700 hover:bg-blue-600 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                          className="min-w-[8rem] h-12 bg-blue-700 hover:bg-blue-600 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
                         >
                           <img
                             src="/images/Payment.svg"
