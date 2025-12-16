@@ -656,9 +656,10 @@ export default function DigitalBanker({
     }
   };
 
-  const handleBotTurn = async () => {
+  const runBotTurn = async (indexOverride?: number) => {
     if (isMultiplayer) return;
-    const active = players[activeTurnIndex];
+    const idx = typeof indexOverride === "number" ? indexOverride : activeTurnIndex;
+    const active = players[idx];
     if (!active || !active.isBot || isBotTakingTurn) return;
     if (active.botAutoPlay === false) return;
 
@@ -960,7 +961,7 @@ export default function DigitalBanker({
     const active = players[activeTurnIndex];
     if (!active || !active.isBot) return;
 
-    handleBotTurn();
+    runBotTurn();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTurnIndex, players, isMultiplayer]);
 
@@ -1165,7 +1166,7 @@ export default function DigitalBanker({
     if (!nextPlayer || !nextPlayer.isBot || nextPlayer.botAutoPlay === false)
       return;
     setTimeout(() => {
-      handleBotTurn();
+      runBotTurn(nextIndex);
     }, 0);
   };
 
