@@ -636,6 +636,7 @@ export default function DigitalBanker({
     if (isMultiplayer) return;
     const active = players[activeTurnIndex];
     if (!active || !active.isBot || isBotTakingTurn) return;
+    if (active.botAutoPlay === false) return;
 
     setIsBotTakingTurn(true);
     setBotTurnMessage(`${active.name} is rolling...`);
@@ -795,6 +796,7 @@ export default function DigitalBanker({
   const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
   const activePlayer = players[activeTurnIndex] || null;
   const isActiveBot = !isMultiplayer && !!activePlayer?.isBot;
+  const [showBotControlModal, setShowBotControlModal] = useState(false);
   const [cardModal, setCardModal] = useState<{
     open: boolean;
     card?: Card;
@@ -2056,6 +2058,10 @@ export default function DigitalBanker({
       )
     );
 
+    if (taxType === "Jail Fee") {
+      await updateJailStatus(playerIdToUse, false, 0, JAIL_INDEX);
+    }
+
     // Check if Free Parking jackpot is enabled
     const freeParkingEnabled = gameConfig?.freeParkingJackpot || false;
 
@@ -2588,6 +2594,67 @@ export default function DigitalBanker({
           </div>
         </div>
       )}
+      {/* Bot Control Modal */}
+      {showBotControlModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4">
+          <div className="bg-zinc-900 border border-amber-500 rounded-lg p-6 max-w-md w-full shadow-lg">
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-lg font-bold text-amber-400">Bot Controls</p>
+              <button
+                onClick={() => setShowBotControlModal(false)}
+                className="text-amber-300 hover:text-amber-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {players
+                .filter((p) => p.isBot)
+                .map((bot) => (
+                  <div
+                    key={bot.id}
+                    className="flex items-center justify-between bg-zinc-800 px-3 py-2 rounded border border-amber-900/30"
+                  >
+                    <div>
+                      <p className="text-sm text-amber-100 font-semibold">
+                        {bot.name}
+                      </p>
+                      <p className="text-xs text-amber-500">
+                        Mode: {bot.botAutoPlay === false ? "Manual" : "Auto"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const auto = bot.botAutoPlay === false ? true : false;
+                        // Update locally for responsiveness
+                        setPlayers((prev) =>
+                          prev.map((p) =>
+                            p.id === bot.id ? { ...p, botAutoPlay: auto } : p
+                          )
+                        );
+                        if (isMultiplayer && gameId) {
+                          updatePlayer(gameId, bot.id as string, {
+                            botAutoPlay: auto,
+                          });
+                        }
+                      }}
+                      className={`px-3 py-1 rounded text-xs font-semibold ${
+                        bot.botAutoPlay === false
+                          ? "bg-zinc-800 text-amber-300 border border-amber-900/50"
+                          : "bg-amber-700 text-black"
+                      }`}
+                    >
+                      {bot.botAutoPlay === false ? "Set Auto" : "Set Manual"}
+                    </button>
+                  </div>
+                ))}
+              <p className="text-xs text-amber-500">
+                Manual bots do not auto-play; use the normal controls to act for them and End Turn to advance.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto relative z-10">
         {/* BANKER CARD - Reorganized with all main actions */}
         <div className="relative bg-zinc-900 rounded-lg pb-0 mb-2 border border-amber-500 overflow-shown shadow-lg drop-shadow-[0_0_10px_white] ">
@@ -2615,9 +2682,19 @@ export default function DigitalBanker({
             </div>
           )}
           {!isMultiplayer && activePlayer && (
-            <div className="text-center text-sm text-amber-300 mb-2">
-              Turn: <span className="font-bold text-amber-100">{activePlayer.name || "Player"}</span>{" "}
-              {activePlayer.isBot && <span className="text-amber-500">(Bot)</span>}
+            <div className="text-center text-sm text-amber-300 mb-2 flex items-center justify-center gap-2">
+              <span>
+                Turn: <span className="font-bold text-amber-100">{activePlayer.name || "Player"}</span>{" "}
+                {activePlayer.isBot && <span className="text-amber-500">(Bot)</span>}
+              </span>
+              {activePlayer.isBot && (
+                <button
+                  onClick={() => setShowBotControlModal(true)}
+                  className="text-xs bg-amber-700 text-black px-2 py-1 rounded hover:bg-amber-600 transition-colors"
+                >
+                  Bot Controls
+                </button>
+              )}
             </div>
           )}
 

@@ -22,6 +22,7 @@ interface LobbyScreenProps {
   onLeave: () => void;
   onAddBot?: () => void;
   onRemoveBot?: () => void;
+  onToggleBotAuto?: (playerId: string, auto: boolean) => void;
 }
 
 export default function LobbyScreen({
@@ -35,6 +36,7 @@ export default function LobbyScreen({
   onLeave,
   onAddBot,
   onRemoveBot,
+  onToggleBotAuto,
 }: LobbyScreenProps) {
   const [name, setName] = useState("");
   const [selectedPiece, setSelectedPiece] = useState("");
@@ -266,11 +268,30 @@ export default function LobbyScreen({
                       )}
                     </div>
                   </div>
-                  {player.isReady ? (
-                    <Check className="w-6 h-6 text-green-400" />
-                  ) : (
-                    <X className="w-6 h-6 text-amber-600" />
-                  )}
+                  <div className="flex items-center gap-2">
+                    {player.isBot && isHost && onToggleBotAuto && (
+                      <button
+                        onClick={() =>
+                          onToggleBotAuto(
+                            player.id,
+                            player.botAutoPlay === false ? true : false
+                          )
+                        }
+                        className={`px-2 py-1 rounded text-xs font-semibold ${
+                          player.botAutoPlay === false
+                            ? "bg-zinc-800 text-amber-300 border border-amber-900/50"
+                            : "bg-amber-700 text-black"
+                        }`}
+                      >
+                        {player.botAutoPlay === false ? "Manual" : "Auto"}
+                      </button>
+                    )}
+                    {player.isReady ? (
+                      <Check className="w-6 h-6 text-green-400" />
+                    ) : (
+                      <X className="w-6 h-6 text-amber-600" />
+                    )}
+                  </div>
                 </div>
               );
             })}

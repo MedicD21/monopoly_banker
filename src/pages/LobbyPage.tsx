@@ -18,6 +18,7 @@ export default function LobbyPage() {
     leaveGame,
     addBot,
     removeBot,
+    setBotAutoPlay,
   } = useGame();
 
   // Load game if not already loaded
@@ -70,6 +71,7 @@ export default function LobbyPage() {
       onLeave={handleLeave}
       onAddBot={addBot}
       onRemoveBot={removeBot}
+      onToggleBotAuto={setBotAutoPlay}
     />
   );
 }

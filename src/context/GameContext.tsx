@@ -32,6 +32,7 @@ interface GameContextType {
   isHost: boolean;
   addBot?: () => Promise<void>;
   removeBot?: () => Promise<void>;
+  setBotAutoPlay?: (playerId: string, auto: boolean) => Promise<void>;
 
   // Actions
   hostGame: (config: GameConfig) => Promise<void>;
@@ -349,6 +350,7 @@ export function GameProvider({ children }: GameProviderProps) {
       lastSeen: Date.now(),
       isBot: true,
       position: 0,
+      botAutoPlay: true,
     });
   };
 
@@ -358,6 +360,11 @@ export function GameProvider({ children }: GameProviderProps) {
     const bot = [...players].reverse().find((p) => p.isBot);
     if (!bot) return;
     await removePlayer(game.id, bot.id);
+  };
+
+  const setBotAutoPlay = async (playerId: string, auto: boolean) => {
+    if (!isHost || !game?.id) return;
+    await updatePlayer(game.id, playerId, { botAutoPlay: auto });
   };
 
   const value: GameContextType = {
@@ -374,6 +381,7 @@ export function GameProvider({ children }: GameProviderProps) {
     updateGameSettings,
     addBot,
     removeBot,
+    setBotAutoPlay,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

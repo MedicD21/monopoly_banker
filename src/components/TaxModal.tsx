@@ -21,6 +21,7 @@ export default function TaxModal({
   const incomeTaxOption1 = Math.floor(playerBalance * 0.1); // 10% of total money
   const incomeTaxOption2 = 200; // Flat $200
   const luxuryTax = 75;
+  const jailFee = 50;
 
   const handleIncomeTax = () => {
     const amount = incomeTaxOption1 < incomeTaxOption2 ? incomeTaxOption1 : incomeTaxOption2;
@@ -30,6 +31,11 @@ export default function TaxModal({
 
   const handleLuxuryTax = () => {
     onPayTax(luxuryTax, 'Luxury Tax');
+    onClose();
+  };
+
+  const handleJailFee = () => {
+    onPayTax(jailFee, 'Jail Fee');
     onClose();
   };
 
@@ -58,6 +64,18 @@ export default function TaxModal({
               className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors"
             >
               Pay ${incomeTaxOption1 < incomeTaxOption2 ? incomeTaxOption1.toLocaleString() : '200'}
+            </button>
+          </div>
+
+          {/* Jail Fee */}
+          <div className="bg-zinc-800 rounded-lg p-4 border border-amber-900/30">
+            <h3 className="font-bold text-amber-50 mb-2">Jail Fee</h3>
+            <p className="text-sm text-amber-300 mb-3">Pay $50 to leave jail</p>
+            <button
+              onClick={handleJailFee}
+              className="w-full bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+              Pay $50 Jail Fee
             </button>
           </div>
 
