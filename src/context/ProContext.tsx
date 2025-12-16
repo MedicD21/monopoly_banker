@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
-import { Purchases, LOG_LEVEL } from "@revenuecat/purchases-capacitor";
+import {
+  Purchases,
+  LOG_LEVEL,
+  STOREKIT_VERSION,
+} from "@revenuecat/purchases-capacitor";
 
 interface ProContextType {
   isPro: boolean;
@@ -45,17 +49,20 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
 
         console.log("🔧 Initializing RevenueCat...");
         console.log("Platform:", platform);
-        console.log("API Key (first 15 chars):", apiKey.substring(0, 15) + "...");
+        console.log(
+          "API Key (first 15 chars):",
+          apiKey.substring(0, 15) + "..."
+        );
 
         await Purchases.configure({
           apiKey,
           appUserID: undefined, // Let RevenueCat generate anonymous ID
-          usesStoreKit2IfAvailable: false, // Prefer StoreKit 1 to ensure StoreKit config is respected in simulator
+          storeKitVersion: STOREKIT_VERSION.STOREKIT_1, // Force StoreKit 1 so StoreKit config is honored in simulator
         });
 
         // Enable debug logging for TestFlight testing
-        await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
-        console.log("✅ RevenueCat configured successfully");
+        // await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
+        // console.log("✅ RevenueCat configured successfully");
 
         // Check current entitlements
         console.log("🔍 Checking pro status...");
@@ -126,14 +133,16 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
         });
 
         // Find the pro package by product id, otherwise fall back to the first available
-        const proPackage =
-          offerings.current.availablePackages.find(
-            (pkg) => pkg.product.identifier === PRO_PRODUCT_ID
-          ) || offerings.current.availablePackages[0];
+        const proPackage = offerings.current.availablePackages.find(
+          (pkg) => pkg.product.identifier === PRO_PRODUCT_ID
+        );
 
         if (!proPackage) {
           console.error("❌ Pro package not found in offerings");
-          throw new Error("Pro package not found. Please contact support.");
+          alert(
+            "Pro upgrade is temporarily unavailable. Please try again later."
+          );
+          return false;
         }
 
         console.log("✅ Found package:", proPackage.product.identifier);
@@ -201,7 +210,7 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
         alert('You already own this product. Try "Restore Purchases" instead.');
       } else {
         // Generic error
-        alert(`Purchase failed: ${error.message || "Unknown error"}`);
+        alert("Purchase could not be completed. Please try again later.");
       }
 
       // Return false instead of throwing to prevent infinite spinner
