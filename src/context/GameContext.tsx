@@ -12,7 +12,6 @@ import {
   createGame,
   joinGameByCode,
   addPlayer,
-  removePlayer,
   updatePlayer,
   startGame as startGameService,
   getGame,
@@ -37,9 +36,6 @@ interface GameContextType {
   players: Player[];
   currentPlayerId: string | null;
   isHost: boolean;
-  addBot?: () => Promise<void>;
-  removeBot?: () => Promise<void>;
-  setBotAutoPlay?: (playerId: string, auto: boolean) => Promise<void>;
 
   // Actions
   hostGame: (config: GameConfig) => Promise<void>;
@@ -322,63 +318,6 @@ export function GameProvider({ children }: GameProviderProps) {
     await randomizePlayerOrder(game.id);
   };
 
-  // Host-only: add a bot player with auto-assigned name/piece/color and auto-ready
-  const addBot = async () => {
-    if (!isHost || !game?.id) return;
-
-    const botId = `bot_${Date.now()}`;
-    const botNames = [
-      "CPU Banker",
-      "Robo Tycoon",
-      "AI Investor",
-      "Bot Wheeler",
-      "Auto Mogul",
-    ];
-    const name = botNames[Math.floor(Math.random() * botNames.length)];
-
-    const usedPieces = new Set(players.map((p) => p.pieceId));
-    const usedColors = new Set(players.map((p) => p.color));
-
-    const availablePieces = GAME_PIECES.filter((p) => !usedPieces.has(p.id));
-    const availableColors = PLAYER_COLORS.filter((c) => !usedColors.has(c));
-
-    const pieceId =
-      (availablePieces[0] && availablePieces[0].id) || GAME_PIECES[0].id;
-    const color =
-      availableColors[0] ||
-      PLAYER_COLORS[players.length % PLAYER_COLORS.length] ||
-      PLAYER_COLORS[0];
-
-    await addPlayer(game.id, {
-      id: botId,
-      name,
-      pieceId,
-      color,
-      balance: game.config.startingMoney,
-      properties: [],
-      isReady: true,
-      isHost: false,
-      isConnected: true,
-      lastSeen: Date.now(),
-      isBot: true,
-      position: 0,
-      botAutoPlay: true,
-    });
-  };
-
-  // Host-only: remove the most recently added bot
-  const removeBot = async () => {
-    if (!isHost || !game?.id) return;
-    const bot = [...players].reverse().find((p) => p.isBot);
-    if (!bot) return;
-    await removePlayer(game.id, bot.id);
-  };
-
-  const setBotAutoPlay = async (playerId: string, auto: boolean) => {
-    if (!isHost || !game?.id) return;
-    await updatePlayer(game.id, playerId, { botAutoPlay: auto });
-  };
-
   const value: GameContextType = {
     game,
     players,
@@ -391,9 +330,6 @@ export function GameProvider({ children }: GameProviderProps) {
     startGame,
     leaveGame,
     updateGameSettings,
-    addBot,
-    removeBot,
-    setBotAutoPlay,
     randomizePlayerOrder: handleRandomizePlayerOrder,
   };
 

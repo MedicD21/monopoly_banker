@@ -16,9 +16,6 @@ export default function LobbyPage() {
     toggleReady,
     startGame,
     leaveGame,
-    addBot,
-    removeBot,
-    setBotAutoPlay,
     randomizePlayerOrder,
   } = useGame();
   const handleRandomizeOrder = () => {
@@ -73,9 +70,6 @@ export default function LobbyPage() {
       onToggleReady={handleToggleReady}
       onStartGame={handleStartGame}
       onLeave={handleLeave}
-      onAddBot={addBot}
-      onRemoveBot={removeBot}
-      onToggleBotAuto={setBotAutoPlay}
       onRandomizeOrder={handleRandomizeOrder}
     />
   );

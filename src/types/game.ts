@@ -24,11 +24,8 @@ export interface Player {
   doublesCount?: number; // Track consecutive doubles for jail rule
   isBankrupt?: boolean; // Track if player is bankrupt
   position?: number; // Board index for turn-based play
-  isBot?: boolean; // Mark computer-controlled players
-  // Track jailed state for bots later
   inJail?: boolean;
   jailTurns?: number;
-  botAutoPlay?: boolean; // If false, host/user drives the bot manually
 }
 
 export interface GameConfig {

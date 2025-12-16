@@ -9,8 +9,6 @@ interface Player {
   color: string;
   isReady: boolean;
   isHost?: boolean;
-  isBot?: boolean;
-  botAutoPlay?: boolean;
 }
 
 interface LobbyScreenProps {
@@ -22,9 +20,6 @@ interface LobbyScreenProps {
   onToggleReady: () => void;
   onStartGame: () => void;
   onLeave: () => void;
-  onAddBot?: () => void;
-  onRemoveBot?: () => void;
-  onToggleBotAuto?: (playerId: string, auto: boolean) => void;
   onRandomizeOrder?: () => void; // Updated reference
 }
 
@@ -37,16 +32,13 @@ export default function LobbyScreen({
   onToggleReady,
   onStartGame,
   onLeave,
-  onAddBot,
-  onRemoveBot,
-  onToggleBotAuto,
 }: LobbyScreenProps) {
   const [name, setName] = useState("");
   const [selectedPiece, setSelectedPiece] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
 
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
-  // Allow solo starts (e.g., single-player or host with bots)
+  // Allow solo starts (single-player host)
   const allReady = players.length >= 1 && players.every((p) => p.isReady);
   const gameUrl = `${window.location.origin}?join=${gameCode}`;
 
@@ -268,11 +260,6 @@ export default function LobbyScreen({
                             (Host)
                           </span>
                         )}
-                        {player.isBot && (
-                          <span className="text-xs bg-amber-900 text-amber-200 px-2 py-0.5 rounded">
-                            Bot
-                          </span>
-                        )}
                       </p>
                       {player.pieceId && piece && piece.name && (
                         <p className="text-sm text-amber-600">{piece.name}</p>
@@ -280,23 +267,6 @@ export default function LobbyScreen({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {player.isBot && isHost && onToggleBotAuto && (
-                      <button
-                        onClick={() =>
-                          onToggleBotAuto(
-                            player.id,
-                            player.botAutoPlay === false ? true : false
-                          )
-                        }
-                        className={`px-2 py-1 rounded text-xs font-semibold ${
-                          player.botAutoPlay === false
-                            ? "bg-zinc-800 text-amber-300 border border-amber-900/50"
-                            : "bg-amber-700 text-black"
-                        }`}
-                      >
-                        {player.botAutoPlay === false ? "Manual" : "Auto"}
-                      </button>
-                    )}
                     {player.isReady ? (
                       <Check className="w-6 h-6 text-green-400" />
                     ) : (
@@ -311,23 +281,6 @@ export default function LobbyScreen({
           {/* Always show for debug; revert to isHost && (...) for production */}
           {(isHost || true) && (
             <div className="mt-6 space-y-3">
-              {onAddBot && (
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={onAddBot}
-                    className="w-full bg-amber-800 hover:bg-amber-700 text-white font-semibold py-3 rounded-lg transition-colors"
-                  >
-                    + Add Computer
-                  </button>
-                  <button
-                    onClick={onRemoveBot}
-                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-amber-200 font-semibold py-3 rounded-lg transition-colors disabled:opacity-50"
-                    disabled={!players.some((p) => p.isBot)}
-                  >
-                    Remove Bot
-                  </button>
-                </div>
-              )}
               {typeof onRandomizeOrder === "function" && (
                 <button
                   onClick={onRandomizeOrder}

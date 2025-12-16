@@ -299,7 +299,6 @@ const PLAYER_COLORS = [
   "bg-teal-600",
 ];
 
-// Simplified board order for bot turn messaging
 const BOARD_SPACES = [
   "GO",
   "Maple Lane",
@@ -454,10 +453,6 @@ export default function DigitalBanker({
     isMultiplayer ? initialPlayers || [] : []
   );
   const [activeTurnIndex, setActiveTurnIndex] = useState(0);
-  const [isBotTakingTurn, setIsBotTakingTurn] = useState(false);
-  const [botTurnMessage, setBotTurnMessage] = useState("");
-  const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
-  const [botTurnLog, setBotTurnLog] = useState<string[]>([]);
 
   const goToNextTurn = async () => {
     if (players.length === 0) return;
@@ -482,7 +477,6 @@ export default function DigitalBanker({
       setToastMessage(msg);
       setShowToast(true);
       setTimeout(() => setTurnToast(null), 2000);
-      maybeStartBotTurn(next);
     }
   };
 
@@ -525,10 +519,6 @@ export default function DigitalBanker({
     }
   };
 
-  const pushBotLog = (msg: string) => {
-    setBotTurnLog((prev) => [...prev.slice(-3), msg]);
-  };
-
   const getPropertyDef = (name: string) =>
     PROPERTIES.find((p) => p.name.toLowerCase() === name.toLowerCase());
 
@@ -566,11 +556,6 @@ export default function DigitalBanker({
     const effect = card.effect;
     if (effect.kind === "bank") {
       await updateBalance(playerId, effect.amount);
-      pushBotLog(
-        `${player.name}: ${effect.amount >= 0 ? "+" : ""}$${Math.abs(
-          effect.amount
-        )}`
-      );
     } else if (effect.kind === "each") {
       // positive = collect from each, negative = pay each
       const others = players.filter((p) => p.id !== playerId && !p.isBankrupt);
@@ -585,11 +570,6 @@ export default function DigitalBanker({
           );
         }
       }
-      pushBotLog(
-        `${player.name} ${effect.amount >= 0 ? "collects" : "pays"} $${Math.abs(
-          effect.amount
-        )} ${effect.amount >= 0 ? "from" : "to"} each`
-      );
     } else if (effect.kind === "move") {
       const currentPos = player.position ?? 0;
       const boardSize = BOARD_SPACES.length;
@@ -598,141 +578,13 @@ export default function DigitalBanker({
         await updateBalance(playerId, PASS_GO_AMOUNT);
       }
       await updatePlayerPosition(playerId, effect.position);
-      pushBotLog(
-        `${player.name} moves to ${BOARD_SPACES[effect.position] || "space"}`
-      );
     } else if (effect.kind === "gotoJail") {
       await updateJailStatus(playerId, true, 0, JAIL_INDEX);
-      pushBotLog(`${player.name} sent to Jail`);
     }
 
     setCardModal({ open: false });
   };
 
-  const botHandleLanding = async (
-    bot: any,
-    propertyName: string,
-    rollTotal: number
-  ) => {
-    const property = getPropertyDef(propertyName);
-    if (!property) return;
-
-    const owner = getOwnerOfProperty(propertyName);
-    const botBalance = bot.balance ?? 0;
-
-    // If unowned and affordable, buy
-    if (!owner && botBalance >= property.price) {
-      pushBotLog(`${bot.name} buys ${propertyName} for $${property.price}`);
-      await buyProperty(bot.id, property);
-      return;
-    }
-
-    // If owned by someone else and not mortgaged, pay rent
-    if (owner && owner.id !== bot.id) {
-      const ownerProp = owner.properties.find(
-        (pr: any) => pr.name === propertyName
-      );
-      if (ownerProp?.mortgaged) {
-        pushBotLog(`${propertyName} is mortgaged, no rent due`);
-        return;
-      }
-
-      let rentAmount = 0;
-      if (property.group === "utility") {
-        const utilityCount = owner.properties.filter((pr: any) => {
-          const prop = PROPERTIES.find((p: any) => p.name === pr.name);
-          return prop?.group === "utility";
-        }).length;
-        const multiplier = utilityCount === 2 ? 10 : 4;
-        rentAmount = rollTotal * multiplier;
-      } else {
-        rentAmount = calculateRent(owner.id, propertyName);
-      }
-
-      if (rentAmount > 0) {
-        pushBotLog(`${bot.name} pays $${rentAmount} rent to ${owner.name}`);
-        await transferMoney(bot.id, owner.id, rentAmount.toString());
-      }
-    }
-  };
-
-  const runBotTurn = async (indexOverride?: number) => {
-    if (isMultiplayer) return;
-    const idx = typeof indexOverride === "number" ? indexOverride : activeTurnIndex;
-    const active = players[idx];
-    if (!active || !active.isBot || isBotTakingTurn) return;
-    if (active.botAutoPlay === false) return;
-
-    setIsBotTakingTurn(true);
-    setBotTurnMessage(`${active.name} is rolling...`);
-    pushBotLog(`${active.name} rolling...`);
-    // Jail handling
-    if (active.inJail) {
-      const turns = active.jailTurns ?? 0;
-      if (turns >= 2 && active.balance >= 50) {
-        pushBotLog(`${active.name} pays $50 bail and leaves Jail`);
-        await updateBalance(active.id, -50);
-        await updateJailStatus(active.id, false, 0, JAIL_INDEX);
-      } else {
-        pushBotLog(`${active.name} remains in Jail (turn ${turns + 1})`);
-        await updateJailStatus(active.id, true, turns + 1, JAIL_INDEX);
-        setBotTurnMessage(`${active.name} ends turn`);
-        await sleep(400);
-        setIsBotTakingTurn(false);
-        goToNextTurn();
-        return;
-      }
-    }
-
-    const roll = await rollDice(active.id);
-    if (!roll) {
-      setIsBotTakingTurn(false);
-      return;
-    }
-
-    await sleep(400);
-
-    const currentPos = active.position ?? 0;
-    const boardSize = BOARD_SPACES.length;
-    const newPos = (currentPos + roll.total) % boardSize;
-    const passedGo = currentPos + roll.total >= boardSize;
-
-    if (passedGo) {
-      setBotTurnMessage(`${active.name} passed GO +$${PASS_GO_AMOUNT}`);
-      await updateBalance(active.id, PASS_GO_AMOUNT);
-      await sleep(400);
-      pushBotLog(`${active.name} collected $${PASS_GO_AMOUNT} at GO`);
-    }
-
-    await updatePlayerPosition(active.id, newPos);
-    const landed = getSpaceName(newPos);
-    addHistoryEntry("dice", `${active.name} rolled to ${landed}`, active.name);
-    pushBotLog(`${active.name} landed on ${landed}`);
-
-    // Chance / Community draw
-    if (landed === "Chance" || landed === "Community Chest") {
-      const card = drawCard(landed === "Chance" ? "chance" : "community");
-      pushBotLog(`${active.name} draws: ${card.text}`);
-      await applyCard(card, active.id);
-    } else if (
-      landed !== "Luxury Tax" &&
-      landed !== "Income Tax" &&
-      landed !== "Free Parking" &&
-      landed !== "Go To Jail" &&
-      landed !== "Just Visiting / Jail"
-    ) {
-      // Basic property / rent handling
-      await botHandleLanding(active, landed, roll.total);
-    } else if (landed === "Go To Jail") {
-      await updateJailStatus(active.id, true, 0, JAIL_INDEX);
-      pushBotLog(`${active.name} sent to Jail`);
-    }
-
-    setBotTurnMessage(`${active.name} ends turn`);
-    await sleep(400);
-    setIsBotTakingTurn(false);
-    goToNextTurn();
-  };
   const [numPlayers, setNumPlayers] = useState(
     isMultiplayer ? initialPlayers?.length || 0 : 0
   );
@@ -765,16 +617,6 @@ export default function DigitalBanker({
     "",
     "",
     "",
-  ]);
-  const [playerIsBot, setPlayerIsBot] = useState([
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
   ]);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [currentPlayerId, setCurrentPlayerId] = useState(0); // For player-specific view
@@ -824,7 +666,6 @@ export default function DigitalBanker({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
   const activePlayer = players[activeTurnIndex] || null;
-  const isActiveBot = !isMultiplayer && !!activePlayer?.isBot;
   const [cardModal, setCardModal] = useState<{
     open: boolean;
     card?: Card;
@@ -832,7 +673,6 @@ export default function DigitalBanker({
   }>({ open: false });
   const getSpaceName = (index: number) =>
     BOARD_SPACES[index] || `Space ${index}`;
-  const [showBotControlModal, setShowBotControlModal] = useState(false);
   // const [turnToast, setTurnToast] = useState<string | null>(null); // Unused
 
   // Firebase sync for multiplayer
@@ -954,16 +794,6 @@ export default function DigitalBanker({
       setShowWinnerModal(true);
     }
   }, [players, isMultiplayer, gameId]);
-
-  // Advance bot turns automatically in local games
-  useEffect(() => {
-    if (isMultiplayer) return;
-    const active = players[activeTurnIndex];
-    if (!active || !active.isBot) return;
-
-    runBotTurn();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTurnIndex, players, isMultiplayer]);
 
   type RollResult = {
     d1: number;
@@ -1157,17 +987,6 @@ export default function DigitalBanker({
     setPlayerNames((prev) => swap(prev));
     setPlayerPieces((prev) => swap(prev));
     setPlayerColors((prev) => swap(prev));
-    setPlayerIsBot((prev) => swap(prev));
-  };
-
-  const maybeStartBotTurn = (nextIndex: number) => {
-    if (isMultiplayer) return;
-    const nextPlayer = players[nextIndex];
-    if (!nextPlayer || !nextPlayer.isBot || nextPlayer.botAutoPlay === false)
-      return;
-    setTimeout(() => {
-      runBotTurn(nextIndex);
-    }, 0);
   };
 
   const startGame = () => {
@@ -1219,8 +1038,6 @@ export default function DigitalBanker({
         color: playerColors[i],
         piece: piece,
         position: 0,
-        isBot: !!playerIsBot[i],
-        botAutoPlay: !!playerIsBot[i],
       });
     }
     setPlayers(newPlayers);
@@ -2478,36 +2295,23 @@ export default function DigitalBanker({
                         <div className="text-lg font-bold text-amber-400">
                           Player {i + 1}
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => movePlayerSlot(i, -1)}
-                            disabled={i === 0}
-                            className="px-3 py-1 rounded bg-zinc-900 text-amber-300 text-xs font-semibold border border-amber-900/40 disabled:opacity-40 disabled:cursor-not-allowed hover:border-amber-500 transition-colors"
-                          >
-                            Move Up
-                          </button>
-                          <button
-                            onClick={() => movePlayerSlot(i, 1)}
-                            disabled={i === numPlayers - 1}
-                            className="px-3 py-1 rounded bg-zinc-900 text-amber-300 text-xs font-semibold border border-amber-900/40 disabled:opacity-40 disabled:cursor-not-allowed hover:border-amber-500 transition-colors"
-                          >
-                            Move Down
-                          </button>
-                        </div>
                       </div>
-                      <label className="flex items-center gap-2 text-sm text-amber-300">
-                        <input
-                          type="checkbox"
-                          checked={!!playerIsBot[i]}
-                          onChange={(e) => {
-                            const updated = [...playerIsBot];
-                            updated[i] = e.target.checked;
-                            setPlayerIsBot(updated);
-                          }}
-                          className="w-5 h-5 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500"
-                        />
-                        CPU Player (auto)
-                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => movePlayerSlot(i, -1)}
+                          disabled={i === 0}
+                          className="px-3 py-1 rounded bg-zinc-900 text-amber-300 text-xs font-semibold border border-amber-900/40 disabled:opacity-40 disabled:cursor-not-allowed hover:border-amber-500 transition-colors"
+                        >
+                          Move Up
+                        </button>
+                        <button
+                          onClick={() => movePlayerSlot(i, 1)}
+                          disabled={i === numPlayers - 1}
+                          className="px-3 py-1 rounded bg-zinc-900 text-amber-300 text-xs font-semibold border border-amber-900/40 disabled:opacity-40 disabled:cursor-not-allowed hover:border-amber-500 transition-colors"
+                        >
+                          Move Down
+                        </button>
+                      </div>
                     </div>
 
                     <input
@@ -2631,30 +2435,6 @@ export default function DigitalBanker({
         paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
       }}
     >
-      {/* Bot turn overlay */}
-      {!isMultiplayer && isBotTakingTurn && (
-        <div className="fixed inset-0 bg-black/60 z-40 flex items-center justify-center px-4">
-          <div className="bg-zinc-900 border border-amber-500 rounded-lg px-6 py-4 text-center shadow-lg">
-            <p className="text-lg font-bold text-amber-400 mb-2">Bot Turn</p>
-            <p className="text-sm text-amber-100">
-              {botTurnMessage || "Bot is taking actions..."}
-            </p>
-            {botTurnLog.length > 0 && (
-              <div className="mt-3 text-left text-xs text-amber-300 max-w-xs mx-auto space-y-1">
-                {botTurnLog.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-zinc-800/80 px-2 py-1 rounded border border-amber-900/40"
-                  >
-                    {msg}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Error Toast */}
       {errorMessage && (
         <div
@@ -2691,68 +2471,6 @@ export default function DigitalBanker({
           </div>
         </div>
       )}
-      {/* Bot Control Modal */}
-      {showBotControlModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4">
-          <div className="bg-zinc-900 border border-amber-500 rounded-lg p-6 max-w-md w-full shadow-lg">
-            <div className="flex justify-between items-center mb-3">
-              <p className="text-lg font-bold text-amber-400">Bot Controls</p>
-              <button
-                onClick={() => setShowBotControlModal(false)}
-                className="text-amber-300 hover:text-amber-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              {players
-                .filter((p) => p.isBot)
-                .map((bot) => (
-                  <div
-                    key={bot.id}
-                    className="flex items-center justify-between bg-zinc-800 px-3 py-2 rounded border border-amber-900/30"
-                  >
-                    <div>
-                      <p className="text-sm text-amber-100 font-semibold">
-                        {bot.name}
-                      </p>
-                      <p className="text-xs text-amber-500">
-                        Mode: {bot.botAutoPlay === false ? "Manual" : "Auto"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const auto = bot.botAutoPlay === false ? true : false;
-                        // Update locally for responsiveness
-                        setPlayers((prev) =>
-                          prev.map((p) =>
-                            p.id === bot.id ? { ...p, botAutoPlay: auto } : p
-                          )
-                        );
-                        if (isMultiplayer && gameId) {
-                          updatePlayer(gameId, bot.id as string, {
-                            botAutoPlay: auto,
-                          });
-                        }
-                      }}
-                      className={`px-3 py-1 rounded text-xs font-semibold ${
-                        bot.botAutoPlay === false
-                          ? "bg-zinc-800 text-amber-300 border border-amber-900/50"
-                          : "bg-amber-700 text-black"
-                      }`}
-                    >
-                      {bot.botAutoPlay === false ? "Set Auto" : "Set Manual"}
-                    </button>
-                  </div>
-                ))}
-              <p className="text-xs text-amber-500">
-                Manual bots do not auto-play; use the normal controls to act for
-                them and End Turn to advance.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
       <div className="max-w-7xl mx-auto relative z-10">
         {/* BANKER CARD - Reorganized with all main actions */}
         <div className="relative bg-zinc-900 rounded-lg pb-0 mb-2 border border-amber-500 overflow-shown shadow-lg drop-shadow-[0_0_10px_white] ">
@@ -2785,19 +2503,8 @@ export default function DigitalBanker({
                 Turn:{" "}
                 <span className="font-bold text-amber-100">
                   {activePlayer.name || "Player"}
-                </span>{" "}
-                {activePlayer.isBot && (
-                  <span className="text-amber-500">(Bot)</span>
-                )}
+                </span>
               </span>
-              {activePlayer.isBot && (
-                <button
-                  onClick={() => setShowBotControlModal(true)}
-                  className="text-xs bg-amber-700 text-black px-2 py-1 rounded hover:bg-amber-600 transition-colors"
-                >
-                  Bot Controls
-                </button>
-              )}
             </div>
           )}
 
@@ -2952,11 +2659,11 @@ export default function DigitalBanker({
 
           {/* Roll Dice Section */}
           <div className="w-full border-t border-green-900 -mt-8">
-            <button
-              onClick={() => rollDice()}
-              disabled={diceRolling || (isActiveBot && isBotTakingTurn)}
-              className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-lg  font-bold text-lg transition-colors flex items-center justify-center gap-2"
-            >
+              <button
+                onClick={() => rollDice()}
+                disabled={diceRolling}
+                className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-lg  font-bold text-lg transition-colors flex items-center justify-center gap-2"
+              >
               <Dice1 className="w-6 h-6" />
               {diceRolling ? "Rolling..." : "Roll Dice"}
             </button>
@@ -2966,7 +2673,7 @@ export default function DigitalBanker({
                 onClick={() => {
                   goToNextTurn();
                 }}
-                disabled={diceRolling || (isActiveBot && isBotTakingTurn)}
+                disabled={diceRolling}
                 className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-amber-200 py-2 rounded-lg font-semibold text-sm transition-colors"
               >
                 End Turn
