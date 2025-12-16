@@ -2913,26 +2913,14 @@ export default function DigitalBanker({
             </button>
 
             <div className="mt-2">
-              <div className="text-xs text-amber-300 mb-2">
-                End Turn visible (forced): true
-                <br />
-                Logic: players.length === 0: {String(players.length === 0)} |
-                isActiveBot: {String(isActiveBot)} | isBotTakingTurn:{" "}
-                {String(isBotTakingTurn)} | isMultiplayer:{" "}
-                {String(isMultiplayer)} | firebasePlayerId:{" "}
-                {String(firebasePlayerId)} | activeTurnIndex:{" "}
-                {String(activeTurnIndex)} | players[activeTurnIndex]?.id:{" "}
-                {String(players[activeTurnIndex]?.id)}
-              </div>
               <button
                 onClick={() => {
                   goToNextTurn();
                 }}
-                // Force enabled for debug
-                className="w-full bg-zinc-800 hover:bg-zinc-700 text-amber-200 py-2 rounded-lg font-semibold text-sm transition-colors border-2 border-red-500"
-                style={{ outline: "2px solid red" }}
+                disabled={diceRolling || (isActiveBot && isBotTakingTurn)}
+                className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-amber-200 py-2 rounded-lg font-semibold text-sm transition-colors"
               >
-                End Turn (FORCED)
+                End Turn
               </button>
             </div>
 
@@ -3071,27 +3059,27 @@ export default function DigitalBanker({
                       </div>
                     )}
                     {!isCurrentUser && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-stretch">
                         <button
                           onClick={() => handlePayRentClick(player.id)}
                           disabled={player.properties.length === 0}
-                          className="w-full h-11 bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1 ml-3"
+                          className="min-w-[8rem] h-12 bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
                         >
                           <img
                             src="/images/property.svg"
                             alt="Pay Rent"
-                            className="w-auto h-12"
+                            className="w-6 h-6"
                           />
                           Pay Rent
                         </button>
                         <button
                           onClick={() => handleCustomAmountClick(player.id)}
-                          className="w-full h-11 bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+                          className="min-w-[6.5rem] h-12 bg-blue-700 hover:bg-blue-600 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
                         >
                           <img
                             src="/images/Payment.svg"
                             alt="Pay"
-                            className="w-auto h-10"
+                            className="w-6 h-6"
                           />
                           Pay
                         </button>
@@ -3831,26 +3819,6 @@ export default function DigitalBanker({
           onNewGameSamePlayers={handleNewGameSamePlayers}
           onCompleteReset={handleCompleteReset}
         />
-
-        {/* Auction Button (FORCED VISIBLE for debug) */}
-        <div className="bg-purple-900/30 border-2 border-purple-600 drop-shadow-[0_0_10px_purple] rounded-3xl px-4 py-2">
-          <div className="text-center">
-            <div className="text-xs text-purple-400 font-bold">
-              PROPERTY AUCTION (FORCED)
-            </div>
-            <div className="text-sm text-purple-300 mt-1 mb-2">
-              Start an auction
-            </div>
-            <button
-              onClick={() => setShowAuctionSelector(true)}
-              className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded text-xs transition-colors flex items-center gap-1 mx-auto border-2 border-red-500"
-              style={{ outline: "2px solid red" }}
-            >
-              <Gavel className="w-4 h-4" />
-              Start Auction (FORCED)
-            </button>
-          </div>
-        </div>
 
         {/* Toast Notification */}
         <ToastNotification
