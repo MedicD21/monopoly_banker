@@ -2914,39 +2914,19 @@ export default function DigitalBanker({
 
             <div className="mt-2">
               <div className="text-xs text-amber-300 mb-2">
-                End Turn visible:{" "}
-                {String(
-                  !(
-                    players.length === 0 ||
-                    (isActiveBot && isBotTakingTurn) ||
-                    (isMultiplayer &&
-                      firebasePlayerId !== undefined &&
-                      players[activeTurnIndex]?.id !== firebasePlayerId)
-                  )
-                )}
+                End Turn visible (forced): true
+                <br />
+                Logic: players.length === 0: {String(players.length === 0)} | isActiveBot: {String(isActiveBot)} | isBotTakingTurn: {String(isBotTakingTurn)} | isMultiplayer: {String(isMultiplayer)} | firebasePlayerId: {String(firebasePlayerId)} | activeTurnIndex: {String(activeTurnIndex)} | players[activeTurnIndex]?.id: {String(players[activeTurnIndex]?.id)}
               </div>
               <button
                 onClick={() => {
-                  // In multiplayer, this should update the turn index in the backend
-                  if (isMultiplayer) {
-                    // TODO: Implement multiplayer turn advancement (update turn index in backend)
-                    // For now, just call goToNextTurn locally
-                    goToNextTurn();
-                  } else {
-                    goToNextTurn();
-                  }
+                  goToNextTurn();
                 }}
-                disabled={
-                  players.length === 0 ||
-                  (isActiveBot && isBotTakingTurn) ||
-                  // Only allow the active player to end their turn
-                  (isMultiplayer &&
-                    firebasePlayerId !== undefined &&
-                    players[activeTurnIndex]?.id !== firebasePlayerId)
-                }
-                className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 text-amber-200 disabled:text-zinc-500 py-2 rounded-lg font-semibold text-sm transition-colors"
+                // Force enabled for debug
+                className="w-full bg-zinc-800 hover:bg-zinc-700 text-amber-200 py-2 rounded-lg font-semibold text-sm transition-colors border-2 border-red-500"
+                style={{ outline: '2px solid red' }}
               >
-                End Turn
+                End Turn (FORCED)
               </button>
             </div>
 
@@ -3846,26 +3826,25 @@ export default function DigitalBanker({
           onCompleteReset={handleCompleteReset}
         />
 
-        {/* Auction Modal */}
-        <AuctionModal
-          isOpen={showAuctionModal}
-          onClose={() => {
-            setShowAuctionModal(false);
-            setAuctionProperty(null);
-          }}
-          propertyName={auctionProperty?.name || ""}
-          propertyPrice={auctionProperty?.price || 0}
-          players={players.map((p) => ({
-            id: p.id,
-            name: p.name,
-            balance: p.balance,
-          }))}
-          bids={auctionState?.bids || []}
-          dropouts={auctionState?.dropouts || []}
-          currentPlayerId={isMultiplayer ? firebasePlayerId : currentPlayerId}
-          onPlaceBid={handlePlaceAuctionBid}
-          onAuctionComplete={handleAuctionComplete}
-          onDropOut={handleDropOutAuction}
+            {/* Auction Button (FORCED VISIBLE for debug) */}
+            <div className="bg-purple-900/30 border-2 border-purple-600 drop-shadow-[0_0_10px_purple] rounded-3xl px-4 py-2">
+              <div className="text-center">
+                <div className="text-xs text-purple-400 font-bold">
+                  PROPERTY AUCTION (FORCED)
+                </div>
+                <div className="text-sm text-purple-300 mt-1 mb-2">
+                  Start an auction
+                </div>
+                <button
+                  onClick={() => setShowAuctionSelector(true)}
+                  className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded text-xs transition-colors flex items-center gap-1 mx-auto border-2 border-red-500"
+                  style={{ outline: '2px solid red' }}
+                >
+                  <Gavel className="w-4 h-4" />
+                  Start Auction (FORCED)
+                </button>
+              </div>
+            </div>
         />
 
         {/* Toast Notification */}
