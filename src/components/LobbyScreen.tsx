@@ -20,6 +20,8 @@ interface LobbyScreenProps {
   onToggleReady: () => void;
   onStartGame: () => void;
   onLeave: () => void;
+  onAddBot?: () => void;
+  onRemoveBot?: () => void;
 }
 
 export default function LobbyScreen({
@@ -31,13 +33,16 @@ export default function LobbyScreen({
   onToggleReady,
   onStartGame,
   onLeave,
+  onAddBot,
+  onRemoveBot,
 }: LobbyScreenProps) {
   const [name, setName] = useState("");
   const [selectedPiece, setSelectedPiece] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
 
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
-  const allReady = players.length >= 2 && players.every((p) => p.isReady);
+  // Allow solo starts (e.g., single-player or host with bots)
+  const allReady = players.length >= 1 && players.every((p) => p.isReady);
   const gameUrl = `${window.location.origin}?join=${gameCode}`;
 
   // Get used pieces and colors
@@ -243,11 +248,16 @@ export default function LobbyScreen({
                       </div>
                     )}
                     <div>
-                      <p className="font-bold text-amber-50">
+                      <p className="font-bold text-amber-50 flex items-center gap-2">
                         {player.name || "Setting up..."}
                         {player.isHost && (
-                          <span className="text-xs text-amber-400 ml-2">
+                          <span className="text-xs text-amber-400 ml-1">
                             (Host)
+                          </span>
+                        )}
+                        {player.isBot && (
+                          <span className="text-xs bg-amber-900 text-amber-200 px-2 py-0.5 rounded">
+                            Bot
                           </span>
                         )}
                       </p>
@@ -267,7 +277,24 @@ export default function LobbyScreen({
           </div>
 
           {isHost && (
-            <div className="mt-6">
+            <div className="mt-6 space-y-3">
+              {onAddBot && (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={onAddBot}
+                    className="w-full bg-amber-800 hover:bg-amber-700 text-white font-semibold py-3 rounded-lg transition-colors"
+                  >
+                    + Add Computer
+                  </button>
+                  <button
+                    onClick={onRemoveBot}
+                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-amber-200 font-semibold py-3 rounded-lg transition-colors disabled:opacity-50"
+                    disabled={!players.some((p) => p.isBot)}
+                  >
+                    Remove Bot
+                  </button>
+                </div>
+              )}
               <button
                 onClick={onStartGame}
                 disabled={!allReady}

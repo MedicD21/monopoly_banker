@@ -9,6 +9,7 @@ import {
   getDocs,
   serverTimestamp,
   addDoc,
+  deleteDoc,
 } from "firebase/firestore";
 import { db } from "./config";
 import { Game, GameConfig, Player, GameEvent } from "../types/game";
@@ -79,6 +80,7 @@ export async function addPlayer(
     ...playerData,
     isConnected: true,
     lastSeen: Date.now(),
+    position: playerData.position ?? 0,
   });
 }
 
@@ -93,6 +95,15 @@ export async function updatePlayer(
     ...updates,
     lastSeen: Date.now(),
   });
+}
+
+// Remove a player (used for removing bots)
+export async function removePlayer(
+  gameId: string,
+  playerId: string
+): Promise<void> {
+  const playerRef = doc(db, "games", gameId, "players", playerId);
+  await deleteDoc(playerRef);
 }
 
 // Get game data

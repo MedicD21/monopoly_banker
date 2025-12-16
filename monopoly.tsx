@@ -299,6 +299,50 @@ const PLAYER_COLORS = [
   "bg-teal-600",
 ];
 
+// Simplified board order for bot turn messaging
+const BOARD_SPACES = [
+  "GO",
+  "Maple Lane",
+  "Community Chest",
+  "Oak Street",
+  "Income Tax",
+  "North Line",
+  "Pine Avenue",
+  "Chance",
+  "Birch Boulevard",
+  "Cedar Court",
+  "Just Visiting / Jail",
+  "Willow Way",
+  "Power Grid",
+  "Elm Plaza",
+  "Aspen Drive",
+  "South Line",
+  "Sycamore Square",
+  "Community Chest",
+  "Redwood Road",
+  "Magnolia Mile",
+  "Free Parking",
+  "Hickory Heights",
+  "Chance",
+  "Spruce Parkway",
+  "Poplar Plaza",
+  "East Line",
+  "Cypress Circle",
+  "Juniper Junction",
+  "Water Supply",
+  "Sequoia Summit",
+  "Go To Jail",
+  "Dogwood Drive",
+  "Chestnut Center",
+  "Community Chest",
+  "Laurel Landing",
+  "West Line",
+  "Chance",
+  "Rosewood Row",
+  "Luxury Tax",
+  "Diamond District",
+];
+
 interface DigitalBankerProps {
   gameId?: string;
   gameCode?: string;
@@ -327,6 +371,76 @@ export default function DigitalBanker({
   const [players, setPlayers] = useState(
     isMultiplayer ? initialPlayers || [] : []
   );
+  const [activeTurnIndex, setActiveTurnIndex] = useState(0);
+  const [isBotTakingTurn, setIsBotTakingTurn] = useState(false);
+  const [botTurnMessage, setBotTurnMessage] = useState("");
+  const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+  const [botTurnLog, setBotTurnLog] = useState<string[]>([]);
+
+  const goToNextTurn = () => {
+    if (players.length === 0) return;
+    let next = activeTurnIndex;
+    for (let i = 0; i < players.length; i++) {
+      next = (next + 1) % players.length;
+      const candidate = players[next];
+      if (candidate && !candidate.isBankrupt) {
+        break;
+      }
+    }
+    setActiveTurnIndex(next);
+  };
+
+  const updatePlayerPosition = async (
+    playerId: string | number,
+    newPos: number
+  ) => {
+    setPlayers((prev) =>
+      prev.map((p) => (p.id === playerId ? { ...p, position: newPos } : p))
+    );
+    if (isMultiplayer && gameId) {
+      await updatePlayer(gameId, playerId as string, { position: newPos });
+    }
+  };
+
+  const handleBotTurn = async () => {
+    if (isMultiplayer) return;
+    const active = players[activeTurnIndex];
+    if (!active || !active.isBot || isBotTakingTurn) return;
+
+    setIsBotTakingTurn(true);
+    setBotTurnMessage(`${active.name} is rolling...`);
+    const roll = await rollDice(active.id);
+    if (!roll) {
+      setIsBotTakingTurn(false);
+      return;
+    }
+
+    await sleep(400);
+
+    const currentPos = active.position ?? 0;
+    const boardSize = BOARD_SPACES.length;
+    const newPos = (currentPos + roll.total) % boardSize;
+    const passedGo = currentPos + roll.total >= boardSize;
+
+    if (passedGo) {
+      setBotTurnMessage(`${active.name} passed GO +$${PASS_GO_AMOUNT}`);
+      await updateBalance(active.id, PASS_GO_AMOUNT);
+      await sleep(400);
+    }
+
+    await updatePlayerPosition(active.id, newPos);
+    const landed = BOARD_SPACES[newPos] || "Unknown";
+    addHistoryEntry(
+      "dice",
+      `${active.name} rolled to ${landed}`,
+      active.name
+    );
+
+    setBotTurnMessage(`${active.name} ends turn`);
+    await sleep(400);
+    setIsBotTakingTurn(false);
+    goToNextTurn();
+  };
   const [numPlayers, setNumPlayers] = useState(
     isMultiplayer ? initialPlayers?.length || 0 : 0
   );
@@ -409,6 +523,8 @@ export default function DigitalBanker({
   const [gameHistory, setGameHistory] = useState<HistoryEntry[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
+  const activePlayer = players[activeTurnIndex] || null;
+  const isActiveBot = !isMultiplayer && !!activePlayer?.isBot;
 
   // Firebase sync for multiplayer
   useEffect(() => {
@@ -485,6 +601,20 @@ export default function DigitalBanker({
     }
   }, [isMultiplayer, firebasePlayerId, players]);
 
+  // Keep local turn pointer in range and sync currentPlayerId for local games
+  useEffect(() => {
+    if (isMultiplayer) return;
+    if (players.length === 0) return;
+    const clampedIndex = Math.min(activeTurnIndex, players.length - 1);
+    if (clampedIndex !== activeTurnIndex) {
+      setActiveTurnIndex(clampedIndex);
+    }
+    const active = players[clampedIndex];
+    if (active) {
+      setCurrentPlayerId(active.id);
+    }
+  }, [players, activeTurnIndex, isMultiplayer]);
+
   // Check for bankruptcy and winner
   useEffect(() => {
     if (players.length === 0) return;
@@ -520,73 +650,122 @@ export default function DigitalBanker({
     }
   }, [players, isMultiplayer, gameId]);
 
-  const rollDice = async () => {
-    const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+  // Advance bot turns automatically in local games
+  useEffect(() => {
+    if (isMultiplayer) return;
+    const active = players[activeTurnIndex];
+    if (!active || !active.isBot) return;
+
+    handleBotTurn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTurnIndex, players, isMultiplayer]);
+
+  type RollResult = {
+    d1: number;
+    d2: number;
+    d3?: number | null;
+    total: number;
+    isDoubles: boolean;
+  };
+
+  const rollDice = async (
+    overridePlayerId?: string | number
+  ): Promise<RollResult | null> => {
+    const playerIdToUse =
+      overridePlayerId ?? (isMultiplayer ? firebasePlayerId : currentPlayerId);
     const rollingPlayer = players.find((p) => p.id === playerIdToUse);
 
-    if (!rollingPlayer) return;
+    if (!rollingPlayer) return null;
 
     const speedDieEnabled = gameConfig?.speedDie || false;
 
     setDiceRolling(true);
-    let rollCount = 0;
-    const rollInterval = setInterval(() => {
-      const tempD1 = Math.floor(Math.random() * 6) + 1;
-      const tempD2 = Math.floor(Math.random() * 6) + 1;
-      const tempD3 = speedDieEnabled ? Math.floor(Math.random() * 6) + 1 : null;
-      setLastRoll({
-        d1: tempD1,
-        d2: tempD2,
-        d3: tempD3,
-        total: tempD1 + tempD2 + (tempD3 || 0),
-        isDoubles: tempD1 === tempD2,
-      });
-      rollCount++;
+    return await new Promise<RollResult | null>((resolve) => {
+      let rollCount = 0;
+      const rollInterval = setInterval(() => {
+        const tempD1 = Math.floor(Math.random() * 6) + 1;
+        const tempD2 = Math.floor(Math.random() * 6) + 1;
+        const tempD3 = speedDieEnabled ? Math.floor(Math.random() * 6) + 1 : null;
+        setLastRoll({
+          d1: tempD1,
+          d2: tempD2,
+          d3: tempD3,
+          total: tempD1 + tempD2 + (tempD3 || 0),
+          isDoubles: tempD1 === tempD2,
+        });
+        rollCount++;
 
-      if (rollCount >= 10) {
-        clearInterval(rollInterval);
-        const finalD1 = Math.floor(Math.random() * 6) + 1;
-        const finalD2 = Math.floor(Math.random() * 6) + 1;
-        const finalD3 = speedDieEnabled
-          ? Math.floor(Math.random() * 6) + 1
-          : null;
-        const finalRoll = {
-          d1: finalD1,
-          d2: finalD2,
-          d3: finalD3,
-          total: finalD1 + finalD2 + (finalD3 || 0),
-          isDoubles: finalD1 === finalD2,
-        };
-        setLastRoll(finalRoll);
-        setDiceRolling(false);
-        setShowDice(true);
-        setTimeout(() => setShowDice(false), 3000);
+        if (rollCount >= 10) {
+          clearInterval(rollInterval);
+          const finalD1 = Math.floor(Math.random() * 6) + 1;
+          const finalD2 = Math.floor(Math.random() * 6) + 1;
+          const finalD3 = speedDieEnabled
+            ? Math.floor(Math.random() * 6) + 1
+            : null;
+          const finalRoll = {
+            d1: finalD1,
+            d2: finalD2,
+            d3: finalD3,
+            total: finalD1 + finalD2 + (finalD3 || 0),
+            isDoubles: finalD1 === finalD2,
+          };
+          setLastRoll(finalRoll);
+          setDiceRolling(false);
+          setShowDice(true);
+          setTimeout(() => setShowDice(false), 3000);
 
-        // Add to history
-        const diceString = finalD3
-          ? `${finalD1} + ${finalD2} + ${finalD3} = ${finalRoll.total}`
-          : `${finalD1} + ${finalD2} = ${finalRoll.total}`;
-        addHistoryEntry(
-          "dice",
-          `${rollingPlayer.name} rolled ${diceString}${
-            finalRoll.isDoubles ? " (Doubles!)" : ""
-          }`,
-          rollingPlayer.name
-        );
+          // Add to history
+          const diceString = finalD3
+            ? `${finalD1} + ${finalD2} + ${finalD3} = ${finalRoll.total}`
+            : `${finalD1} + ${finalD2} = ${finalRoll.total}`;
+          addHistoryEntry(
+            "dice",
+            `${rollingPlayer.name} rolled ${diceString}${
+              finalRoll.isDoubles ? " (Doubles!)" : ""
+            }`,
+            rollingPlayer.name
+          );
 
-        // Handle doubles tracking and three-doubles-in-a-row jail rule
-        const currentDoublesCount = rollingPlayer.doublesCount || 0;
+          // Handle doubles tracking and three-doubles-in-a-row jail rule
+          const currentDoublesCount = rollingPlayer.doublesCount || 0;
 
-        if (finalRoll.isDoubles) {
-          const newDoublesCount = currentDoublesCount + 1;
+          if (finalRoll.isDoubles) {
+            const newDoublesCount = currentDoublesCount + 1;
 
-          if (newDoublesCount >= 3) {
-            // Three doubles in a row - Go to Jail!
-            alert(
-              `${rollingPlayer.name} rolled doubles 3 times in a row! Go to Jail!`
-            );
+            if (newDoublesCount >= 3) {
+              // Three doubles in a row - Go to Jail!
+              alert(
+                `${rollingPlayer.name} rolled doubles 3 times in a row! Go to Jail!`
+              );
 
-            // Reset this player's doubles count
+              // Reset this player's doubles count
+              setPlayers((prev) =>
+                prev.map((p) =>
+                  p.id === playerIdToUse ? { ...p, doublesCount: 0 } : p
+                )
+              );
+
+              if (isMultiplayer && gameId) {
+                updatePlayer(gameId, playerIdToUse, { doublesCount: 0 });
+              }
+            } else {
+              // Increment doubles count
+              setPlayers((prev) =>
+                prev.map((p) =>
+                  p.id === playerIdToUse
+                    ? { ...p, doublesCount: newDoublesCount }
+                    : p
+                )
+              );
+
+              if (isMultiplayer && gameId) {
+                updatePlayer(gameId, playerIdToUse, {
+                  doublesCount: newDoublesCount,
+                });
+              }
+            }
+          } else {
+            // Not doubles - reset this player's count
             setPlayers((prev) =>
               prev.map((p) =>
                 p.id === playerIdToUse ? { ...p, doublesCount: 0 } : p
@@ -596,57 +775,33 @@ export default function DigitalBanker({
             if (isMultiplayer && gameId) {
               updatePlayer(gameId, playerIdToUse, { doublesCount: 0 });
             }
-          } else {
-            // Increment doubles count
-            setPlayers((prev) =>
-              prev.map((p) =>
-                p.id === playerIdToUse
-                  ? { ...p, doublesCount: newDoublesCount }
-                  : p
-              )
-            );
-
-            if (isMultiplayer && gameId) {
-              updatePlayer(gameId, playerIdToUse, {
-                doublesCount: newDoublesCount,
-              });
-            }
           }
-        } else {
-          // Not doubles - reset this player's count
+
+          // Reset ALL other players' doubles counts (since a different player rolled)
           setPlayers((prev) =>
             prev.map((p) =>
-              p.id === playerIdToUse ? { ...p, doublesCount: 0 } : p
+              p.id !== playerIdToUse ? { ...p, doublesCount: 0 } : p
             )
           );
 
           if (isMultiplayer && gameId) {
-            updatePlayer(gameId, playerIdToUse, { doublesCount: 0 });
+            // Reset other players' doubles counts
+            players.forEach((p) => {
+              if (p.id !== playerIdToUse) {
+                updatePlayer(gameId, p.id, { doublesCount: 0 });
+              }
+            });
           }
-        }
 
-        // Reset ALL other players' doubles counts (since a different player rolled)
-        setPlayers((prev) =>
-          prev.map((p) =>
-            p.id !== playerIdToUse ? { ...p, doublesCount: 0 } : p
-          )
-        );
+          // Sync to Firebase in multiplayer mode
+          if (isMultiplayer && gameId && firebasePlayerId) {
+            recordDiceRoll(gameId, firebasePlayerId, [finalD1, finalD2]);
+          }
 
-        if (isMultiplayer && gameId) {
-          // Reset other players' doubles counts
-          players.forEach((p) => {
-            if (p.id !== playerIdToUse) {
-              updatePlayer(gameId, p.id, { doublesCount: 0 });
-            }
-          });
+          resolve(finalRoll);
         }
-
-        // Sync to Firebase in multiplayer mode
-        if (isMultiplayer && gameId && firebasePlayerId) {
-          recordDiceRoll(gameId, firebasePlayerId, [finalD1, finalD2]);
-        }
-      }
-    }, 100);
+      }, 100);
+    });
   };
 
   const showError = (message) => {
@@ -686,8 +841,8 @@ export default function DigitalBanker({
 
   const startGame = () => {
     // Validate player setup
-    if (numPlayers < 2 || numPlayers > 8) {
-      showError("Please select 2-8 players");
+    if (numPlayers < 1 || numPlayers > 8) {
+      showError("Please select 1-8 players");
       return;
     }
 
@@ -732,10 +887,12 @@ export default function DigitalBanker({
         properties: [],
         color: playerColors[i],
         piece: piece,
+        position: 0,
       });
     }
     setPlayers(newPlayers);
     setCurrentPlayer(0);
+    setActiveTurnIndex(0);
     setScreen("game");
   };
 
@@ -1949,7 +2106,7 @@ export default function DigitalBanker({
                 Select Number of Players
               </h2>
               <div className="grid grid-cols-4 gap-4">
-                {[2, 3, 4, 5, 6, 7, 8].map((num) => (
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                   <button
                     key={num}
                     onClick={() => setNumPlayers(num)}
@@ -2098,6 +2255,18 @@ export default function DigitalBanker({
         paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
       }}
     >
+      {/* Bot turn overlay */}
+      {!isMultiplayer && isBotTakingTurn && (
+        <div className="fixed inset-0 bg-black/60 z-40 flex items-center justify-center px-4">
+          <div className="bg-zinc-900 border border-amber-500 rounded-lg px-6 py-4 text-center shadow-lg">
+            <p className="text-lg font-bold text-amber-400 mb-2">Bot Turn</p>
+            <p className="text-sm text-amber-100">
+              {botTurnMessage || "Bot is taking actions..."}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Error Toast */}
       {errorMessage && (
         <div
@@ -2131,6 +2300,12 @@ export default function DigitalBanker({
             <div className="text-center text-xs text-amber-600 mb-2">
               Room Code:{" "}
               <span className="font-bold text-amber-500">{gameCode}</span>
+            </div>
+          )}
+          {!isMultiplayer && activePlayer && (
+            <div className="text-center text-sm text-amber-300 mb-2">
+              Turn: <span className="font-bold text-amber-100">{activePlayer.name || "Player"}</span>{" "}
+              {activePlayer.isBot && <span className="text-amber-500">(Bot)</span>}
             </div>
           )}
 
@@ -2285,13 +2460,25 @@ export default function DigitalBanker({
           {/* Roll Dice Section */}
           <div className="w-full border-t border-green-900 -mt-8">
             <button
-              onClick={rollDice}
-              disabled={diceRolling}
+              onClick={() => rollDice()}
+              disabled={diceRolling || (isActiveBot && isBotTakingTurn)}
               className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-lg  font-bold text-lg transition-colors flex items-center justify-center gap-2"
             >
               <Dice1 className="w-6 h-6" />
               {diceRolling ? "Rolling..." : "Roll Dice"}
             </button>
+
+            {!isMultiplayer && (
+              <div className="mt-2">
+                <button
+                  onClick={goToNextTurn}
+                  disabled={players.length === 0 || (isActiveBot && isBotTakingTurn)}
+                  className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 text-amber-200 disabled:text-zinc-500 py-2 rounded-lg font-semibold text-sm transition-colors"
+                >
+                  End Turn
+                </button>
+              </div>
+            )}
 
             {lastRoll && (
               <div className="mt-3 bg-zinc-800 p-3 rounded-lg border border-amber-900/30 text-center">

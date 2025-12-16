@@ -23,6 +23,11 @@ export interface Player {
   lastSeen: number;
   doublesCount?: number; // Track consecutive doubles for jail rule
   isBankrupt?: boolean; // Track if player is bankrupt
+  position?: number; // Board index for turn-based play
+  isBot?: boolean; // Mark computer-controlled players
+  // Track jailed state for bots later
+  inJail?: boolean;
+  jailTurns?: number;
 }
 
 export interface GameConfig {

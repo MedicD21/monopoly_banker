@@ -16,6 +16,8 @@ export default function LobbyPage() {
     toggleReady,
     startGame,
     leaveGame,
+    addBot,
+    removeBot,
   } = useGame();
 
   // Load game if not already loaded
@@ -66,6 +68,8 @@ export default function LobbyPage() {
       onToggleReady={handleToggleReady}
       onStartGame={handleStartGame}
       onLeave={handleLeave}
+      onAddBot={addBot}
+      onRemoveBot={removeBot}
     />
   );
 }
