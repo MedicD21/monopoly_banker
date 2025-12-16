@@ -2771,11 +2771,11 @@ export default function DigitalBanker({
             return (
               <div
                 key={player.id}
-                className={`bg-zinc-900 rounded-lg p-4 border-2 transition-all ${
+                className={`bg-zinc-900 rounded-lg p-4 border-2 transition-all flex flex-col gap-3 ${
                   isCurrentUser ? "border-amber-600" : "border-amber-900/30"
                 }`}
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-14 h-14 ${player.color} rounded flex items-center justify-center p-1`}
@@ -2815,7 +2815,7 @@ export default function DigitalBanker({
                       </div>
                     )}
                     {!isCurrentUser && (
-                      <div className="grid grid-cols-2 gap-2 w-full max-w-xs ml-auto">
+                      <div className="grid grid-cols-2 gap-2 w-full max-w-xs sm:w-60 ml-auto bg-zinc-800/70 rounded-lg p-2 border border-amber-900/30">
                         <button
                           onClick={() => handlePayRentClick(player.id)}
                           disabled={player.properties.length === 0}
