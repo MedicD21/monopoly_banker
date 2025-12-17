@@ -643,6 +643,7 @@ export default function DigitalBanker({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyButtonX, setHistoryButtonX] = useState<number | null>(null);
   const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
+  const [ignoredTradeId, setIgnoredTradeId] = useState<string | null>(null);
   const [executingTrade, setExecutingTrade] = useState(false);
   const [goToJailModal, setGoToJailModal] = useState<{
     open: boolean;
@@ -707,9 +708,12 @@ export default function DigitalBanker({
       }
       // Sync trade offers across all players
       if (gameData.tradeOffer) {
-        setTradeOffer(gameData.tradeOffer);
+        if (!(ignoredTradeId && gameData.tradeOffer.id === ignoredTradeId)) {
+          setTradeOffer(gameData.tradeOffer);
+        }
       } else {
         setTradeOffer(null);
+        setIgnoredTradeId(null);
       }
     });
 
@@ -1688,8 +1692,8 @@ export default function DigitalBanker({
     requestMoney,
     requestProperties
   ) => {
-    const fromPlayer = players.find((p) => p.id === fromPlayerId);
-    const toPlayer = players.find((p) => p.id === toPlayerId);
+    const fromPlayer = players.find((p) => idsMatch(p.id, fromPlayerId));
+    const toPlayer = players.find((p) => idsMatch(p.id, toPlayerId));
 
     if (!fromPlayer || !toPlayer) return;
 
@@ -1842,31 +1846,50 @@ export default function DigitalBanker({
     if (executingTrade) return;
     if (!tradeOffer || !gameId) return;
     setExecutingTrade(true);
+    try {
+      const offer = tradeOffer;
+      setIgnoredTradeId(offer.id);
+      // Close the modal immediately
+      setTradeOffer(null);
 
-    // Execute the trade
-    await executeTrade(
-      tradeOffer.fromPlayerId,
-      tradeOffer.toPlayerId,
-      tradeOffer.offerMoney,
-      tradeOffer.offerProperties,
-      tradeOffer.requestMoney,
-      tradeOffer.requestProperties
-    );
+      // Execute the trade
+      const {
+        fromPlayerId,
+        toPlayerId,
+        offerMoney,
+        offerProperties,
+        requestMoney,
+        requestProperties,
+      } = offer;
+      await executeTrade(
+        fromPlayerId,
+        toPlayerId,
+        offerMoney,
+        offerProperties,
+        requestMoney,
+        requestProperties
+      );
 
-    // Clear the trade offer
-    await clearTrade(gameId);
-    setExecutingTrade(false);
+      // Clear the trade offer locally and remotely
+      await clearTrade(gameId);
+    } finally {
+      setExecutingTrade(false);
+    }
   };
 
   const handleRejectTrade = async () => {
-    if (!tradeOffer || !gameId) return;
+    if (!tradeOffer) return;
 
     const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
     const fromPlayer = players.find((p) => p.id === tradeOffer.fromPlayerId);
     const toPlayer = players.find((p) => p.id === tradeOffer.toPlayerId);
 
     // Clear the trade offer
-    await clearTrade(gameId);
+    setIgnoredTradeId(tradeOffer.id);
+    setTradeOffer(null);
+    if (gameId) {
+      await clearTrade(gameId);
+    }
 
     // Show notification
     if (String(playerIdToUse) === String(tradeOffer.toPlayerId)) {
@@ -1884,7 +1907,7 @@ export default function DigitalBanker({
     requestProperties: string[]
   ) => {
     if (executingTrade) return;
-    if (!tradeOffer || !gameId) return;
+    if (!tradeOffer) return;
 
     const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
     if (!playerIdToUse) return;
@@ -1906,15 +1929,21 @@ export default function DigitalBanker({
     }
 
     // Create counter offer (swap from/to since we're countering)
-    await proposeTrade(gameId, {
-      fromPlayerId: String(playerIdToUse),
-      toPlayerId: String(tradeOffer.fromPlayerId),
-      offerMoney,
-      offerProperties,
-      requestMoney,
-      requestProperties,
-      isCounterOffer: true,
-    });
+    if (gameId) {
+      await proposeTrade(gameId, {
+        fromPlayerId: String(playerIdToUse),
+        toPlayerId: String(tradeOffer.fromPlayerId),
+        offerMoney,
+        offerProperties,
+        requestMoney,
+        requestProperties,
+        isCounterOffer: true,
+      });
+    }
+
+    // Clear local view until the new offer arrives via sync
+    setIgnoredTradeId(tradeOffer.id);
+    setTradeOffer(null);
 
     // Show notification
     setToastMessage(`Counter offer sent to ${toPlayer.name}`);
@@ -2497,20 +2526,6 @@ export default function DigitalBanker({
           </div>
         </div>
       )}
-      {/* TEMP: Go To Jail test button */}
-      <div className="fixed bottom-20 right-4 z-50">
-        <button
-          onClick={() =>
-            setGoToJailModal({
-              open: true,
-              playerName: "Test Player",
-            })
-          }
-          className="bg-red-700 hover:bg-red-600 text-white px-3 py-2 rounded shadow-lg text-xs font-bold border border-red-400"
-        >
-          Test Go To Jail
-        </button>
-      </div>
       <div className="max-w-7xl mx-auto relative z-10">
         {/* BANKER CARD - Reorganized with all main actions */}
         <div className="relative bg-zinc-900 rounded-lg pb-0 mb-2 border border-amber-500 overflow-shown shadow-lg drop-shadow-[0_0_10px_white] ">
@@ -3670,11 +3685,11 @@ export default function DigitalBanker({
 
         {/* Trade Offer Modal */}
         {tradeOffer && (
-          <TradeOfferModal
-            isOpen={true}
-            tradeOffer={tradeOffer}
-            fromPlayer={
-              players.find((p) => p.id === tradeOffer.fromPlayerId) ||
+        <TradeOfferModal
+          isOpen={true}
+          tradeOffer={tradeOffer}
+          fromPlayer={
+            players.find((p) => p.id === tradeOffer.fromPlayerId) ||
               players[0]
             }
             toPlayer={
@@ -3682,16 +3697,38 @@ export default function DigitalBanker({
             }
             currentPlayerId={isMultiplayer ? firebasePlayerId : currentPlayerId}
             onAccept={handleAcceptTrade}
-            onReject={handleRejectTrade}
-            onCounterOffer={handleCounterOffer}
-          />
-        )}
+          onReject={handleRejectTrade}
+          onCounterOffer={handleCounterOffer}
+        />
+      )}
 
-        {/* History Modal */}
-        <HistoryModal
-          isOpen={showHistoryModal}
-          onClose={() => setShowHistoryModal(false)}
-          history={gameHistory}
+      <AuctionModal
+        isOpen={showAuctionModal && !!auctionProperty}
+        onClose={() => {
+          setShowAuctionModal(false);
+          setAuctionState(null);
+          setAuctionProperty(null);
+        }}
+        propertyName={auctionProperty?.name || ""}
+        propertyPrice={auctionProperty?.price || 0}
+        players={players.map((p) => ({
+          id: p.id,
+          name: p.name,
+          balance: p.balance,
+        }))}
+        bids={auctionState?.bids || []}
+        dropouts={auctionState?.dropouts || []}
+        currentPlayerId={isMultiplayer ? firebasePlayerId : currentPlayerId}
+        onPlaceBid={handlePlaceAuctionBid}
+        onAuctionComplete={handleAuctionComplete}
+        onDropOut={handleDropOutAuction}
+      />
+
+      {/* History Modal */}
+      <HistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        history={gameHistory}
         />
       </div>
     </div>
