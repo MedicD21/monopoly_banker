@@ -172,15 +172,20 @@ export async function mortgageProperty(
   gameId: string,
   playerId: string,
   propertyName: string,
-  mortgageValue: number
+  mortgageValue: number,
+  newBalance?: number
 ): Promise<void> {
   // Update property to mortgaged status
   await updatePropertyOnPlayer(gameId, playerId, propertyName, {
     mortgaged: true,
   });
 
-  // Give player half the property value
-  await updatePlayerBalance(gameId, playerId, mortgageValue);
+  // Give player half the property value (absolute balance if provided, else add)
+  if (typeof newBalance === 'number') {
+    await updatePlayerBalance(gameId, playerId, newBalance);
+  } else {
+    await updatePlayerBalance(gameId, playerId, mortgageValue);
+  }
 
   await logEvent(gameId, {
     type: 'property',
@@ -198,7 +203,8 @@ export async function unmortgageProperty(
   gameId: string,
   playerId: string,
   propertyName: string,
-  unmortgageCost: number
+  unmortgageCost: number,
+  newBalance?: number
 ): Promise<void> {
   // Update property to unmortgaged status
   await updatePropertyOnPlayer(gameId, playerId, propertyName, {
@@ -206,7 +212,11 @@ export async function unmortgageProperty(
   });
 
   // Charge player the unmortgage cost (mortgage value + 10%)
-  await updatePlayerBalance(gameId, playerId, -unmortgageCost);
+  if (typeof newBalance === 'number') {
+    await updatePlayerBalance(gameId, playerId, newBalance);
+  } else {
+    await updatePlayerBalance(gameId, playerId, -unmortgageCost);
+  }
 
   await logEvent(gameId, {
     type: 'property',

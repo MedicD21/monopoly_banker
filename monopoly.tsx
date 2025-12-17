@@ -943,7 +943,8 @@ export default function DigitalBanker({
         gameId,
         playerId,
         propertyName,
-        mortgageValue
+        mortgageValue,
+        newBalance
       );
     }
   };
@@ -996,7 +997,8 @@ export default function DigitalBanker({
         gameId,
         playerId,
         propertyName,
-        unmortgageCost
+        unmortgageCost,
+        newBalance
       );
     }
   };

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Check, X } from "lucide-react";
 import { GAME_PIECES, PLAYER_COLORS } from "../types/game";
+import { PROPERTIES, BOARD_SPACES } from "../constants/monopolyData";
 
 interface Player {
   id: string;
@@ -36,6 +37,8 @@ export default function LobbyScreen({
   const [name, setName] = useState("");
   const [selectedPiece, setSelectedPiece] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
+  const [secretCounter, setSecretCounter] = useState(0);
+  const secretTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
   // Allow solo starts (single-player host)
@@ -61,6 +64,113 @@ export default function LobbyScreen({
     // Small delay to ensure Firebase has updated
     await new Promise((resolve) => setTimeout(resolve, 300));
     await onToggleReady();
+  };
+
+  const applyClassicMonopolyNames = () => {
+    const classicNames = [
+      "Mediterranean Ave",
+      "Baltic Ave",
+      "Oriental Ave",
+      "Vermont Ave",
+      "Connecticut Ave",
+      "St. Charles Place",
+      "States Ave",
+      "Virginia Ave",
+      "St. James Place",
+      "Tennessee Ave",
+      "New York Ave",
+      "Kentucky Ave",
+      "Indiana Ave",
+      "Illinois Ave",
+      "Atlantic Ave",
+      "Ventnor Ave",
+      "Marvin Gardens",
+      "Pacific Ave",
+      "North Carolina Ave",
+      "Pennsylvania Ave",
+      "Park Place",
+      "Boardwalk",
+      "Reading Railroad",
+      "Pennsylvania Railroad",
+      "B&O Railroad",
+      "Short Line",
+      "Electric Company",
+      "Water Works",
+    ];
+
+    // Map through PROPERTIES in order and assign classic names
+    PROPERTIES.forEach((prop, idx) => {
+      if (classicNames[idx]) {
+        prop.name = classicNames[idx];
+      }
+    });
+
+    const classicBoard = [
+      "GO",
+      "Mediterranean Ave",
+      "Community Chest",
+      "Baltic Ave",
+      "Income Tax",
+      "Reading Railroad",
+      "Oriental Ave",
+      "Chance",
+      "Vermont Ave",
+      "Connecticut Ave",
+      "Just Visiting / Jail",
+      "St. Charles Place",
+      "Electric Company",
+      "States Ave",
+      "Virginia Ave",
+      "Pennsylvania Railroad",
+      "St. James Place",
+      "Community Chest",
+      "Tennessee Ave",
+      "New York Ave",
+      "Free Parking",
+      "Kentucky Ave",
+      "Chance",
+      "Indiana Ave",
+      "Illinois Ave",
+      "B&O Railroad",
+      "Atlantic Ave",
+      "Ventnor Ave",
+      "Water Works",
+      "Marvin Gardens",
+      "Go To Jail",
+      "Pacific Ave",
+      "North Carolina Ave",
+      "Community Chest",
+      "Pennsylvania Ave",
+      "Short Line",
+      "Chance",
+      "Park Place",
+      "Luxury Tax",
+      "Boardwalk",
+    ];
+
+    BOARD_SPACES.splice(0, BOARD_SPACES.length, ...classicBoard);
+    alert("Classic Monopoly property names unlocked!");
+  };
+
+  const handleSecretTap = (player: Player) => {
+    if (!player.isHost) return;
+
+    if (secretTimerRef.current) {
+      clearTimeout(secretTimerRef.current);
+    }
+
+    setSecretCounter((prev) => {
+      const next = prev + 1;
+      if (next >= 10) {
+        applyClassicMonopolyNames();
+        return 0;
+      }
+      return next;
+    });
+
+    secretTimerRef.current = setTimeout(() => {
+      setSecretCounter(0);
+    }, 1500);
   };
 
   return (
@@ -235,6 +345,7 @@ export default function LobbyScreen({
                     {player.pieceId && piece && piece.icon ? (
                       <div
                         className={`w-12 h-12 ${player.color} rounded flex items-center justify-center p-1`}
+                        onClick={() => handleSecretTap(player)}
                       >
                         <img
                           src={piece.icon}

@@ -63,11 +63,11 @@ const BankerPrimaryActions: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* Teller Pays / Roll Dice */}
-      <div className="flex gap-1 flex-1 mb-2 flex-wrap justify-center w-full">
+      {/* Teller Pays above Roll Dice */}
+      <div className="w-full mb-1">
         <button
           onClick={onTellerPays}
-          className="flex-1 bg-amber-300 hover:bg-amber-200 text-black text-lg drop-shadow-[0_0_10px_amber] rounded-3xl font-bold transition-colors flex items-center justify-center"
+          className="w-full bg-amber-300 hover:bg-amber-200 text-black text-lg drop-shadow-[0_0_10px_amber] rounded-3xl font-bold transition-colors flex items-center justify-center mb-2"
         >
           <img
             src="/images/Banker.svg"
@@ -77,7 +77,7 @@ const BankerPrimaryActions: React.FC<Props> = ({
           Teller Pays
         </button>
 
-        <div className="flex gap-2 flex-1">
+        <div className="w-full">
           <button
             onClick={onRoll}
             disabled={diceRolling}
