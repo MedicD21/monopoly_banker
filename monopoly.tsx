@@ -16,7 +16,6 @@ import PlayerCard from "./src/components/PlayerCard";
 import ProFeaturesRow from "./src/components/ProFeaturesRow";
 import BankerHeader from "./src/components/BankerHeader";
 import BankerPrimaryActions from "./src/components/BankerPrimaryActions";
-import DiceSection from "./src/components/DiceSection";
 import BuildingCounter from "./src/components/BuildingCounter";
 import AuctionSelectorModal from "./src/components/AuctionSelectorModal";
 import BuyPropertyModal from "./src/components/BuyPropertyModal";
@@ -287,7 +286,6 @@ export default function DigitalBanker({
   const [showToast, setShowToast] = useState(false);
   const [gameHistory, setGameHistory] = useState<HistoryEntry[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [historyButtonX, setHistoryButtonX] = useState<number | null>(null);
   const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
   const [ignoredTradeId, setIgnoredTradeId] = useState<string | null>(null);
   const [executingTrade, setExecutingTrade] = useState(false);
@@ -455,9 +453,16 @@ export default function DigitalBanker({
   ): Promise<RollResult | null> => {
     const playerIdToUse =
       overridePlayerId ?? (isMultiplayer ? firebasePlayerId : currentPlayerId);
+    if (playerIdToUse === null || playerIdToUse === undefined) {
+      showError("Please select which player you are first");
+      return null;
+    }
     const rollingPlayer = players.find((p) => p.id === playerIdToUse);
 
-    if (!rollingPlayer) return null;
+    if (!rollingPlayer) {
+      showError("Player not found for this roll");
+      return null;
+    }
 
     const speedDieEnabled = gameConfig?.speedDie || false;
 
@@ -1296,7 +1301,9 @@ export default function DigitalBanker({
 
     const player = players.find((p) => p.id === playerId);
     if (player) {
-      const message = `${player.name} passed GO and collected $${passGoAmountToUse.toLocaleString()}`;
+      const message = `${
+        player.name
+      } passed GO and collected $${passGoAmountToUse.toLocaleString()}`;
       showToastMessage(message);
       addHistoryEntry("passGo", message, player.name);
     }
@@ -1318,7 +1325,9 @@ export default function DigitalBanker({
 
     const player = players.find((p) => p.id === playerId);
     if (player) {
-      const message = `🎉 ${player.name} landed on GO! Double bonus: $${amount.toLocaleString()}`;
+      const message = `🎉 ${
+        player.name
+      } landed on GO! Double bonus: $${amount.toLocaleString()}`;
       showToastMessage(message);
       addHistoryEntry("passGo", message, player.name);
     }
@@ -2211,6 +2220,7 @@ export default function DigitalBanker({
         <div className="relative bg-zinc-900 rounded-lg pb-0 mb-2 border border-amber-500 overflow-shown shadow-lg drop-shadow-[0_0_10px_white] ">
           <BankerHeader
             onResetClick={() => setShowResetModal(true)}
+            onHistoryClick={() => setShowHistoryModal(true)}
             isMultiplayer={isMultiplayer}
             roomCode={gameCode}
             activePlayerName={activePlayer?.name}
@@ -2225,7 +2235,9 @@ export default function DigitalBanker({
             }
             freeParkingBalance={freeParkingBalance}
             onClaimFreeParking={handleClaimFreeParking}
-            showAuction={gameConfig?.auctionProperties !== false || !isMultiplayer}
+            showAuction={
+              gameConfig?.auctionProperties !== false || !isMultiplayer
+            }
             onOpenAuctionSelector={() => setShowAuctionSelector(true)}
             doubleGoOnLanding={!!gameConfig?.doubleGoOnLanding}
             passGoAmount={gameConfig?.passGoAmount || PASS_GO_AMOUNT}
@@ -2259,16 +2271,10 @@ export default function DigitalBanker({
               }
               setShowBuyProperty(true);
             }}
-          />
-        </div>
-
-        {/* Banker Action Buttons */}
-        <div className="flex items-center gap-2 mb-2 mt-5 flex-wrap justify-center">
-          <DiceSection
-            lastRoll={lastRoll}
-            diceRolling={diceRolling}
-            showOverlay={(showDice || diceRolling) && !!lastRoll}
             onRoll={() => rollDice()}
+            diceRolling={diceRolling}
+            lastRoll={lastRoll}
+            showOverlay={(showDice || diceRolling) && !!lastRoll}
           />
         </div>
 
@@ -2632,69 +2638,6 @@ export default function DigitalBanker({
             </div>
           )}
 
-        {/* History Button - Fixed at bottom */}
-        {(() => {
-          const historyStyle =
-            historyButtonX === null
-              ? { left: "50%", transform: "translateX(-50%)" }
-              : { left: `${historyButtonX}px` };
-          const clamp = (val: number, min: number, max: number) =>
-            Math.min(Math.max(val, min), max);
-          const startDrag = (
-            clientX: number,
-            button: HTMLButtonElement | null
-          ) => {
-            const parent = button?.parentElement as HTMLElement | null;
-            if (!parent) return;
-            const rect = parent.getBoundingClientRect();
-            const startLeft =
-              historyButtonX === null ? rect.left : historyButtonX;
-            const min = 8;
-            const max = window.innerWidth - rect.width - 8;
-
-            const onMove = (x: number) => {
-              const next = clamp(startLeft + (x - clientX), min, max);
-              setHistoryButtonX(next);
-            };
-
-            const onMouseMove = (e: MouseEvent) => onMove(e.clientX);
-            const onMouseUp = () => {
-              window.removeEventListener("mousemove", onMouseMove);
-              window.removeEventListener("mouseup", onMouseUp);
-            };
-
-            const onTouchMove = (e: TouchEvent) => onMove(e.touches[0].clientX);
-            const onTouchEnd = () => {
-              window.removeEventListener("touchmove", onTouchMove);
-              window.removeEventListener("touchend", onTouchEnd);
-            };
-
-            window.addEventListener("mousemove", onMouseMove);
-            window.addEventListener("mouseup", onMouseUp);
-            window.addEventListener("touchmove", onTouchMove, { passive: false });
-            window.addEventListener("touchend", onTouchEnd);
-          };
-
-          return (
-            <div
-              className="fixed bottom-4 z-40 select-none"
-              style={historyStyle}
-            >
-              <button
-                onMouseDown={(e) => startDrag(e.clientX, e.currentTarget)}
-                onTouchStart={(e) =>
-                  startDrag(e.touches[0]?.clientX, e.currentTarget)
-                }
-                onClick={() => setShowHistoryModal(true)}
-                className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg transition-all transform hover:scale-105 flex items-center gap-2 border-2 border-amber-400 cursor-grab active:cursor-grabbing"
-              >
-                <Clock className="w-5 h-5" />
-                History
-              </button>
-            </div>
-          );
-        })()}
-
         <AuctionSelectorModal
           isOpen={showAuctionSelector}
           properties={PROPERTIES.filter(
@@ -2827,11 +2770,11 @@ export default function DigitalBanker({
 
         {/* Trade Offer Modal */}
         {tradeOffer && (
-        <TradeOfferModal
-          isOpen={true}
-          tradeOffer={tradeOffer}
-          fromPlayer={
-            players.find((p) => p.id === tradeOffer.fromPlayerId) ||
+          <TradeOfferModal
+            isOpen={true}
+            tradeOffer={tradeOffer}
+            fromPlayer={
+              players.find((p) => p.id === tradeOffer.fromPlayerId) ||
               players[0]
             }
             toPlayer={
@@ -2839,38 +2782,38 @@ export default function DigitalBanker({
             }
             currentPlayerId={isMultiplayer ? firebasePlayerId : currentPlayerId}
             onAccept={handleAcceptTrade}
-          onReject={handleRejectTrade}
-          onCounterOffer={handleCounterOffer}
+            onReject={handleRejectTrade}
+            onCounterOffer={handleCounterOffer}
+          />
+        )}
+
+        <AuctionModal
+          isOpen={showAuctionModal && !!auctionProperty}
+          onClose={() => {
+            setShowAuctionModal(false);
+            setAuctionState(null);
+            setAuctionProperty(null);
+          }}
+          propertyName={auctionProperty?.name || ""}
+          propertyPrice={auctionProperty?.price || 0}
+          players={players.map((p) => ({
+            id: p.id,
+            name: p.name,
+            balance: p.balance,
+          }))}
+          bids={auctionState?.bids || []}
+          dropouts={auctionState?.dropouts || []}
+          currentPlayerId={isMultiplayer ? firebasePlayerId : currentPlayerId}
+          onPlaceBid={handlePlaceAuctionBid}
+          onAuctionComplete={handleAuctionComplete}
+          onDropOut={handleDropOutAuction}
         />
-      )}
 
-      <AuctionModal
-        isOpen={showAuctionModal && !!auctionProperty}
-        onClose={() => {
-          setShowAuctionModal(false);
-          setAuctionState(null);
-          setAuctionProperty(null);
-        }}
-        propertyName={auctionProperty?.name || ""}
-        propertyPrice={auctionProperty?.price || 0}
-        players={players.map((p) => ({
-          id: p.id,
-          name: p.name,
-          balance: p.balance,
-        }))}
-        bids={auctionState?.bids || []}
-        dropouts={auctionState?.dropouts || []}
-        currentPlayerId={isMultiplayer ? firebasePlayerId : currentPlayerId}
-        onPlaceBid={handlePlaceAuctionBid}
-        onAuctionComplete={handleAuctionComplete}
-        onDropOut={handleDropOutAuction}
-      />
-
-      {/* History Modal */}
-      <HistoryModal
-        isOpen={showHistoryModal}
-        onClose={() => setShowHistoryModal(false)}
-        history={gameHistory}
+        {/* History Modal */}
+        <HistoryModal
+          isOpen={showHistoryModal}
+          onClose={() => setShowHistoryModal(false)}
+          history={gameHistory}
         />
       </div>
     </div>

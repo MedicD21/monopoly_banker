@@ -15,7 +15,7 @@ Complete checklist for submitting Digital Banker to the Apple App Store and Goog
 
 ### 2. In-App Purchase Setup
 - [ ] RevenueCat account created
-- [ ] iOS product created in App Store Connect (`digital_banker_pro`)
+- [ ] iOS product created in App Store Connect (`digital_banker_pro_v2`)
 - [ ] Android product created in Google Play Console (if publishing to Android)
 - [ ] RevenueCat entitlements configured (`pro` entitlement)
 - [ ] RevenueCat API keys added to `.env` file

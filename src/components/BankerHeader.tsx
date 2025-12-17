@@ -1,8 +1,9 @@
 import React from "react";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Clock } from "lucide-react";
 
 type Props = {
   onResetClick: () => void;
+  onHistoryClick: () => void;
   isMultiplayer: boolean;
   roomCode?: string;
   activePlayerName?: string;
@@ -10,6 +11,7 @@ type Props = {
 
 const BankerHeader: React.FC<Props> = ({
   onResetClick,
+  onHistoryClick,
   isMultiplayer,
   roomCode,
   activePlayerName,
@@ -22,18 +24,28 @@ const BankerHeader: React.FC<Props> = ({
             DIGITAL BANKER
           </h1>
         </div>
-        <button
-          onClick={onResetClick}
-          className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/100 text-amber-400"
-        >
-          <RotateCcw className="w-4 h-4" />
-          Reset
-        </button>
+        <div className="flex items-center gap-2 mt-2">
+          <button
+            onClick={onResetClick}
+            className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/100 text-amber-400"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset
+          </button>
+          <button
+            onClick={onHistoryClick}
+            className="bg-amber-600 hover:bg-amber-500 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-400 text-black"
+          >
+            <Clock className="w-4 h-4" />
+            History
+          </button>
+        </div>
       </div>
 
       {isMultiplayer && roomCode && (
-        <div className="text-center text-xs text-amber-600 mb-2">
-          Room Code: <span className="font-bold text-amber-500">{roomCode}</span>
+        <div className="text-center text-xs text-amber-600 mb-2 mt-1">
+          Room Code:{" "}
+          <span className="font-bold text-amber-500">{roomCode}</span>
         </div>
       )}
       {!isMultiplayer && activePlayerName && (

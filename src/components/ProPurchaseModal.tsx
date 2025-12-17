@@ -25,20 +25,22 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             offerings.current.availablePackages.length > 0
           ) {
             const proPackage = offerings.current.availablePackages.find(
-              (pkg) => pkg.product.identifier === "digital_banker_pro"
+              (pkg) => pkg.product.identifier === "digital_banker_pro_v2"
             );
 
             if (proPackage?.product.priceString) {
-            setPriceString(proPackage.product.priceString);
+              setPriceString(proPackage.product.priceString);
             } else {
-            console.warn("digital_banker_pro package not found in current offerings");
-                // Keep default priceString ($1.99)
+              console.warn(
+                "digital_banker_pro_v2 package not found in current offerings"
+              );
+              // Keep default priceString ($1.99)
             }
           }
         } catch (error) {
           console.error("Error fetching price:", error);
           // Keep default $1.99 if fetch fails
-        } 
+        }
       }
     };
 

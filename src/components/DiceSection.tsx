@@ -14,6 +14,7 @@ type Props = {
   diceRolling: boolean;
   showOverlay: boolean;
   onRoll: () => void;
+  compact?: boolean;
 };
 
 const DiceIcon = ({ value }: { value: number }) => {
@@ -27,14 +28,19 @@ const DiceSection: React.FC<Props> = ({
   diceRolling,
   showOverlay,
   onRoll,
+  compact = false,
 }) => {
+  const containerClass = compact
+    ? "flex-1"
+    : "w-full border-t border-green-900 -mt-8";
+
   return (
     <>
-      <div className="w-full border-t border-green-900 -mt-8">
+      <div className={containerClass}>
         <button
           onClick={onRoll}
           disabled={diceRolling}
-          className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-lg  font-bold text-lg transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-2"
         >
           <Dice1 className="w-6 h-6" />
           {diceRolling ? "Rolling..." : "Roll Dice"}
@@ -58,7 +64,7 @@ const DiceSection: React.FC<Props> = ({
                   return (
                     <DiceIconComponent
                       key={idx}
-                      className={`w-10 h-10  ${
+                      className={`w-10 h-10 ${
                         idx === 2 ? "text-blue-400" : "text-amber-400"
                       }`}
                     />

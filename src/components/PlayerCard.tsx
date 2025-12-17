@@ -20,7 +20,6 @@ type PlayerCardProps = {
   onPayRent: (landlordId: string | number) => void;
   onPayCustom: (toPlayerId: string | number) => void;
   onOpenPayModal: () => void;
-  onReceive: (playerId: string | number) => void;
   onOpenTrade: () => void;
   onOpenTax: () => void;
   onManageProperty: (propertyName: string) => void;
@@ -32,7 +31,6 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   onPayRent,
   onPayCustom,
   onOpenPayModal,
-  onReceive,
   onOpenTrade,
   onOpenTax,
   onManageProperty,
@@ -48,7 +46,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
   return (
     <div
-      className={`bg-zinc-900 rounded-lg p-4 border-2 transition-all flex flex-col gap-3 ${
+      className={`relative bg-zinc-900 rounded-lg p-4 border-2 transition-all flex flex-col gap-3 ${
         isCurrentUser ? "border-amber-600" : "border-amber-900/30"
       }`}
     >
@@ -80,12 +78,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {isCurrentUser && (
-            <div className="px-4 py-2 rounded font-bold bg-amber-600 text-black">
-              You
-            </div>
-          )}
+        <div>
           {!isCurrentUser && (
             <div className="grid grid-cols-2 gap-2 w-full max-w-xs sm:w-60 ml-auto bg-zinc-800/70 rounded-lg p-2 border border-amber-900/30">
               <button
@@ -123,16 +116,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
           </button>
 
           <button
-            onClick={() => onReceive(player.id)}
-            className="w-auto h-11 bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
-          >
-            <img src="/images/Bank.svg" alt="Bank" className="w-full h-12" />
-            Receive
-          </button>
-
-          <button
             onClick={onOpenTrade}
-            className="w-auto h-11 bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+            className="w-auto h-11 bg-blue-400 hover:bg-blue-400 text-black px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
           >
             <img src="/images/Trade.svg" alt="Trade" className="w-auto h-12" />
             Trade
@@ -140,7 +125,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
           <button
             onClick={onOpenTax}
-            className="w-auto h-11 bg-red-700 hover:bg-red-600 content-center text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
+            className="w-auto h-11 bg-amber-300 hover:bg-amber-600 content-center text-black px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
           >
             <img
               src="/images/Luxury_Tax.svg"
@@ -157,6 +142,11 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         isCurrentUser={isCurrentUser}
         onManage={onManageProperty}
       />
+      {isCurrentUser && (
+        <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-amber-600 text-black font-bold text-xs">
+          You
+        </div>
+      )}
     </div>
   );
 };

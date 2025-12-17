@@ -50,14 +50,14 @@ In the lobby, you should see these sections (in order):
 **Option B: Use Console**
 1. Open browser DevTools (F12)
 2. Go to Console tab
-3. Run: `localStorage.setItem('digital_banker_pro', 'true')`
+3. Run: `localStorage.setItem('digital_banker_pro_v2', 'true')`
 4. Refresh the page
 5. Pro features should now be unlocked
 
 ### 7. How to Disable Pro
 In browser console:
 ```javascript
-localStorage.removeItem('digital_banker_pro')
+localStorage.removeItem('digital_banker_pro_v2')
 ```
 Then refresh.
 

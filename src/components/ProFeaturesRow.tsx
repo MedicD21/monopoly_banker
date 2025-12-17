@@ -69,7 +69,7 @@ const ProFeaturesRow: React.FC<ProFeaturesRowProps> = ({
               LAND ON GO BONUS
             </div>
             <div className="text-sm text-amber-200 mt-1 mb-2">
-              Award double payout for landing directly on GO ($
+              ($
               {(passGoAmount * 2).toLocaleString()})
             </div>
             <button

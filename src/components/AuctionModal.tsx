@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Gavel, UserMinus } from "lucide-react";
 import { AuctionBid } from "../types/game";
+import NumberPadModal from "./NumberPadModal";
 
 interface AuctionModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export default function AuctionModal({
   >(players[0]?.id);
   const [countdown, setCountdown] = useState(30);
   const hasCompletedRef = useRef(false);
+  const [showBidPad, setShowBidPad] = useState(false);
 
   const hasDropped = (playerId: string | number | undefined | null) =>
     dropouts.some((d) => String(d) === String(playerId ?? ""));
@@ -135,8 +137,9 @@ export default function AuctionModal({
       : false;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 rounded-lg p-6 max-w-md w-full border-2 border-amber-600">
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div className="bg-zinc-900 rounded-lg p-6 max-w-md w-full border-2 border-amber-600">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Gavel className="w-6 h-6 text-amber-400" />
@@ -209,11 +212,12 @@ export default function AuctionModal({
             Bid Amount
           </label>
           <input
-            type="number"
+            type="text"
             value={bidAmount}
-            onChange={(e) => setBidAmount(e.target.value)}
-            className="w-full bg-zinc-800 border border-amber-600 text-amber-50 rounded px-3 py-2 mb-3"
-            placeholder="Enter bid amount"
+            readOnly
+            onClick={() => setShowBidPad(true)}
+            className="w-full bg-zinc-800 border border-amber-600 text-amber-50 rounded px-3 py-2 mb-3 cursor-pointer"
+            placeholder="Tap to enter bid amount"
           />
 
           {/* Quick Bid Buttons */}
@@ -293,19 +297,27 @@ export default function AuctionModal({
         )}
 
         {/* Manual End Auction Button */}
-        <button
-          onClick={() => {
-            if (!hasCompletedRef.current) {
-              hasCompletedRef.current = true;
-              onAuctionComplete();
-            }
-          }}
-          disabled={bids.length === 0}
-          className="w-full mt-3 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-2 rounded transition-colors"
-        >
-          End Auction Now
-        </button>
+          <button
+            onClick={() => {
+              if (!hasCompletedRef.current) {
+                hasCompletedRef.current = true;
+                onAuctionComplete();
+              }
+            }}
+            disabled={bids.length === 0}
+            className="w-full mt-3 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-2 rounded transition-colors"
+          >
+            End Auction Now
+          </button>
+        </div>
       </div>
-    </div>
+      <NumberPadModal
+        isOpen={showBidPad}
+        onClose={() => setShowBidPad(false)}
+        onConfirm={(val) => setBidAmount(String(val))}
+        title="Bid Amount"
+        initialValue={bidAmount}
+      />
+    </>
   );
 }

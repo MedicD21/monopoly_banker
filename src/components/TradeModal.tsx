@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { GAME_PIECES } from '../types/game';
+import NumberPadModal from './NumberPadModal';
 
 interface Property {
   name: string;
@@ -45,6 +46,8 @@ export default function TradeModal({
   const [requestMoney, setRequestMoney] = useState('0');
   const [offerProperties, setOfferProperties] = useState<string[]>([]);
   const [requestProperties, setRequestProperties] = useState<string[]>([]);
+  const [showOfferPad, setShowOfferPad] = useState(false);
+  const [showRequestPad, setShowRequestPad] = useState(false);
 
   if (!isOpen) return null;
 
@@ -103,14 +106,15 @@ export default function TradeModal({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80 p-4">
-      <div className="bg-zinc-900 border border-amber-900/30 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-amber-400">Propose Trade</h3>
-          <button onClick={onClose} className="text-amber-400 hover:text-amber-300">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
+    <>
+      <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80 p-4">
+        <div className="bg-zinc-900 border border-amber-900/30 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-amber-400">Propose Trade</h3>
+            <button onClick={onClose} className="text-amber-400 hover:text-amber-300">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
 
         {!selectedPlayer ? (
           <div>
@@ -165,12 +169,11 @@ export default function TradeModal({
                 <div className="mb-3">
                   <label className="text-amber-100 text-sm mb-1 block">Money</label>
                   <input
-                    type="number"
+                    type="text"
                     value={offerMoney}
-                    onChange={(e) => setOfferMoney(e.target.value)}
-                    className="w-full bg-zinc-900 text-amber-50 border border-amber-900/30 rounded px-3 py-2"
-                    min="0"
-                    max={currentPlayer.balance}
+                    onClick={() => setShowOfferPad(true)}
+                    readOnly
+                    className="w-full bg-zinc-900 text-amber-50 border border-amber-900/30 rounded px-3 py-2 cursor-pointer"
                   />
                   <p className="text-xs text-amber-600 mt-1">Available: ${currentPlayer.balance.toLocaleString()}</p>
                 </div>
@@ -213,12 +216,11 @@ export default function TradeModal({
                 <div className="mb-3">
                   <label className="text-amber-100 text-sm mb-1 block">Money</label>
                   <input
-                    type="number"
+                    type="text"
                     value={requestMoney}
-                    onChange={(e) => setRequestMoney(e.target.value)}
-                    className="w-full bg-zinc-900 text-amber-50 border border-amber-900/30 rounded px-3 py-2"
-                    min="0"
-                    max={selectedOpponent?.balance || 0}
+                    onClick={() => setShowRequestPad(true)}
+                    readOnly
+                    className="w-full bg-zinc-900 text-amber-50 border border-amber-900/30 rounded px-3 py-2 cursor-pointer"
                   />
                   <p className="text-xs text-amber-600 mt-1">They have: ${selectedOpponent?.balance.toLocaleString()}</p>
                 </div>
@@ -276,7 +278,22 @@ export default function TradeModal({
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+      <NumberPadModal
+        isOpen={showOfferPad}
+        onClose={() => setShowOfferPad(false)}
+        onConfirm={(val) => setOfferMoney(String(val))}
+        title="Offer Money"
+        initialValue={offerMoney}
+      />
+      <NumberPadModal
+        isOpen={showRequestPad}
+        onClose={() => setShowRequestPad(false)}
+        onConfirm={(val) => setRequestMoney(String(val))}
+        title="Request Money"
+        initialValue={requestMoney}
+      />
+    </>
   );
 }

@@ -17,7 +17,7 @@ This app uses RevenueCat for in-app purchases. Follow these steps to configure I
 4. Click **+** to create a new in-app purchase
    - **Type**: Non-Consumable (one-time purchase)
    - **Reference Name**: Digital Banker Pro
-   - **Product ID**: `digital_banker_pro`
+   - **Product ID**: `digital_banker_pro_v2`
    - **Price**: Set your price (e.g., $4.99)
    - **Localization**: Add display name and description
 5. Submit for review (required before testing)
@@ -43,7 +43,7 @@ This app uses RevenueCat for in-app purchases. Follow these steps to configure I
 2. Create your app if not already created
 3. Go to **Monetize** > **Products** > **In-app products**
 4. Create a new product:
-   - **Product ID**: `digital_banker_pro`
+   - **Product ID**: `digital_banker_pro_v2`
    - **Name**: Digital Banker Pro
    - **Description**: Unlock Pro features
    - **Price**: Set your price
@@ -71,7 +71,7 @@ This app uses RevenueCat for in-app purchases. Follow these steps to configure I
    - **Display Name**: Pro Features
 4. Click on the entitlement and attach the product:
    - Click **Attach Product**
-   - Select `digital_banker_pro`
+   - Select `digital_banker_pro_v2`
 
 ## 5. Configure Offering
 
@@ -79,7 +79,7 @@ This app uses RevenueCat for in-app purchases. Follow these steps to configure I
 2. The **Default Offering** should already exist
 3. Click on it and add a package:
    - **Identifier**: `pro_package`
-   - **Product**: `digital_banker_pro`
+   - **Product**: `digital_banker_pro_v2`
    - **Type**: Lifetime (one-time purchase)
 
 ## 6. Add API Keys to Your App
@@ -124,7 +124,7 @@ Before App Store submission:
 
 ## 9. Important Notes
 
-- **Product ID** must match exactly: `digital_banker_pro`
+- **Product ID** must match exactly: `digital_banker_pro_v2`
 - **Entitlement ID** must match exactly: `pro`
 - RevenueCat handles receipt validation automatically
 - Purchases are tied to Apple ID / Google account, not device

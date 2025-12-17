@@ -21,7 +21,7 @@ const REVENUECAT_API_KEY_IOS =
 const REVENUECAT_API_KEY_ANDROID =
   import.meta.env.VITE_REVENUECAT_ANDROID_KEY || "your_android_key_here";
 const PRO_ENTITLEMENT_ID = "pro"; // RevenueCat entitlement ID
-const PRO_PRODUCT_ID = "digital_banker_pro"; // Product ID in App Store/Play Store
+const PRO_PRODUCT_ID = "digital_banker_pro_v2"; // Product ID in App Store/Play Store
 
 export function ProProvider({ children }: { children: React.ReactNode }) {
   const [isPro, setIsPro] = useState(false);
@@ -69,7 +69,7 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
         await checkProStatus();
       } else {
         // Web platform - use localStorage for testing
-        const proStatus = localStorage.getItem("digital_banker_pro");
+        const proStatus = localStorage.getItem("digital_banker_pro_v2");
         setIsPro(proStatus === "true");
         setIsLoading(false);
       }
@@ -92,7 +92,7 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
         setIsPro(hasPro);
       } else {
         // Web fallback
-        const proStatus = localStorage.getItem("digital_banker_pro");
+        const proStatus = localStorage.getItem("digital_banker_pro_v2");
         setIsPro(proStatus === "true");
       }
     } catch (error) {
@@ -171,7 +171,7 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Web fallback - simulate purchase for testing
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        localStorage.setItem("digital_banker_pro", "true");
+        localStorage.setItem("digital_banker_pro_v2", "true");
         setIsPro(true);
         return true;
       }
@@ -236,7 +236,7 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
         return hasPro;
       } else {
         // Web fallback
-        const proStatus = localStorage.getItem("digital_banker_pro");
+        const proStatus = localStorage.getItem("digital_banker_pro_v2");
         if (proStatus === "true") {
           setIsPro(true);
           return true;

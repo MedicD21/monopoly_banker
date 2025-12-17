@@ -161,12 +161,12 @@ Follow the guide in `REVENUECAT_SETUP.md`:
 2. Configure iOS product in App Store Connect
 3. Link RevenueCat to App Store Connect
 4. Create entitlement named `pro`
-5. Create offering with product `digital_banker_pro`
+5. Create offering with product `digital_banker_pro_v2`
 6. Add API keys to `.env`
 
 ### 3. App Store Connect
 1. Create app listing
-2. Create in-app purchase product: `digital_banker_pro`
+2. Create in-app purchase product: `digital_banker_pro_v2`
 3. Submit IAP for approval (do this first!)
 4. Fill out all app information
 5. Upload build from Xcode
