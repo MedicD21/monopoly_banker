@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   DollarSign,
   Dice1,
@@ -655,6 +655,11 @@ export default function DigitalBanker({
     card?: Card;
     playerId?: string | number;
   }>({ open: false });
+  const ignoredTradeIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    ignoredTradeIdRef.current = ignoredTradeId;
+  }, [ignoredTradeId]);
   const getSpaceName = (index: number) =>
     BOARD_SPACES[index] || `Space ${index}`;
   // const [turnToast, setTurnToast] = useState<string | null>(null); // Unused
@@ -706,10 +711,19 @@ export default function DigitalBanker({
         setShowAuctionModal(false);
         setAuctionProperty(null);
       }
-      // Sync trade offers across all players
-      if (gameData.tradeOffer) {
-        if (!(ignoredTradeId && gameData.tradeOffer.id === ignoredTradeId)) {
-          setTradeOffer(gameData.tradeOffer);
+      // Sync trade offers across all players (only show pending, suppress ignored/accepted)
+      const incomingOffer = gameData.tradeOffer;
+      if (incomingOffer) {
+        if (incomingOffer.status && incomingOffer.status !== "pending") {
+          setTradeOffer(null);
+          setIgnoredTradeId(incomingOffer.id);
+        } else if (
+          ignoredTradeIdRef.current &&
+          incomingOffer.id === ignoredTradeIdRef.current
+        ) {
+          setTradeOffer(null);
+        } else {
+          setTradeOffer(incomingOffer);
         }
       } else {
         setTradeOffer(null);
@@ -1054,7 +1068,12 @@ export default function DigitalBanker({
     }
   };
 
-  const transferMoney = async (fromId, toId, amount) => {
+  const transferMoney = async (
+    fromId,
+    toId,
+    amount,
+    options?: { suppressHistory?: boolean }
+  ) => {
     const amt = parseInt(amount);
 
     // Validation
@@ -1099,18 +1118,20 @@ export default function DigitalBanker({
       await transferMoneyFirebase(gameId, fromId, toId, amt);
     }
 
-    // Add to history
-    addHistoryEntry(
-      "transaction",
-      `${fromPlayer.name} paid ${toPlayer.name} $${amt.toLocaleString()}`,
-      fromPlayer.name
-    );
+    if (!options?.suppressHistory) {
+      // Add to history
+      addHistoryEntry(
+        "transaction",
+        `${fromPlayer.name} paid ${toPlayer.name} $${amt.toLocaleString()}`,
+        fromPlayer.name
+      );
 
-    setTransactionMode(null);
-    setRentMode(null);
-    setTransactionAmount("");
-    setSelectedPlayer(null);
-    setUtilityDiceRoll("");
+      setTransactionMode(null);
+      setRentMode(null);
+      setTransactionAmount("");
+      setSelectedPlayer(null);
+      setUtilityDiceRoll("");
+    }
   };
 
   const buyProperty = async (playerId, property) => {
@@ -1624,19 +1645,34 @@ export default function DigitalBanker({
   };
 
   const passGo = (playerId) => {
-    const doubleGoEnabled = gameConfig?.doubleGoOnLanding || false;
     const passGoAmountToUse = gameConfig?.passGoAmount || PASS_GO_AMOUNT;
-    const amount = doubleGoEnabled ? passGoAmountToUse * 2 : passGoAmountToUse;
+    updateBalance(playerId, passGoAmountToUse);
+
+    const player = players.find((p) => p.id === playerId);
+    if (player) {
+      const message = `${player.name} passed GO and collected $${passGoAmountToUse.toLocaleString()}`;
+      showToastMessage(message);
+      addHistoryEntry("passGo", message, player.name);
+    }
+  };
+
+  const handleLandOnGoBonus = () => {
+    const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+    if (playerIdToUse === null) {
+      showError("Please select which player you are first");
+      return;
+    }
+    landOnGoDouble(playerIdToUse);
+  };
+
+  const landOnGoDouble = (playerId) => {
+    const passGoAmountToUse = gameConfig?.passGoAmount || PASS_GO_AMOUNT;
+    const amount = passGoAmountToUse * 2;
     updateBalance(playerId, amount);
 
     const player = players.find((p) => p.id === playerId);
     if (player) {
-      const message = doubleGoEnabled
-        ? `🎉 ${
-            player.name
-          } landed on GO! Double bonus: $${amount.toLocaleString()}`
-        : `${player.name} passed GO and collected $${amount.toLocaleString()}`;
-
+      const message = `🎉 ${player.name} landed on GO! Double bonus: $${amount.toLocaleString()}`;
       showToastMessage(message);
       addHistoryEntry("passGo", message, player.name);
     }
@@ -1704,13 +1740,15 @@ export default function DigitalBanker({
         await transferMoney(
           toPlayerId,
           fromPlayerId,
-          Math.abs(netTransfer).toString()
+          Math.abs(netTransfer).toString(),
+          { suppressHistory: true }
         );
       } else if (netTransfer < 0) {
         await transferMoney(
           fromPlayerId,
           toPlayerId,
-          Math.abs(netTransfer).toString()
+          Math.abs(netTransfer).toString(),
+          { suppressHistory: true }
         );
       }
     }
@@ -1871,6 +1909,7 @@ export default function DigitalBanker({
       );
 
       // Clear the trade offer locally and remotely
+      await acceptTrade(gameId);
       await clearTrade(gameId);
     } finally {
       setExecutingTrade(false);
@@ -1888,6 +1927,7 @@ export default function DigitalBanker({
     setIgnoredTradeId(tradeOffer.id);
     setTradeOffer(null);
     if (gameId) {
+      await rejectTrade(gameId);
       await clearTrade(gameId);
     }
 
@@ -2603,6 +2643,36 @@ export default function DigitalBanker({
                   >
                     <Gavel className="w-4 h-4" />
                     Start Auction
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Land on GO double payout */}
+            {gameConfig?.doubleGoOnLanding && (
+              <div className="bg-amber-900/30 border-2 border-amber-600 drop-shadow-[0_0_10px_amber] rounded-3xl px-4 py-2">
+                <div className="text-center">
+                  <div className="text-xs text-amber-400 font-bold">
+                    LAND ON GO BONUS
+                  </div>
+                  <div className="text-sm text-amber-200 mt-1 mb-2">
+                    Award double payout for landing directly on GO (
+                    $
+                    {(
+                      (gameConfig?.passGoAmount || PASS_GO_AMOUNT) * 2
+                    ).toLocaleString()}
+                    )
+                  </div>
+                  <button
+                    onClick={handleLandOnGoBonus}
+                    className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-1 px-3 rounded text-xs transition-colors flex items-center gap-1 mx-auto"
+                  >
+                    <img
+                      src="/images/Go.svg"
+                      alt="GO"
+                      className="w-6 h-6 -ml-1"
+                    />
+                    Landed on GO
                   </button>
                 </div>
               </div>
