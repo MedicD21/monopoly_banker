@@ -24,6 +24,7 @@ export interface Player {
   doublesCount?: number; // Track consecutive doubles for jail rule
   isBankrupt?: boolean; // Track if player is bankrupt
   position?: number; // Board index for turn-based play
+  isPro?: boolean; // RevenueCat/Pro status
   inJail?: boolean;
   jailTurns?: number;
 }

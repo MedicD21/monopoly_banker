@@ -631,6 +631,7 @@ export default function DigitalBanker({
   const [transactionAmount, setTransactionAmount] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
+  const [sellingProperty, setSellingProperty] = useState(false);
   const [showDice, setShowDice] = useState(false);
   // const [rentMode, setRentMode] = useState(null); // Unused
   const [showBuyProperty, setShowBuyProperty] = useState(false);
@@ -1180,47 +1181,58 @@ export default function DigitalBanker({
   };
 
   const sellProperty = async (playerId, propertyName) => {
-    const property = PROPERTIES.find((p) => p.name === propertyName);
-    const player = players.find((p) => p.id === playerId);
-    if (!player) return;
-    const playerProp = player.properties.find(
-      (pr: any) => pr.name === propertyName
-    );
-    if (!playerProp) return;
-    const refund =
-      property.price +
-      playerProp.houses * HOUSE_COST +
-      (playerProp.hotel ? HOTEL_COST : 0);
+    if (sellingProperty) return;
+    setSellingProperty(true);
+    try {
+      const property = PROPERTIES.find((p) => p.name === propertyName);
+      const player = players.find((p) => p.id === playerId);
+      if (!player || !property) {
+        return;
+      }
+      const playerProp = player.properties.find(
+        (pr: any) => pr.name === propertyName
+      );
+      if (!playerProp) {
+        return;
+      }
+      const refund =
+        property.price +
+        playerProp.houses * HOUSE_COST +
+        (playerProp.hotel ? HOTEL_COST : 0);
 
-    const newBalance = player.balance + refund;
+      const newBalance = player.balance + refund;
 
-    // Update local state
-    setPlayers((prev) =>
-      prev.map((p) =>
-        p.id === playerId
-          ? {
-              ...p,
-              balance: newBalance,
-              properties: p.properties.filter(
-                (pr: any) => pr.name !== propertyName
-              ),
-            }
-          : p
-      )
-    );
+      // Update local state
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.id === playerId
+            ? {
+                ...p,
+                balance: newBalance,
+                properties: p.properties.filter(
+                  (pr: any) => pr.name !== propertyName
+                ),
+              }
+            : p
+        )
+      );
 
-    // Sync to Firebase in multiplayer mode
-    if (isMultiplayer && gameId) {
-      await updatePlayerBalance(gameId, playerId, newBalance);
-      await removePropertyFromPlayer(gameId, playerId, propertyName);
+      // Sync to Firebase in multiplayer mode
+      if (isMultiplayer && gameId) {
+        await updatePlayerBalance(gameId, playerId, newBalance);
+        await removePropertyFromPlayer(gameId, playerId, propertyName);
+      }
+
+      // Add to history
+      addHistoryEntry(
+        "property",
+        `${player.name} sold ${propertyName} for $${refund.toLocaleString()}`,
+        player.name
+      );
+      setSelectedProperty(null);
+    } finally {
+      setSellingProperty(false);
     }
-
-    // Add to history
-    addHistoryEntry(
-      "property",
-      `${player.name} sold ${propertyName} for $${refund.toLocaleString()}`,
-      player.name
-    );
   };
 
   const mortgageProperty = async (playerId, propertyName) => {
@@ -2755,12 +2767,6 @@ export default function DigitalBanker({
               ? firebasePlayerId
               : currentPlayerId;
             const isCurrentUser = player.id === playerIdToCompare;
-            // Board position label
-            let positionLabel = null;
-            if (typeof player.position === "number" && player.position >= 0) {
-              positionLabel =
-                BOARD_SPACES[player.position] || `#${player.position}`;
-            }
             // Jail badge
             const jailBadge = player.inJail ? (
               <span className="ml-2 px-2 py-0.5 rounded bg-red-800 text-red-100 text-xs font-bold">
@@ -2796,12 +2802,12 @@ export default function DigitalBanker({
                     <div>
                       <h3 className="text-xl font-bold text-amber-50 text-center flex items-center gap-2">
                         {player.name}
-                        {jailBadge}
-                        {positionLabel && (
-                          <span className="ml-1 px-2 py-0.5 rounded bg-zinc-700 text-amber-200 text-xs font-semibold border border-amber-900/40">
-                            {positionLabel}
+                        {player.isPro && (
+                          <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-black text-xs font-extrabold shadow-lg">
+                            PRO
                           </span>
                         )}
+                        {jailBadge}
                       </h3>
                       <div className="text-2xl font-bold text-green-400">
                         ${player.balance.toLocaleString()}
@@ -3218,36 +3224,41 @@ export default function DigitalBanker({
                         <div className="space-y-2">
                           {playerProp?.mortgaged ? (
                             <button
+                              disabled={
+                                sellingProperty ||
+                                (player?.balance || 0) < unmortgageCost
+                              }
                               onClick={() =>
                                 unmortgageProperty(
                                   playerIdToUse,
                                   selectedProperty
                                 )
                               }
-                              disabled={(player?.balance || 0) < unmortgageCost}
                               className="w-full bg-yellow-700 hover:bg-yellow-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
                             >
                               Unmortgage (${unmortgageCost.toLocaleString()})
                             </button>
                           ) : (
                             <button
+                              disabled={sellingProperty}
                               onClick={() =>
                                 mortgageProperty(
                                   playerIdToUse,
                                   selectedProperty
                                 )
                               }
-                              className="w-full bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-3 rounded transition-colors"
+                              className="w-full bg-yellow-700 hover:bg-yellow-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
                             >
                               Mortgage (+${mortgageValue.toLocaleString()})
                             </button>
                           )}
 
                           <button
+                            disabled={sellingProperty}
                             onClick={() =>
                               sellProperty(playerIdToUse, selectedProperty)
                             }
-                            className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-3 rounded transition-colors"
+                            className="w-full bg-red-700 hover:bg-red-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
                           >
                             Sell Property (${(property?.price || 0) / 2})
                           </button>
@@ -3337,27 +3348,32 @@ export default function DigitalBanker({
 
                           return playerProp?.mortgaged ? (
                             <button
+                              disabled={
+                                sellingProperty ||
+                                (player?.balance || 0) < unmortgageCost
+                              }
                               onClick={() =>
                                 unmortgageProperty(
                                   playerIdToUse,
                                   selectedProperty
                                 )
                               }
-                              disabled={(player?.balance || 0) < unmortgageCost}
                               className="w-full bg-yellow-700 hover:bg-yellow-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
                             >
                               Unmortgage (${unmortgageCost.toLocaleString()})
                             </button>
                           ) : (
                             <button
+                              disabled={
+                                sellingProperty ||
+                                playerProp?.houses > 0 ||
+                                playerProp?.hotel
+                              }
                               onClick={() =>
                                 mortgageProperty(
                                   playerIdToUse,
                                   selectedProperty
                                 )
-                              }
-                              disabled={
-                                playerProp?.houses > 0 || playerProp?.hotel
                               }
                               className="w-full bg-yellow-700 hover:bg-yellow-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
                             >
@@ -3370,7 +3386,8 @@ export default function DigitalBanker({
                           onClick={() =>
                             sellProperty(playerIdToUse, selectedProperty)
                           }
-                          className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-3 rounded transition-colors"
+                          disabled={sellingProperty}
+                          className="w-full bg-red-700 hover:bg-red-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-3 rounded transition-colors"
                         >
                           Sell Property (${(property?.price || 0) / 2})
                         </button>
@@ -3383,10 +3400,51 @@ export default function DigitalBanker({
           )}
 
         {/* History Button - Fixed at bottom */}
-        <div className="fixed bottom-4 right-4 z-40">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 select-none">
           <button
-            onClick={() => setShowHistoryModal(true)}
-            className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg transition-all transform hover:scale-105 flex items-center gap-2 border-2 border-amber-400"
+            onMouseDown={(e) => {
+              const btn = e.currentTarget;
+              const startX = e.clientX;
+              const startLeft = btn.parentElement?.getBoundingClientRect().left || 0;
+              const parent = btn.parentElement;
+              if (!parent) return;
+
+              const onMove = (moveEvent: MouseEvent) => {
+                const deltaX = moveEvent.clientX - startX;
+                parent.style.left = `${startLeft + deltaX}px`;
+              };
+
+              const onUp = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+              };
+
+              window.addEventListener("mousemove", onMove);
+              window.addEventListener("mouseup", onUp);
+            }}
+            onTouchStart={(e) => {
+              const touch = e.touches[0];
+              const btn = e.currentTarget;
+              const startX = touch.clientX;
+              const startLeft = btn.parentElement?.getBoundingClientRect().left || 0;
+              const parent = btn.parentElement;
+              if (!parent) return;
+
+              const onMove = (moveEvent: TouchEvent) => {
+                const current = moveEvent.touches[0];
+                const deltaX = current.clientX - startX;
+                parent.style.left = `${startLeft + deltaX}px`;
+              };
+
+              const onEnd = () => {
+                window.removeEventListener("touchmove", onMove);
+                window.removeEventListener("touchend", onEnd);
+              };
+
+              window.addEventListener("touchmove", onMove);
+              window.addEventListener("touchend", onEnd);
+            }}
+            className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg transition-all transform hover:scale-105 flex items-center gap-2 border-2 border-amber-400 cursor-grab active:cursor-grabbing"
           >
             <Clock className="w-5 h-5" />
             History
