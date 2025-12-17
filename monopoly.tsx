@@ -1,21 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  DollarSign,
-  Dice1,
-  Dice2,
-  Dice3,
-  Dice4,
-  Dice5,
-  Dice6,
-  Home,
-  TrendingUp,
-  RotateCcw,
-  Building2,
-  X,
-  Banknote,
-  Gavel,
-  Clock,
-} from "lucide-react";
+import { X, Clock } from "lucide-react";
 import NumberPadModal from "./src/components/NumberPadModal";
 import PayPlayerModal from "./src/components/PayPlayerModal";
 import RentSelector from "./src/components/RentSelector";
@@ -26,9 +10,16 @@ import BankruptcyModal from "./src/components/BankruptcyModal";
 import WinnerModal from "./src/components/WinnerModal";
 import ResetModal from "./src/components/ResetModal";
 import AuctionModal from "./src/components/AuctionModal";
-import PropertySelectorModal from "./src/components/PropertySelectorModal";
 import ToastNotification from "./src/components/ToastNotification";
 import HistoryModal from "./src/components/HistoryModal";
+import PlayerCard from "./src/components/PlayerCard";
+import ProFeaturesRow from "./src/components/ProFeaturesRow";
+import BankerHeader from "./src/components/BankerHeader";
+import BankerPrimaryActions from "./src/components/BankerPrimaryActions";
+import DiceSection from "./src/components/DiceSection";
+import BuildingCounter from "./src/components/BuildingCounter";
+import AuctionSelectorModal from "./src/components/AuctionSelectorModal";
+import BuyPropertyModal from "./src/components/BuyPropertyModal";
 import { HistoryEntry, TradeOffer } from "./src/types/game";
 import {
   subscribeToPlayers,
@@ -58,371 +49,26 @@ import {
   clearTrade,
 } from "./src/firebase/gameplayService";
 import { updatePlayer, updateGame } from "./src/firebase/gameService";
-
-const STARTING_MONEY = 1500;
-const PASS_GO_AMOUNT = 200;
-const HOUSE_COST = 50;
-const HOTEL_COST = 200;
-const TOTAL_HOUSES = 32; // Classic house limit
-const TOTAL_HOTELS = 12; // Classic hotel limit
+import {
+  BOARD_SPACES,
+  PROPERTIES,
+  GAME_PIECES,
+  CHANCE_CARDS,
+  COMMUNITY_CARDS,
+  PASS_GO_AMOUNT,
+  STARTING_MONEY,
+  HOUSE_COST,
+  HOTEL_COST,
+  TOTAL_HOUSES,
+  TOTAL_HOTELS,
+  JAIL_INDEX,
+  PLAYER_COLORS,
+  Card,
+  CardType,
+  CardEffect,
+} from "./src/constants/monopolyData";
 const idsMatch = (a: string | number, b: string | number) =>
   String(a) === String(b);
-
-const GAME_PIECES = [
-  { id: "car", name: "Car", icon: "/images/Racecar.svg" },
-  { id: "ship", name: "Ship", icon: "/images/Battleship.svg" },
-  { id: "cat", name: "Cat", icon: "/images/cat.svg" },
-  { id: "dog", name: "Dog", icon: "/images/Scottie.svg" },
-  { id: "wheelbarrow", name: "Wheelbarrow", icon: "/images/Wheelbarrow.svg" },
-  { id: "hat", name: "Hat", icon: "/images/Top_Hat.svg" },
-  { id: "thimble", name: "Sewing", icon: "/images/Thimble.svg" },
-  { id: "iron", name: "Iron", icon: "/images/Iron.svg" },
-];
-
-const PROPERTIES = [
-  // Purple Properties - Low Value District
-  {
-    name: "Maple Lane",
-    price: 60,
-    rent: [2, 10, 30, 90, 160, 250],
-    color: "bg-purple-700",
-    group: "purple",
-  },
-  {
-    name: "Oak Street",
-    price: 60,
-    rent: [4, 20, 60, 180, 320, 450],
-    color: "bg-purple-700",
-    group: "purple",
-  },
-  // Light Blue Properties - Residential Area
-  {
-    name: "Pine Avenue",
-    price: 100,
-    rent: [6, 30, 90, 270, 400, 550],
-    color: "bg-cyan-600",
-    group: "lightblue",
-  },
-  {
-    name: "Birch Boulevard",
-    price: 100,
-    rent: [6, 30, 90, 270, 400, 550],
-    color: "bg-cyan-600",
-    group: "lightblue",
-  },
-  {
-    name: "Cedar Court",
-    price: 120,
-    rent: [8, 40, 100, 300, 450, 600],
-    color: "bg-cyan-600",
-    group: "lightblue",
-  },
-  // Pink Properties - Suburban District
-  {
-    name: "Willow Way",
-    price: 140,
-    rent: [10, 50, 150, 450, 625, 750],
-    color: "bg-pink-600",
-    group: "pink",
-  },
-  {
-    name: "Elm Plaza",
-    price: 140,
-    rent: [10, 50, 150, 450, 625, 750],
-    color: "bg-pink-600",
-    group: "pink",
-  },
-  {
-    name: "Aspen Drive",
-    price: 160,
-    rent: [12, 60, 180, 500, 700, 900],
-    color: "bg-pink-600",
-    group: "pink",
-  },
-  // Orange Properties - Commercial Zone
-  {
-    name: "Sycamore Square",
-    price: 180,
-    rent: [14, 70, 200, 550, 750, 950],
-    color: "bg-orange-600",
-    group: "orange",
-  },
-  {
-    name: "Redwood Road",
-    price: 180,
-    rent: [14, 70, 200, 550, 750, 950],
-    color: "bg-orange-600",
-    group: "orange",
-  },
-  {
-    name: "Magnolia Mile",
-    price: 200,
-    rent: [16, 80, 220, 600, 800, 1000],
-    color: "bg-orange-600",
-    group: "orange",
-  },
-  // Red Properties - Business District
-  {
-    name: "Hickory Heights",
-    price: 220,
-    rent: [18, 90, 250, 700, 875, 1050],
-    color: "bg-red-700",
-    group: "red",
-  },
-  {
-    name: "Spruce Parkway",
-    price: 220,
-    rent: [18, 90, 250, 700, 875, 1050],
-    color: "bg-red-700",
-    group: "red",
-  },
-  {
-    name: "Poplar Plaza",
-    price: 240,
-    rent: [20, 100, 300, 750, 925, 1100],
-    color: "bg-red-700",
-    group: "red",
-  },
-  // Yellow Properties - Upscale Area
-  {
-    name: "Cypress Circle",
-    price: 260,
-    rent: [22, 110, 330, 800, 975, 1150],
-    color: "bg-yellow-600",
-    group: "yellow",
-  },
-  {
-    name: "Juniper Junction",
-    price: 260,
-    rent: [22, 110, 330, 800, 975, 1150],
-    color: "bg-yellow-600",
-    group: "yellow",
-  },
-  {
-    name: "Sequoia Summit",
-    price: 280,
-    rent: [24, 120, 360, 850, 1025, 1200],
-    color: "bg-yellow-600",
-    group: "yellow",
-  },
-  // Green Properties - Premium District
-  {
-    name: "Dogwood Drive",
-    price: 300,
-    rent: [26, 130, 390, 900, 1100, 1275],
-    color: "bg-green-700",
-    group: "green",
-  },
-  {
-    name: "Chestnut Center",
-    price: 300,
-    rent: [26, 130, 390, 900, 1100, 1275],
-    color: "bg-green-700",
-    group: "green",
-  },
-  {
-    name: "Laurel Landing",
-    price: 320,
-    rent: [28, 150, 450, 1000, 1200, 1400],
-    color: "bg-green-700",
-    group: "green",
-  },
-  // Dark Blue Properties - Luxury Estates
-  {
-    name: "Rosewood Row",
-    price: 350,
-    rent: [35, 175, 500, 1100, 1300, 1500],
-    color: "bg-blue-800",
-    group: "darkblue",
-  },
-  {
-    name: "Diamond District",
-    price: 400,
-    rent: [50, 200, 600, 1400, 1700, 2000],
-    color: "bg-blue-800",
-    group: "darkblue",
-  },
-  // Railroads - Transit Lines
-  {
-    name: "North Line",
-    price: 200,
-    rent: [25, 50, 100, 200],
-    color: "bg-gray-600",
-    group: "railroad",
-  },
-  {
-    name: "South Line",
-    price: 200,
-    rent: [25, 50, 100, 200],
-    color: "bg-gray-600",
-    group: "railroad",
-  },
-  {
-    name: "East Line",
-    price: 200,
-    rent: [25, 50, 100, 200],
-    color: "bg-gray-600",
-    group: "railroad",
-  },
-  {
-    name: "West Line",
-    price: 200,
-    rent: [25, 50, 100, 200],
-    color: "bg-gray-600",
-    group: "railroad",
-  },
-  // Utilities
-  {
-    name: "Power Grid",
-    price: 150,
-    rent: [],
-    color: "bg-yellow-500",
-    group: "utility",
-  },
-  {
-    name: "Water Supply",
-    price: 150,
-    rent: [],
-    color: "bg-blue-400",
-    group: "utility",
-  },
-];
-
-const PLAYER_COLORS = [
-  "bg-red-600",
-  "bg-blue-600",
-  "bg-green-600",
-  "bg-yellow-500",
-  "bg-purple-600",
-  "bg-pink-600",
-  "bg-orange-600",
-  "bg-teal-600",
-];
-
-const BOARD_SPACES = [
-  "GO",
-  "Maple Lane",
-  "Community Chest",
-  "Oak Street",
-  "Income Tax",
-  "North Line",
-  "Pine Avenue",
-  "Chance",
-  "Birch Boulevard",
-  "Cedar Court",
-  "Just Visiting / Jail",
-  "Willow Way",
-  "Power Grid",
-  "Elm Plaza",
-  "Aspen Drive",
-  "South Line",
-  "Sycamore Square",
-  "Community Chest",
-  "Redwood Road",
-  "Magnolia Mile",
-  "Free Parking",
-  "Hickory Heights",
-  "Chance",
-  "Spruce Parkway",
-  "Poplar Plaza",
-  "East Line",
-  "Cypress Circle",
-  "Juniper Junction",
-  "Water Supply",
-  "Sequoia Summit",
-  "Go To Jail",
-  "Dogwood Drive",
-  "Chestnut Center",
-  "Community Chest",
-  "Laurel Landing",
-  "West Line",
-  "Chance",
-  "Rosewood Row",
-  "Luxury Tax",
-  "Diamond District",
-];
-
-const JAIL_INDEX = 10;
-
-type CardType = "chance" | "community";
-type CardEffect =
-  | { kind: "bank"; amount: number } // positive collects, negative pays bank
-  | { kind: "each"; amount: number } // collect from each (positive) or pay each (negative)
-  | { kind: "move"; position: number; passGo?: boolean }
-  | { kind: "gotoJail" };
-
-interface Card {
-  id: string;
-  type: CardType;
-  text: string;
-  effect: CardEffect;
-}
-
-const CHANCE_CARDS: Card[] = [
-  {
-    id: "chance-go",
-    type: "chance",
-    text: "Advance to GO. Collect $200.",
-    effect: { kind: "move", position: 0, passGo: true },
-  },
-  {
-    id: "chance-bank-dividend",
-    type: "chance",
-    text: "Bank pays you dividend of $50.",
-    effect: { kind: "bank", amount: 50 },
-  },
-  {
-    id: "chance-speeding-fine",
-    type: "chance",
-    text: "Speeding fine $15.",
-    effect: { kind: "bank", amount: -15 },
-  },
-  {
-    id: "chance-jail",
-    type: "chance",
-    text: "Go to Jail. Do not pass GO. Do not collect $200.",
-    effect: { kind: "gotoJail" },
-  },
-  {
-    id: "chance-pay-each",
-    type: "chance",
-    text: "Pay each player $50.",
-    effect: { kind: "each", amount: -50 },
-  },
-];
-
-const COMMUNITY_CARDS: Card[] = [
-  {
-    id: "comm-bank-error",
-    type: "community",
-    text: "Bank error in your favor. Collect $200.",
-    effect: { kind: "bank", amount: 200 },
-  },
-  {
-    id: "comm-doctor",
-    type: "community",
-    text: "Doctor's fee. Pay $50.",
-    effect: { kind: "bank", amount: -50 },
-  },
-  {
-    id: "comm-go",
-    type: "community",
-    text: "Advance to GO. Collect $200.",
-    effect: { kind: "move", position: 0, passGo: true },
-  },
-  {
-    id: "comm-collect-each",
-    type: "community",
-    text: "It is your birthday. Collect $10 from every player.",
-    effect: { kind: "each", amount: 10 },
-  },
-  {
-    id: "comm-go-to-jail",
-    type: "community",
-    text: "Go to Jail. Do not pass GO. Do not collect $200.",
-    effect: { kind: "gotoJail" },
-  },
-];
 
 interface DigitalBankerProps {
   gameId?: string;
@@ -2280,12 +1926,6 @@ export default function DigitalBanker({
     }
   };
 
-  const DiceIcon = ({ value }) => {
-    const icons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
-    const Icon = icons[value - 1];
-    return <Icon className="w-16 h-16" />;
-  };
-
   const Modal = ({ children, onClose }) => {
     return (
       <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80 p-4">
@@ -2569,297 +2209,68 @@ export default function DigitalBanker({
       <div className="max-w-7xl mx-auto relative z-10">
         {/* BANKER CARD - Reorganized with all main actions */}
         <div className="relative bg-zinc-900 rounded-lg pb-0 mb-2 border border-amber-500 overflow-shown shadow-lg drop-shadow-[0_0_10px_white] ">
-          {/* Header */}
-          <div className="relative flex-col flex items-center justify-center ">
-            <div className=" relative flex items-center justify-center">
-              <h1 className="text-3xl drop-shadow-[0_0_10px_gold] font-bold text-amber-400 drop-shadow-lg mt-3 text-center">
-                DIGITAL BANKER
-              </h1>
-            </div>
-            <button
-              onClick={() => setShowResetModal(true)}
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-amber-900/100 text-amber-400"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Reset
-            </button>
-          </div>
+          <BankerHeader
+            onResetClick={() => setShowResetModal(true)}
+            isMultiplayer={isMultiplayer}
+            roomCode={gameCode}
+            activePlayerName={activePlayer?.name}
+          />
 
-          {/* Room Code Display */}
-          {isMultiplayer && gameCode && (
-            <div className="text-center text-xs text-amber-600 mb-2">
-              Room Code:{" "}
-              <span className="font-bold text-amber-500">{gameCode}</span>
-            </div>
-          )}
-          {!isMultiplayer && activePlayer && (
-            <div className="text-center text-sm text-amber-300 mb-2 flex items-center justify-center gap-2">
-              <span>
-                Turn:{" "}
-                <span className="font-bold text-amber-100">
-                  {activePlayer.name || "Player"}
-                </span>
-              </span>
-            </div>
-          )}
+          <ProFeaturesRow
+            freeParkingEnabled={
+              !!(
+                gameConfig?.freeParkingJackpot ||
+                (isMultiplayer && freeParkingBalance > 0)
+              )
+            }
+            freeParkingBalance={freeParkingBalance}
+            onClaimFreeParking={handleClaimFreeParking}
+            showAuction={gameConfig?.auctionProperties !== false || !isMultiplayer}
+            onOpenAuctionSelector={() => setShowAuctionSelector(true)}
+            doubleGoOnLanding={!!gameConfig?.doubleGoOnLanding}
+            passGoAmount={gameConfig?.passGoAmount || PASS_GO_AMOUNT}
+            onLandOnGoBonus={handleLandOnGoBonus}
+          />
 
-          {/* Pro Features Row - Free Parking & Auction */}
-          <div className="flex justify-center gap-3 mb-3 flex-wrap">
-            {/* Free Parking Display */}
-            {(gameConfig?.freeParkingJackpot ||
-              (isMultiplayer && freeParkingBalance > 0)) && (
-              <div className="bg-green-900/30 border-2 border-green-600 rounded-3xl px-4 py-2 drop-shadow-[0_0_10px_green]">
-                <div className="text-center">
-                  <div className="text-xs text-green-400 font-bold">
-                    FREE PARKING
-                  </div>
-                  <div className="text-2xl font-bold text-green-300">
-                    ${freeParkingBalance.toLocaleString()}
-                  </div>
-                  <button
-                    onClick={handleClaimFreeParking}
-                    disabled={freeParkingBalance <= 0}
-                    className="mt-2 bg-green-700 hover:bg-green-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold py-1 px-3 rounded text-xs transition-colors"
-                  >
-                    Claim Money
-                  </button>
-                </div>
-              </div>
-            )}
+          <BuildingCounter
+            housesAvailable={getAvailableBuildings().houses}
+            hotelsAvailable={getAvailableBuildings().hotels}
+          />
 
-            {/* Auction Button */}
-            {(gameConfig?.auctionProperties !== false || !isMultiplayer) && (
-              <div className="bg-purple-900/30 border-2 border-purple-600 drop-shadow-[0_0_10px_purple] rounded-3xl px-4 py-2">
-                <div className="text-center">
-                  <div className="text-xs text-purple-400 font-bold">
-                    PROPERTY AUCTION
-                  </div>
-                  <div className="text-sm text-purple-300 mt-1 mb-2">
-                    Start an auction
-                  </div>
-                  <button
-                    onClick={() => setShowAuctionSelector(true)}
-                    className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded text-xs transition-colors flex items-center gap-1 mx-auto"
-                  >
-                    <Gavel className="w-4 h-4" />
-                    Start Auction
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Land on GO double payout */}
-            {gameConfig?.doubleGoOnLanding && (
-              <div className="bg-amber-900/30 border-2 border-amber-600 drop-shadow-[0_0_10px_amber] rounded-3xl px-4 py-2">
-                <div className="text-center">
-                  <div className="text-xs text-amber-400 font-bold">
-                    LAND ON GO BONUS
-                  </div>
-                  <div className="text-sm text-amber-200 mt-1 mb-2">
-                    Award double payout for landing directly on GO (
-                    $
-                    {(
-                      (gameConfig?.passGoAmount || PASS_GO_AMOUNT) * 2
-                    ).toLocaleString()}
-                    )
-                  </div>
-                  <button
-                    onClick={handleLandOnGoBonus}
-                    className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-1 px-3 rounded text-xs transition-colors flex items-center gap-1 mx-auto"
-                  >
-                    <img
-                      src="/images/Go.svg"
-                      alt="GO"
-                      className="w-6 h-6 -ml-1"
-                    />
-                    Landed on GO
-                  </button>
-                </div>
-              </div>
-            )}
-
-          </div>
-
-          {/* Building Counter Display */}
-          {(() => {
-            const available = getAvailableBuildings();
-            return (
-              <div className="flex justify-center gap-4 mb-4 text-xs">
-                <div className="flex items-center gap-1.5 bg-zinc-800 px-3 py-1.5 rounded border border-amber-900/30">
-                  <img
-                    src="/images/House.svg"
-                    alt="Houses"
-                    className="w-10 h-10 drop-shadow-[0_0_10px_green]"
-                  />
-                  <span
-                    className={`font-bold ${
-                      available.houses <= 5 ? "text-red-400" : "text-amber-400"
-                    }`}
-                  >
-                    {available.houses}/{TOTAL_HOUSES}
-                  </span>
-                  <span className="text-amber-600">available</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-zinc-800 px-3 py-1.5 rounded border border-amber-900/30">
-                  <img
-                    src="/images/Hotel.svg"
-                    alt="Hotels"
-                    className="w-10 h-10 drop-shadow-[0_0_5px_red]"
-                  />
-                  <span
-                    className={`font-bold ${
-                      available.hotels <= 2 ? "text-red-400" : "text-amber-400"
-                    }`}
-                  >
-                    {available.hotels}/{TOTAL_HOTELS}
-                  </span>
-                  <span className="text-amber-600">available</span>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* First Row: Banker Pays centered */}
-          <button
-            onClick={handleBankerPays}
-            className="bg-green-300 hover:bg-green-200 w-40 h-10 text-black text-xl rounded-xl font-bold transition-colors flex text-center items-center justify-center gap-2 mb-3 mx-auto relative"
-          >
-            <img
-              src="/images/Banker.svg"
-              alt="Banker"
-              className="w-auto h-20 flex right-40 absolute drop-shadow-[0_0_3px_white]"
-            />
-            Teller Pays
-          </button>
+          <BankerPrimaryActions
+            onTellerPays={handleBankerPays}
+            onPassGo={(e) => {
+              const playerIdToUse = isMultiplayer
+                ? firebasePlayerId
+                : currentPlayerId;
+              if (playerIdToUse === null) {
+                showError("Please select which player you are first");
+                return;
+              }
+              passGo(playerIdToUse);
+            }}
+            onBuyProperty={(e) => {
+              const playerIdToUse = isMultiplayer
+                ? firebasePlayerId
+                : currentPlayerId;
+              if (playerIdToUse === null) {
+                showError("Please select which player you are first");
+                return;
+              }
+              setShowBuyProperty(true);
+            }}
+          />
         </div>
 
         {/* Banker Action Buttons */}
         <div className="flex items-center gap-2 mb-2 mt-5 flex-wrap justify-center">
-          {/* Second Row: Pass GO and Buy Property */}
-          <div className="flex gap-2 flex-wrap justify-center w-full">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const playerIdToUse = isMultiplayer
-                  ? firebasePlayerId
-                  : currentPlayerId;
-                if (playerIdToUse === null) {
-                  showError("Please select which player you are first");
-                  return;
-                }
-                passGo(playerIdToUse);
-              }}
-              className="flex-1 bg-amber-600 hover:bg-amber-500 text-black text-lg drop-shadow-[0_0_10px_amber] -mt-3 mb-9 px-4 py-2 rounded-3xl font-bold transition-colors flex items-center justify-center gap-2"
-            >
-              <img
-                src="/images/Go.svg"
-                alt="GO"
-                className="w-auto h-20 -mt-3 -mb-3 pointer-events-none"
-              />
-              Pass GO
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const playerIdToUse = isMultiplayer
-                  ? firebasePlayerId
-                  : currentPlayerId;
-                if (playerIdToUse === null) {
-                  showError("Please select which player you are first");
-                  return;
-                }
-                setShowBuyProperty(true);
-              }}
-              className="flex-1 bg-amber-600 hover:bg-amber-500 text-black text-lg drop-shadow-[0_0_10px_amber] -mt-3 mb-9 px-4 py-2 rounded-3xl font-bold transition-colors flex items-center justify-center gap-2"
-            >
-              <img
-                src="/images/property.svg"
-                alt="property"
-                className="w-auto h-20 pb-1 pt-1 -mt-2 -mb-2 pointer-events-none"
-              />
-              Buy Property
-            </button>
-          </div>
-
-          {/* Roll Dice Section */}
-          <div className="w-full border-t border-green-900 -mt-8">
-              <button
-                onClick={() => rollDice()}
-                disabled={diceRolling}
-                className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-lg  font-bold text-lg transition-colors flex items-center justify-center gap-2"
-              >
-              <Dice1 className="w-6 h-6" />
-              {diceRolling ? "Rolling..." : "Roll Dice"}
-            </button>
-
-            {lastRoll && (
-              <div className="mt-3 bg-zinc-800 p-3 rounded-lg border border-amber-900/30 text-center">
-                <div className="flex justify-center gap-3 mb-2">
-                  {[lastRoll.d1, lastRoll.d2, lastRoll.d3]
-                    .filter((d) => d !== null && d !== undefined)
-                    .map((die, idx) => {
-                      if (!die) return null;
-                      const DiceIconComponent = [
-                        Dice1,
-                        Dice2,
-                        Dice3,
-                        Dice4,
-                        Dice5,
-                        Dice6,
-                      ][die - 1];
-                      return (
-                        <DiceIconComponent
-                          key={idx}
-                          className={`w-10 h-10  ${
-                            idx === 2 ? "text-blue-400" : "text-amber-400"
-                          }`}
-                        />
-                      );
-                    })}
-                </div>
-                <p className="text-xl font-bold text-amber-400 animate-pulse">
-                  Total: {lastRoll.total}
-                </p>
-                {lastRoll.isDoubles && (
-                  <p className="text-green-400 text-sm mt-1">Doubles!</p>
-                )}
-              </div>
-            )}
-          </div>
+          <DiceSection
+            lastRoll={lastRoll}
+            diceRolling={diceRolling}
+            showOverlay={(showDice || diceRolling) && !!lastRoll}
+            onRoll={() => rollDice()}
+          />
         </div>
-
-        {(showDice || diceRolling) && lastRoll && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
-            <div className="bg-zinc-900 border-2 border-amber-600 rounded-lg p-4 sm:p-8">
-              <div className="flex gap-3 sm:gap-6 items-center justify-center text-amber-400">
-                <DiceIcon value={lastRoll.d1} />
-                <div className="text-2xl sm:text-4xl font-bold">+</div>
-                <DiceIcon value={lastRoll.d2} />
-                {lastRoll.d3 && (
-                  <>
-                    <div className="text-2xl sm:text-4xl font-bold">+</div>
-                    <div className="relative">
-                      <DiceIcon value={lastRoll.d3} />
-                      <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs px-1 rounded">
-                        Speed
-                      </div>
-                    </div>
-                  </>
-                )}
-                <div className="text-2xl sm:text-4xl font-bold">=</div>
-                <div className="text-3xl sm:text-5xl font-bold text-amber-400">
-                  {lastRoll.total}
-                </div>
-              </div>
-              {lastRoll.isDoubles && !diceRolling && (
-                <div className="text-lg sm:text-2xl font-bold text-center mt-2 sm:mt-4 text-amber-400 animate-pulse">
-                  DOUBLES!
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* PLAYERS LIST */}
         <div className="space-y-3">
@@ -2868,330 +2279,51 @@ export default function DigitalBanker({
               ? firebasePlayerId
               : currentPlayerId;
             const isCurrentUser = player.id === playerIdToCompare;
-            // Jail badge
-            const jailBadge = player.inJail ? (
-              <span className="ml-2 px-2 py-0.5 rounded bg-red-800 text-red-100 text-xs font-bold">
-                JAIL
-              </span>
-            ) : null;
 
             return (
-              <div
+              <PlayerCard
                 key={player.id}
-                className={`bg-zinc-900 rounded-lg p-4 border-2 transition-all flex flex-col gap-3 ${
-                  isCurrentUser ? "border-amber-600" : "border-amber-900/30"
-                }`}
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-14 h-14 ${player.color} rounded flex items-center justify-center p-1`}
-                    >
-                      {(() => {
-                        const piece =
-                          player.piece ||
-                          GAME_PIECES.find((p) => p.id === player.pieceId);
-                        return piece ? (
-                          <img
-                            src={piece.icon}
-                            alt={piece.name}
-                            className="w-full h-full object-contain"
-                          />
-                        ) : null;
-                      })()}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-amber-50 text-center flex items-center gap-2">
-                        {player.name}
-                        {player.isPro && (
-                          <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-black text-xs font-extrabold shadow-lg">
-                            PRO
-                          </span>
-                        )}
-                        {jailBadge}
-                      </h3>
-                      <div className="text-2xl font-bold text-green-400">
-                        ${player.balance.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isCurrentUser && (
-                      <div className="px-4 py-2 rounded font-bold bg-amber-600 text-black">
-                        You
-                      </div>
-                    )}
-                    {!isCurrentUser && (
-                      <div className="grid grid-cols-2 gap-2 w-full max-w-xs sm:w-60 ml-auto bg-zinc-800/70 rounded-lg p-2 border border-amber-900/30">
-                        <button
-                          onClick={() => handlePayRentClick(player.id)}
-                          disabled={player.properties.length === 0}
-                          className="w-full h-12 bg-orange-700 hover:bg-orange-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                        >
-                          <img
-                            src="/images/property.svg"
-                            alt="Pay Rent"
-                            className="w-6 h-6"
-                          />
-                          Pay Rent
-                        </button>
-                        <button
-                          onClick={() => handleCustomAmountClick(player.id)}
-                          className="w-full h-12 bg-blue-700 hover:bg-blue-600 text-white px-3 rounded text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                        >
-                          <img
-                            src="/images/Payment.svg"
-                            alt="Pay"
-                            className="w-6 h-6"
-                          />
-                          Pay
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Player-specific action buttons - ONLY SHOW IF THIS IS THE CURRENT USER */}
-                {isCurrentUser && (
-                  <div className="flex flex-wrap justify-center gap-2 mb-3">
-                    <button
-                      onClick={() => setShowPayPlayerModal(true)}
-                      className="w-auto h-11 bg-orange-700 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
-                    >
-                      <img
-                        src="/images/Payment.svg"
-                        alt="Pay"
-                        className="w-auto h-12"
-                      />
-                      Pay
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setNumberPadTitle("Receive Money");
-                        setNumberPadCallback(() => (amount: number) => {
-                          updateBalance(player.id, amount);
-                        });
-                        setShowNumberPad(true);
-                      }}
-                      className="w-auto h-11 bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
-                    >
-                      <img
-                        src="/images/Bank.svg"
-                        alt="Bank"
-                        className="w-full h-12"
-                      />
-                      Receive
-                    </button>
-
-                    <button
-                      onClick={() => setShowTradeModal(true)}
-                      className="w-auto h-11 bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
-                      disabled={players.length < 2}
-                    >
-                      <img
-                        src="/images/Trade.svg"
-                        alt="Trade"
-                        className="w-auto h-12"
-                      />
-                      Trade
-                    </button>
-
-                    <button
-                      onClick={() => setShowTaxModal(true)}
-                      className="w-auto h-11 bg-red-700 hover:bg-red-600 content-center text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
-                    >
-                      <img
-                        src="/images/Luxury_Tax.svg"
-                        alt="Tax"
-                        className="w-auto h-12"
-                      />
-                      Pay Tax
-                    </button>
-                  </div>
-                )}
-
-                {/* Properties Section */}
-                {player.properties.length > 0 && (
-                  <div className="mt-3 border-t border-amber-900/30 pt-3">
-                    <h4 className="text-xs font-bold text-amber-500 mb-2">
-                      Properties
-                    </h4>
-                    <div className="space-y-1">
-                      {player.properties.map((prop, idx) => {
-                        const property = PROPERTIES.find(
-                          (p) => p.name === prop.name
-                        );
-                        if (!property) return null;
-                        return (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between text-xs bg-zinc-900/50 p-2 rounded"
-                          >
-                            <div className="flex items-center gap-2">
-                              {property.group === "railroad" ? (
-                                <img
-                                  src="/images/Railroad.svg"
-                                  alt="Railroad"
-                                  className="w-4 h-4"
-                                />
-                              ) : property.group === "utility" ? (
-                                property.name === "Electric Company" ? (
-                                  <img
-                                    src="/images/Electric_Company.svg"
-                                    alt="Electric"
-                                    className="w-4 h-4"
-                                  />
-                                ) : (
-                                  <img
-                                    src="/images/Waterworks.svg"
-                                    alt="Water"
-                                    className="w-4 h-4"
-                                  />
-                                )
-                              ) : (
-                                <div
-                                  className={`w-3 h-3 rounded ${property.color}`}
-                                ></div>
-                              )}
-                              <span
-                                className={`${
-                                  prop.mortgaged
-                                    ? "text-zinc-500 line-through"
-                                    : "text-amber-100"
-                                }`}
-                              >
-                                {prop.name}
-                              </span>
-                              {prop.mortgaged && (
-                                <span className="text-xs bg-red-900 text-red-200 px-1.5 py-0.5 rounded font-bold">
-                                  MORT
-                                </span>
-                              )}
-                              {!prop.mortgaged && prop.hotel ? (
-                                <span className="flex items-center gap-0.5">
-                                  <img
-                                    src="/images/Hotel.svg"
-                                    alt="Hotel"
-                                    className="w-4 h-4"
-                                  />
-                                </span>
-                              ) : !prop.mortgaged && prop.houses > 0 ? (
-                                <span className="flex items-center gap-0.5">
-                                  {Array.from({ length: prop.houses }).map(
-                                    (_, i) => (
-                                      <img
-                                        key={i}
-                                        src="/images/House.svg"
-                                        alt="House"
-                                        className="w-3 h-3"
-                                      />
-                                    )
-                                  )}
-                                </span>
-                              ) : null}
-                            </div>
-
-                            {/* Manage button only for current user */}
-                            {isCurrentUser && (
-                              <button
-                                onClick={() => {
-                                  setSelectedProperty(prop.name);
-                                }}
-                                className="text-amber-400 hover:text-amber-300"
-                              >
-                                Manage
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
+                player={player}
+                isCurrentUser={isCurrentUser}
+                onPayRent={handlePayRentClick}
+                onPayCustom={handleCustomAmountClick}
+                onOpenPayModal={() => setShowPayPlayerModal(true)}
+                onReceive={(id) => {
+                  setNumberPadTitle("Receive Money");
+                  setNumberPadCallback(() => (amount: number) => {
+                    updateBalance(id, amount);
+                  });
+                  setShowNumberPad(true);
+                }}
+                onOpenTrade={() => setShowTradeModal(true)}
+                onOpenTax={() => setShowTaxModal(true)}
+                onManageProperty={(name) => setSelectedProperty(name)}
+              />
             );
           })}
         </div>
 
         {/* Buy Property Modal */}
-        {showBuyProperty &&
-          (isMultiplayer ? firebasePlayerId : currentPlayerId) !== null && (
-            <Modal onClose={() => setShowBuyProperty(false)}>
-              <h3 className="text-xl font-bold text-amber-400 mb-4">
-                Buy Property
-              </h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {PROPERTIES.filter(
-                  (prop) =>
-                    !players.some((p) =>
-                      p.properties.some((owned) => owned.name === prop.name)
-                    )
-                ).map((property) => (
-                  <div
-                    key={property.name}
-                    className="flex items-center justify-between bg-zinc-800 p-3 rounded"
-                  >
-                    <div className="flex items-center gap-2">
-                      {property.group === "railroad" ? (
-                        <img
-                          src="/images/Railroad.svg"
-                          alt="Railroad"
-                          className="w-5 h-5"
-                        />
-                      ) : property.group === "utility" ? (
-                        property.name === "Electric Company" ? (
-                          <img
-                            src="/images/Electric_Company.svg"
-                            alt="Electric"
-                            className="w-5 h-5"
-                          />
-                        ) : (
-                          <img
-                            src="/images/Waterworks.svg"
-                            alt="Water"
-                            className="w-5 h-5"
-                          />
-                        )
-                      ) : (
-                        <div
-                          className={`w-4 h-4 rounded ${property.color}`}
-                        ></div>
-                      )}
-                      <span className="text-amber-100 font-bold">
-                        {property.name}
-                      </span>
-                      <span className="text-amber-400 ml-2">
-                        ${property.price}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const playerIdToUse = isMultiplayer
-                          ? firebasePlayerId
-                          : currentPlayerId;
-                        buyProperty(playerIdToUse, property);
-                        setShowBuyProperty(false);
-                      }}
-                      className="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors"
-                    >
-                      Buy
-                    </button>
-                  </div>
-                ))}
-                {PROPERTIES.filter(
-                  (prop) =>
-                    !players.some((p) =>
-                      p.properties.some((owned) => owned.name === prop.name)
-                    )
-                ).length === 0 && (
-                  <div className="text-amber-400 text-center">
-                    All properties are owned.
-                  </div>
-                )}
-              </div>
-            </Modal>
+        <BuyPropertyModal
+          isOpen={
+            showBuyProperty &&
+            (isMultiplayer ? firebasePlayerId : currentPlayerId) !== null
+          }
+          properties={PROPERTIES.filter(
+            (prop) =>
+              !players.some((p) =>
+                p.properties.some((owned) => owned.name === prop.name)
+              )
           )}
+          onBuy={(property) => {
+            const playerIdToUse = isMultiplayer
+              ? firebasePlayerId
+              : currentPlayerId;
+            buyProperty(playerIdToUse, property);
+            setShowBuyProperty(false);
+          }}
+          onClose={() => setShowBuyProperty(false)}
+        />
 
         {/* Transaction Modal */}
         {transactionMode && currentPlayer !== null && (
@@ -3563,80 +2695,20 @@ export default function DigitalBanker({
           );
         })()}
 
-        {/* Auction Property Selector */}
-        {showAuctionSelector && (
-          <Modal onClose={() => setShowAuctionSelector(false)}>
-            <h3 className="text-xl font-bold text-amber-400 mb-4">
-              Select Property to Auction
-            </h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {PROPERTIES.filter(
-                (prop) =>
-                  !players.some((p) =>
-                    p.properties.some((owned) => owned.name === prop.name)
-                  )
-              ).map((property) => (
-                <div
-                  key={property.name}
-                  className="flex items-center justify-between bg-zinc-800 p-3 rounded"
-                >
-                  <div className="flex items-center gap-2">
-                    {property.group === "railroad" ? (
-                      <img
-                        src="/images/Railroad.svg"
-                        alt="Railroad"
-                        className="w-5 h-5"
-                      />
-                    ) : property.group === "utility" ? (
-                      property.name === "Electric Company" ? (
-                        <img
-                          src="/images/Electric_Company.svg"
-                          alt="Electric"
-                          className="w-5 h-5"
-                        />
-                      ) : (
-                        <img
-                          src="/images/Waterworks.svg"
-                          alt="Water"
-                          className="w-5 h-5"
-                        />
-                      )
-                    ) : (
-                      <div
-                        className={`w-4 h-4 rounded ${property.color}`}
-                      ></div>
-                    )}
-                    <span className="text-amber-100 font-bold">
-                      {property.name}
-                    </span>
-                    <span className="text-amber-400 ml-2">
-                      ${property.price}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      handleStartAuction(property);
-                      setShowAuctionSelector(false);
-                    }}
-                    className="bg-purple-700 hover:bg-purple-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors"
-                  >
-                    Start
-                  </button>
-                </div>
-              ))}
-              {PROPERTIES.filter(
-                (prop) =>
-                  !players.some((p) =>
-                    p.properties.some((owned) => owned.name === prop.name)
-                  )
-              ).length === 0 && (
-                <div className="text-amber-400 text-center">
-                  All properties are owned.
-                </div>
-              )}
-            </div>
-          </Modal>
-        )}
+        <AuctionSelectorModal
+          isOpen={showAuctionSelector}
+          properties={PROPERTIES.filter(
+            (prop) =>
+              !players.some((p) =>
+                p.properties.some((owned) => owned.name === prop.name)
+              )
+          )}
+          onSelect={(property) => {
+            handleStartAuction(property);
+            setShowAuctionSelector(false);
+          }}
+          onClose={() => setShowAuctionSelector(false)}
+        />
 
         {/* NEW MODALS */}
         <PayPlayerModal
