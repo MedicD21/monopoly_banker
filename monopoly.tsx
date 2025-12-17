@@ -454,31 +454,7 @@ export default function DigitalBanker({
   );
   const [activeTurnIndex, setActiveTurnIndex] = useState(0);
 
-  const goToNextTurn = async () => {
-    if (players.length === 0) return;
-    let next = activeTurnIndex;
-    for (let i = 0; i < players.length; i++) {
-      next = (next + 1) % players.length;
-      const candidate = players[next];
-      if (candidate && !candidate.isBankrupt) {
-        break;
-      }
-    }
-    if (isMultiplayer && gameId) {
-      // Store the new turn index in the game document
-      await updateGame(gameId, { activeTurnIndex: next });
-    } else {
-      setActiveTurnIndex(next);
-    }
-    const nextPlayer = players[next];
-    if (nextPlayer) {
-      const msg = `It's ${nextPlayer.name}'s turn`;
-      setTurnToast(msg);
-      setToastMessage(msg);
-      setShowToast(true);
-      setTimeout(() => setTurnToast(null), 2000);
-    }
-  };
+  // Turn advancement handled by host actions; no explicit End Turn button
 
   const updatePlayerPosition = async (
     playerId: string | number,
@@ -665,7 +641,13 @@ export default function DigitalBanker({
   const [showToast, setShowToast] = useState(false);
   const [gameHistory, setGameHistory] = useState<HistoryEntry[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyButtonX, setHistoryButtonX] = useState<number | null>(null);
   const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
+  const [executingTrade, setExecutingTrade] = useState(false);
+  const [goToJailModal, setGoToJailModal] = useState<{
+    open: boolean;
+    playerName?: string;
+  }>({ open: false });
   const activePlayer = players[activeTurnIndex] || null;
   const [cardModal, setCardModal] = useState<{
     open: boolean;
@@ -872,9 +854,11 @@ export default function DigitalBanker({
 
             if (newDoublesCount >= 3) {
               // Three doubles in a row - Go to Jail!
-              alert(
-                `${rollingPlayer.name} rolled doubles 3 times in a row! Go to Jail!`
-              );
+              updateJailStatus(playerIdToUse, true, 0, JAIL_INDEX);
+              setGoToJailModal({
+                open: true,
+                playerName: rollingPlayer.name,
+              });
 
               // Reset this player's doubles count
               setPlayers((prev) =>
@@ -886,6 +870,8 @@ export default function DigitalBanker({
               if (isMultiplayer && gameId) {
                 updatePlayer(gameId, playerIdToUse, { doublesCount: 0 });
               }
+              resolve(finalRoll);
+              return;
             } else {
               // Increment doubles count
               setPlayers((prev) =>
@@ -1853,7 +1839,9 @@ export default function DigitalBanker({
   };
 
   const handleAcceptTrade = async () => {
+    if (executingTrade) return;
     if (!tradeOffer || !gameId) return;
+    setExecutingTrade(true);
 
     // Execute the trade
     await executeTrade(
@@ -1867,6 +1855,7 @@ export default function DigitalBanker({
 
     // Clear the trade offer
     await clearTrade(gameId);
+    setExecutingTrade(false);
   };
 
   const handleRejectTrade = async () => {
@@ -1894,6 +1883,7 @@ export default function DigitalBanker({
     requestMoney: number,
     requestProperties: string[]
   ) => {
+    if (executingTrade) return;
     if (!tradeOffer || !gameId) return;
 
     const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
@@ -2483,6 +2473,44 @@ export default function DigitalBanker({
           </div>
         </div>
       )}
+      {/* Go To Jail Modal */}
+      {goToJailModal.open && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
+          <div className="bg-zinc-900 border border-amber-500 rounded-lg p-6 max-w-sm w-full shadow-lg text-center">
+            <img
+              src="/images/Go-To_Jail.svg"
+              alt="Go To Jail"
+              className="w-32 h-32 mx-auto mb-4"
+            />
+            <p className="text-lg font-bold text-amber-50 mb-2">
+              {goToJailModal.playerName || "Player"} rolled doubles 3 times!
+            </p>
+            <p className="text-sm text-amber-200 mb-4">
+              Sent directly to Jail.
+            </p>
+            <button
+              onClick={() => setGoToJailModal({ open: false, playerName: "" })}
+              className="px-4 py-2 rounded bg-amber-600 text-black font-bold hover:bg-amber-500 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      {/* TEMP: Go To Jail test button */}
+      <div className="fixed bottom-20 right-4 z-50">
+        <button
+          onClick={() =>
+            setGoToJailModal({
+              open: true,
+              playerName: "Test Player",
+            })
+          }
+          className="bg-red-700 hover:bg-red-600 text-white px-3 py-2 rounded shadow-lg text-xs font-bold border border-red-400"
+        >
+          Test Go To Jail
+        </button>
+      </div>
       <div className="max-w-7xl mx-auto relative z-10">
         {/* BANKER CARD - Reorganized with all main actions */}
         <div className="relative bg-zinc-900 rounded-lg pb-0 mb-2 border border-amber-500 overflow-shown shadow-lg drop-shadow-[0_0_10px_white] ">
@@ -2545,7 +2573,7 @@ export default function DigitalBanker({
             )}
 
             {/* Auction Button */}
-            {gameConfig?.auctionProperties && (
+            {(gameConfig?.auctionProperties !== false || !isMultiplayer) && (
               <div className="bg-purple-900/30 border-2 border-purple-600 drop-shadow-[0_0_10px_purple] rounded-3xl px-4 py-2">
                 <div className="text-center">
                   <div className="text-xs text-purple-400 font-bold">
@@ -2679,18 +2707,6 @@ export default function DigitalBanker({
               <Dice1 className="w-6 h-6" />
               {diceRolling ? "Rolling..." : "Roll Dice"}
             </button>
-
-            <div className="mt-2">
-              <button
-                onClick={() => {
-                  goToNextTurn();
-                }}
-                disabled={diceRolling}
-                className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-amber-200 py-2 rounded-lg font-semibold text-sm transition-colors"
-              >
-                End Turn
-              </button>
-            </div>
 
             {lastRoll && (
               <div className="mt-3 bg-zinc-800 p-3 rounded-lg border border-amber-900/30 text-center">
@@ -3400,56 +3416,67 @@ export default function DigitalBanker({
           )}
 
         {/* History Button - Fixed at bottom */}
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 select-none">
-          <button
-            onMouseDown={(e) => {
-              const btn = e.currentTarget;
-              const startX = e.clientX;
-              const startLeft = btn.parentElement?.getBoundingClientRect().left || 0;
-              const parent = btn.parentElement;
-              if (!parent) return;
+        {(() => {
+          const historyStyle =
+            historyButtonX === null
+              ? { left: "50%", transform: "translateX(-50%)" }
+              : { left: `${historyButtonX}px` };
+          const clamp = (val: number, min: number, max: number) =>
+            Math.min(Math.max(val, min), max);
+          const startDrag = (
+            clientX: number,
+            button: HTMLButtonElement | null
+          ) => {
+            const parent = button?.parentElement as HTMLElement | null;
+            if (!parent) return;
+            const rect = parent.getBoundingClientRect();
+            const startLeft =
+              historyButtonX === null ? rect.left : historyButtonX;
+            const min = 8;
+            const max = window.innerWidth - rect.width - 8;
 
-              const onMove = (moveEvent: MouseEvent) => {
-                const deltaX = moveEvent.clientX - startX;
-                parent.style.left = `${startLeft + deltaX}px`;
-              };
+            const onMove = (x: number) => {
+              const next = clamp(startLeft + (x - clientX), min, max);
+              setHistoryButtonX(next);
+            };
 
-              const onUp = () => {
-                window.removeEventListener("mousemove", onMove);
-                window.removeEventListener("mouseup", onUp);
-              };
+            const onMouseMove = (e: MouseEvent) => onMove(e.clientX);
+            const onMouseUp = () => {
+              window.removeEventListener("mousemove", onMouseMove);
+              window.removeEventListener("mouseup", onMouseUp);
+            };
 
-              window.addEventListener("mousemove", onMove);
-              window.addEventListener("mouseup", onUp);
-            }}
-            onTouchStart={(e) => {
-              const touch = e.touches[0];
-              const btn = e.currentTarget;
-              const startX = touch.clientX;
-              const startLeft = btn.parentElement?.getBoundingClientRect().left || 0;
-              const parent = btn.parentElement;
-              if (!parent) return;
+            const onTouchMove = (e: TouchEvent) => onMove(e.touches[0].clientX);
+            const onTouchEnd = () => {
+              window.removeEventListener("touchmove", onTouchMove);
+              window.removeEventListener("touchend", onTouchEnd);
+            };
 
-              const onMove = (moveEvent: TouchEvent) => {
-                const current = moveEvent.touches[0];
-                const deltaX = current.clientX - startX;
-                parent.style.left = `${startLeft + deltaX}px`;
-              };
+            window.addEventListener("mousemove", onMouseMove);
+            window.addEventListener("mouseup", onMouseUp);
+            window.addEventListener("touchmove", onTouchMove, { passive: false });
+            window.addEventListener("touchend", onTouchEnd);
+          };
 
-              const onEnd = () => {
-                window.removeEventListener("touchmove", onMove);
-                window.removeEventListener("touchend", onEnd);
-              };
-
-              window.addEventListener("touchmove", onMove);
-              window.addEventListener("touchend", onEnd);
-            }}
-            className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg transition-all transform hover:scale-105 flex items-center gap-2 border-2 border-amber-400 cursor-grab active:cursor-grabbing"
-          >
-            <Clock className="w-5 h-5" />
-            History
-          </button>
-        </div>
+          return (
+            <div
+              className="fixed bottom-4 z-40 select-none"
+              style={historyStyle}
+            >
+              <button
+                onMouseDown={(e) => startDrag(e.clientX, e.currentTarget)}
+                onTouchStart={(e) =>
+                  startDrag(e.touches[0]?.clientX, e.currentTarget)
+                }
+                onClick={() => setShowHistoryModal(true)}
+                className="bg-amber-600 hover:bg-amber-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg transition-all transform hover:scale-105 flex items-center gap-2 border-2 border-amber-400 cursor-grab active:cursor-grabbing"
+              >
+                <Clock className="w-5 h-5" />
+                History
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Auction Property Selector */}
         {showAuctionSelector && (

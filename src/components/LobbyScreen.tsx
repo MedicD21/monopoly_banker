@@ -72,9 +72,6 @@ export default function LobbyScreen({
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-amber-400">Game Lobby</h1>
-            <div className="text-xs mt-1 text-amber-300">
-              Host status: <span className="font-mono">{String(isHost)}</span>
-            </div>
           </div>
           <button
             onClick={onLeave}
