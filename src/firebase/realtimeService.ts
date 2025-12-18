@@ -29,7 +29,8 @@ export function subscribeToPlayers(
   callback: (players: Player[]) => void
 ): Unsubscribe {
   const playersRef = collection(db, 'games', gameId, 'players');
-  return onSnapshot(playersRef, (snapshot) => {
+  const q = query(playersRef, orderBy('order', 'asc'));
+  return onSnapshot(q, (snapshot) => {
     const players: Player[] = [];
     snapshot.forEach((doc) => {
       players.push({ id: doc.id, ...doc.data() } as Player);

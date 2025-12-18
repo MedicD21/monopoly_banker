@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Check, X } from "lucide-react";
 import { GAME_PIECES, PLAYER_COLORS } from "../types/game";
 import { PROPERTIES, BOARD_SPACES } from "../constants/monopolyData";
@@ -17,11 +17,11 @@ interface LobbyScreenProps {
   isHost: boolean;
   currentPlayerId: string;
   players: Player[];
-  onPlayerUpdate: (name: string, pieceId: string, color: string) => void;
-  onToggleReady: () => void;
-  onStartGame: () => void;
+  onPlayerUpdate: (name: string, pieceId: string, color: string) => Promise<void>;
+  onToggleReady: () => Promise<void>;
+  onStartGame: () => Promise<void> | void;
   onLeave: () => void;
-  onRandomizeOrder?: () => void; // Updated reference
+  onRandomizeOrder?: () => Promise<void> | void; // Updated reference
 }
 
 export default function LobbyScreen({
@@ -45,6 +45,15 @@ export default function LobbyScreen({
   // Allow solo starts (single-player host)
   const allReady = players.length >= 1 && players.every((p) => p.isReady);
   const gameUrl = `${window.location.origin}?join=${gameCode}`;
+
+  // Pre-fill form fields with current player data so Ready stays enabled
+  useEffect(() => {
+    if (currentPlayer) {
+      setName(currentPlayer.name || "");
+      setSelectedPiece(currentPlayer.pieceId || "");
+      setSelectedColor(currentPlayer.color || "");
+    }
+  }, [currentPlayer]);
 
   // Get used pieces and colors
   const usedPieces = players
@@ -317,7 +326,15 @@ export default function LobbyScreen({
 
                 <button
                   onClick={handleReadyClick}
-                  disabled={!name || !selectedPiece || !selectedColor}
+                  disabled={
+                    isHost
+                      ? false
+                      : !name ||
+                        !selectedPiece ||
+                        !selectedColor ||
+                        usedColors.includes(selectedColor) ||
+                        usedPieces.includes(selectedPiece)
+                  }
                   className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-bold py-3 rounded transition-colors"
                 >
                   Ready
@@ -333,7 +350,20 @@ export default function LobbyScreen({
             Players ({players.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {players.map((player) => {
+            {[...players]
+              .sort((a, b) => {
+                const aOrder =
+                  typeof (a as any).order === "number"
+                    ? (a as any).order
+                    : Number.MAX_SAFE_INTEGER;
+                const bOrder =
+                  typeof (b as any).order === "number"
+                    ? (b as any).order
+                    : Number.MAX_SAFE_INTEGER;
+                if (aOrder !== bOrder) return aOrder - bOrder;
+                return (a.name || "").localeCompare(b.name || "");
+              })
+              .map((player) => {
               const piece = player.pieceId
                 ? GAME_PIECES.find((p) => p.id === player.pieceId)
                 : undefined;

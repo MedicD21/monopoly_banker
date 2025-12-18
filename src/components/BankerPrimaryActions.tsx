@@ -37,7 +37,7 @@ const BankerPrimaryActions: React.FC<Props> = ({
   return (
     <>
       {/* Pass GO / Buy Property */}
-      <div className="flex gap-2 flex-wrap justify-center w-full">
+      <div className="flex gap-2 flex-wrap justify-center w-full ">
         <button
           onClick={onPassGo}
           className="flex-1 bg-amber-600 hover:bg-amber-500 text-black text-lg drop-shadow-[0_0_10px_amber] -mt-3 mb-2 px-4 py-2 rounded-3xl font-bold transition-colors flex items-center justify-center gap-2"
@@ -45,7 +45,7 @@ const BankerPrimaryActions: React.FC<Props> = ({
           <img
             src="/images/Go.svg"
             alt="GO"
-            className="w-auto h-20 -mt-3 -mb-3 pointer-events-none"
+            className="w-auto h-20 -mt-3 -mb-3 pointer-events-none "
           />
           Pass GO
         </button>
@@ -57,7 +57,7 @@ const BankerPrimaryActions: React.FC<Props> = ({
           <img
             src="/images/property.svg"
             alt="property"
-            className="w-auto h-20 pb-1 pt-1 -mt-2 -mb-2 pointer-events-none"
+            className="w-auto h-20 pb-1 pt-1 -mt-2 -mb-2 pointer-events-auto"
           />
           Buy Property
         </button>
@@ -67,12 +67,12 @@ const BankerPrimaryActions: React.FC<Props> = ({
       <div className="w-full mb-1">
         <button
           onClick={onTellerPays}
-          className="w-full bg-amber-300 hover:bg-amber-200 text-black text-lg drop-shadow-[0_0_10px_amber] rounded-3xl font-bold transition-colors flex items-center justify-center mb-2"
+          className="w-full bg-blue-500 hover:bg-blue-200 text-black text-lg rounded-3xl font-bold transition-colors flex items-center justify-center mb-2"
         >
           <img
             src="/images/Banker.svg"
             alt="Banker"
-            className="w-auto h-16 flex drop-shadow-[0_0_3px_white]"
+            className="w-auto h-16 flex drop-shadow-[0_0_3px_white] shadow-2xl"
           />
           Teller Pays
         </button>
@@ -83,8 +83,9 @@ const BankerPrimaryActions: React.FC<Props> = ({
             disabled={diceRolling}
             className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-black disabled:text-zinc-500 py-3 rounded-3xl font-bold text-lg transition-colors flex items-center justify-center gap-2"
           >
-            <Dice1 className="w-auto h-10" />
+            <Dice6 className="w-auto h-10 animate-bounce ease-in-out duration-500 fill-gray-300" />
             {diceRolling ? "Rolling..." : "Roll Dice"}
+            <Dice6 className="w-auto h-10 animate-spin ease-in duration-75 animate-bounce fill-gray-300" />
           </button>
 
           {lastRoll && (

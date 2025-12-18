@@ -19,7 +19,7 @@ export default function LobbyPage() {
     randomizePlayerOrder,
   } = useGame();
   const handleRandomizeOrder = () => {
-    randomizePlayerOrder();
+    return randomizePlayerOrder();
   };
 
   // Load game if not already loaded
@@ -45,11 +45,11 @@ export default function LobbyPage() {
   }
 
   const handlePlayerUpdate = (name: string, pieceId: string, color: string) => {
-    updatePlayerSettings(name, pieceId, color);
+    return updatePlayerSettings(name, pieceId, color);
   };
 
   const handleToggleReady = () => {
-    toggleReady();
+    return toggleReady();
   };
 
   const handleStartGame = () => {

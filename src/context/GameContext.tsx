@@ -49,6 +49,7 @@ interface GameContextType {
   startGame: () => Promise<void>;
   leaveGame: () => void;
   updateGameSettings?: (config: Partial<GameConfig>) => Promise<void>;
+  randomizePlayerOrder: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -143,7 +144,14 @@ export function GameProvider({ children }: GameProviderProps) {
     if (!game?.id) return;
 
     const unsubscribe = subscribeToPlayers(game.id, (updatedPlayers) => {
-      setPlayers(updatedPlayers);
+      const sorted = [...updatedPlayers].sort((a, b) => {
+        const aOrder =
+          typeof (a as any).order === "number" ? (a as any).order : Number.MAX_SAFE_INTEGER;
+        const bOrder =
+          typeof (b as any).order === "number" ? (b as any).order : Number.MAX_SAFE_INTEGER;
+        return aOrder - bOrder;
+      });
+      setPlayers(sorted);
     });
 
     return () => unsubscribe();
@@ -263,16 +271,30 @@ export function GameProvider({ children }: GameProviderProps) {
   };
 
   const toggleReady = async () => {
-    if (!game?.id || !currentPlayerId) return;
+    if (!game?.id || !currentPlayerId) {
+      alert("Player not identified. Please rejoin the lobby and try again.");
+      return;
+    }
 
     try {
-      // Fetch the latest player state from Firebase to avoid race conditions
-      const currentPlayerData = await getPlayer(game.id, currentPlayerId);
-      const currentIsReady = currentPlayerData?.isReady || false;
+      // Prefer local state to avoid an extra read; fall back to Firestore if missing
+      let currentIsReady =
+        players.find((p) => p.id === currentPlayerId)?.isReady ?? false;
+      if (currentIsReady === undefined) {
+        const currentPlayerData = await getPlayer(game.id, currentPlayerId);
+        currentIsReady = currentPlayerData?.isReady ?? false;
+      }
 
       await updatePlayer(game.id, currentPlayerId, {
         isReady: !currentIsReady,
       });
+
+       // Optimistically update local state so the UI reflects readiness immediately
+       setPlayers((prev) =>
+         prev.map((p) =>
+           p.id === currentPlayerId ? { ...p, isReady: !currentIsReady } : p
+         )
+       );
     } catch (error) {
       console.error("Error toggling ready:", error);
       alert("Failed to toggle ready status. Please try again.");
