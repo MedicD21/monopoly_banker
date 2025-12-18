@@ -225,6 +225,36 @@ export default function DigitalBanker({
         await updateBalance(playerId, PASS_GO_AMOUNT);
       }
       await updatePlayerPosition(playerId, targetIndex);
+      const landedName = BOARD_SPACES[targetIndex];
+      const owner = getOwnerOfProperty(landedName);
+      if (!owner) {
+        showToastMessage(
+          `${landedName} is unowned. You may buy it from the bank.`
+        );
+      } else if (!idsMatch(owner.id, playerId)) {
+        if (effect.group === "railroad") {
+          const ownedRails = owner.properties.filter((pr: any) => {
+            const def = getPropertyDef(pr.name);
+            return def?.group === "railroad";
+          }).length;
+          const baseRent = [25, 50, 100, 200][Math.min(ownedRails, 4) - 1] || 25;
+          const rentDue = baseRent * 2; // twice the rental
+          await transferMoney(playerId, owner.id, rentDue.toString());
+          showToastMessage(
+            `${player.name} paid $${rentDue} (double rent) to ${owner.name} for ${landedName}`
+          );
+        } else if (effect.group === "utility") {
+          // Roll dice for utility payment (10x roll)
+          const die1 = Math.floor(Math.random() * 6) + 1;
+          const die2 = Math.floor(Math.random() * 6) + 1;
+          const total = die1 + die2;
+          const rentDue = total * 10;
+          await transferMoney(playerId, owner.id, rentDue.toString());
+          showToastMessage(
+            `${player.name} rolled ${total} for utility and paid $${rentDue} to ${owner.name}`
+          );
+        }
+      }
     } else if (effect.kind === "back") {
       const boardSize = BOARD_SPACES.length;
       const currentPos = player.position ?? 0;

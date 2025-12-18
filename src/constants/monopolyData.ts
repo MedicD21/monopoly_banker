@@ -291,35 +291,46 @@ export interface Card {
 }
 
 export const CHANCE_CARDS: Card[] = [
-  // Classic set mapped to our board indexing
   {
     id: "chance-go",
     type: "chance",
-    text: "Advance to GO. Collect $200.",
+    text: "Advance to Go (Collect $200).",
     effect: { kind: "move", position: 0, passGo: true },
+  },
+  {
+    id: "chance-boardwalk",
+    type: "chance",
+    text: "Advance to Boardwalk.",
+    effect: { kind: "move", position: 39, passGo: true },
   },
   {
     id: "chance-illinois",
     type: "chance",
-    text: "Advance to Illinois Avenue. Collect $200 if you pass GO.",
+    text: "Advance to Illinois Avenue. If you pass Go, collect $200.",
     effect: { kind: "move", position: 24, passGo: true },
   },
   {
     id: "chance-st-charles",
     type: "chance",
-    text: "Advance to St. Charles Place. Collect $200 if you pass GO.",
+    text: "Advance to St. Charles Place. If you pass Go, collect $200.",
     effect: { kind: "move", position: 11, passGo: true },
   },
   {
     id: "chance-utility-nearest",
     type: "chance",
-    text: "Advance token to nearest Utility. If unowned, you may buy it.",
+    text: "Advance to the nearest Utility. If unowned, you may buy it from the Bank. If owned, throw dice and pay owner a total ten times amount thrown.",
     effect: { kind: "moveNearest", group: "utility", passGo: true },
   },
   {
     id: "chance-railroad-nearest-1",
     type: "chance",
-    text: "Advance token to nearest Railroad.",
+    text: "Advance to the nearest Railroad. If unowned, you may buy it from the Bank. If owned, pay owner twice the rental to which they are otherwise entitled.",
+    effect: { kind: "moveNearest", group: "railroad", passGo: true },
+  },
+  {
+    id: "chance-railroad-nearest-2",
+    type: "chance",
+    text: "Advance to the nearest Railroad. If unowned, you may buy it from the Bank. If owned, pay owner twice the rental to which they are otherwise entitled.",
     effect: { kind: "moveNearest", group: "railroad", passGo: true },
   },
   {
@@ -337,43 +348,37 @@ export const CHANCE_CARDS: Card[] = [
   {
     id: "chance-back-3",
     type: "chance",
-    text: "Go Back Three Spaces.",
+    text: "Go Back 3 Spaces.",
     effect: { kind: "back", spaces: 3 },
   },
   {
     id: "chance-jail",
     type: "chance",
-    text: "Go to Jail. Do not pass GO. Do not collect $200.",
+    text: "Go to Jail. Go directly to Jail, do not pass Go, do not collect $200.",
     effect: { kind: "gotoJail" },
   },
   {
     id: "chance-repairs",
     type: "chance",
-    text: "Make general repairs on all your property: For each house pay $25, for each hotel pay $100.",
+    text: "Make general repairs on all your property. For each house pay $25. For each hotel pay $100.",
     effect: { kind: "repairs", perHouse: 25, perHotel: 100 },
   },
   {
-    id: "chance-poor-tax",
+    id: "chance-speeding-fine",
     type: "chance",
-    text: "Pay poor tax of $15.",
+    text: "Speeding fine $15.",
     effect: { kind: "bank", amount: -15 },
   },
   {
     id: "chance-reading-railroad",
     type: "chance",
-    text: "Take a trip to Reading Railroad. If you pass GO collect $200.",
+    text: "Take a trip to Reading Railroad. If you pass Go, collect $200.",
     effect: { kind: "move", position: 5, passGo: true },
-  },
-  {
-    id: "chance-boardwalk",
-    type: "chance",
-    text: "Take a walk on the Boardwalk.",
-    effect: { kind: "move", position: 39, passGo: true },
   },
   {
     id: "chance-chairman",
     type: "chance",
-    text: "Pay each player $50.",
+    text: "You have been elected Chairman of the Board. Pay each player $50.",
     effect: { kind: "each", amount: -50 },
   },
   {
@@ -381,12 +386,6 @@ export const CHANCE_CARDS: Card[] = [
     type: "chance",
     text: "Your building loan matures. Collect $150.",
     effect: { kind: "bank", amount: 150 },
-  },
-  {
-    id: "chance-speeding-fine",
-    type: "chance",
-    text: "Speeding fine $15.",
-    effect: { kind: "bank", amount: -15 },
   },
 ];
 
