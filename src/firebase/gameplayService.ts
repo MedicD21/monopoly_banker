@@ -389,6 +389,8 @@ export async function proposeTrade(
     offerProperties: string[];
     requestMoney: number;
     requestProperties: string[];
+    offerJailCards?: number;
+    requestJailCards?: number;
     isCounterOffer?: boolean;
   }
 ): Promise<void> {

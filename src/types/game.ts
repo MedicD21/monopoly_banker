@@ -27,6 +27,7 @@ export interface Player {
   isPro?: boolean; // RevenueCat/Pro status
   inJail?: boolean;
   jailTurns?: number;
+  getOutOfJailFree?: number; // Count of GOOJF cards
 }
 
 export interface GameConfig {
@@ -78,6 +79,8 @@ export interface TradeOffer {
   offerProperties: string[];
   requestMoney: number;
   requestProperties: string[];
+  offerJailCards?: number;
+  requestJailCards?: number;
   status: "pending" | "accepted" | "rejected" | "countered";
   timestamp: number;
   isCounterOffer?: boolean;

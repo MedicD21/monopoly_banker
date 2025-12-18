@@ -176,6 +176,24 @@ export default function DigitalBanker({
     if (!player) return;
 
     const effect = card.effect;
+    const nearestIndexForGroup = (
+      group: "railroad" | "utility",
+      currentPos: number
+    ) => {
+      const targetNames = PROPERTIES.filter((p) => p.group === group).map(
+        (p) => p.name
+      );
+      const indices = BOARD_SPACES.map((name, idx) =>
+        targetNames.includes(name) ? idx : -1
+      ).filter((idx) => idx >= 0);
+      if (!indices.length) return currentPos;
+      const ahead = indices
+        .filter((idx) => idx > currentPos)
+        .sort((a, b) => a - b);
+      if (ahead.length) return ahead[0];
+      return indices.sort((a, b) => a - b)[0];
+    };
+
     if (effect.kind === "bank") {
       await updateBalance(playerId, effect.amount);
     } else if (effect.kind === "each") {
@@ -194,14 +212,54 @@ export default function DigitalBanker({
       }
     } else if (effect.kind === "move") {
       const currentPos = player.position ?? 0;
-      const boardSize = BOARD_SPACES.length;
       const wrapped = effect.position < currentPos && effect.passGo;
       if (wrapped) {
         await updateBalance(playerId, PASS_GO_AMOUNT);
       }
       await updatePlayerPosition(playerId, effect.position);
+    } else if (effect.kind === "moveNearest") {
+      const currentPos = player.position ?? 0;
+      const targetIndex = nearestIndexForGroup(effect.group, currentPos);
+      const wrapped = targetIndex < currentPos && effect.passGo;
+      if (wrapped) {
+        await updateBalance(playerId, PASS_GO_AMOUNT);
+      }
+      await updatePlayerPosition(playerId, targetIndex);
+    } else if (effect.kind === "back") {
+      const boardSize = BOARD_SPACES.length;
+      const currentPos = player.position ?? 0;
+      const target = (currentPos - effect.spaces + boardSize) % boardSize;
+      await updatePlayerPosition(playerId, target);
     } else if (effect.kind === "gotoJail") {
       await updateJailStatus(playerId, true, 0, JAIL_INDEX);
+    } else if (effect.kind === "getOutOfJailFree") {
+      const currentCards = player.getOutOfJailFree || 0;
+      const updated = currentCards + 1;
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.id === playerId ? { ...p, getOutOfJailFree: updated } : p
+        )
+      );
+      if (isMultiplayer && gameId) {
+        await updatePlayer(gameId, playerId as string, {
+          getOutOfJailFree: updated,
+        });
+      }
+    } else if (effect.kind === "repairs") {
+      const houses =
+        player.properties?.reduce(
+          (sum, prop: any) => sum + (prop.hotel ? 0 : prop.houses || 0),
+          0
+        ) || 0;
+      const hotels =
+        player.properties?.reduce(
+          (sum, prop: any) => sum + (prop.hotel ? 1 : 0),
+          0
+        ) || 0;
+      const totalCost = houses * effect.perHouse + hotels * effect.perHotel;
+      if (totalCost !== 0) {
+        await updateBalance(playerId, -totalCost);
+      }
     }
 
     setCardModal({ open: false });
@@ -695,6 +753,7 @@ export default function DigitalBanker({
         color: playerColors[i],
         piece: piece,
         position: 0,
+        getOutOfJailFree: 0,
       });
     }
     setPlayers(newPlayers);
@@ -1384,7 +1443,9 @@ export default function DigitalBanker({
     offerMoney,
     offerProperties,
     requestMoney,
-    requestProperties
+    requestProperties,
+    offerJailCards = 0,
+    requestJailCards = 0
   ) => {
     const fromPlayer = players.find((p) => idsMatch(p.id, fromPlayerId));
     const toPlayer = players.find((p) => idsMatch(p.id, toPlayerId));
@@ -1459,6 +1520,50 @@ export default function DigitalBanker({
       }
     }
 
+    // Transfer Get Out of Jail Free cards
+    if (offerJailCards || requestJailCards) {
+      setPlayers((prev) =>
+        prev.map((p) => {
+          if (p.id === fromPlayerId) {
+            return {
+              ...p,
+              getOutOfJailFree: Math.max(
+                0,
+                (p.getOutOfJailFree || 0) - offerJailCards + requestJailCards
+              ),
+            };
+          }
+          if (p.id === toPlayerId) {
+            return {
+              ...p,
+              getOutOfJailFree: Math.max(
+                0,
+                (p.getOutOfJailFree || 0) + offerJailCards - requestJailCards
+              ),
+            };
+          }
+          return p;
+        })
+      );
+
+      if (isMultiplayer && gameId) {
+        const fromUpdated = Math.max(
+          0,
+          (fromPlayer.getOutOfJailFree || 0) - offerJailCards + requestJailCards
+        );
+        const toUpdated = Math.max(
+          0,
+          (toPlayer.getOutOfJailFree || 0) + offerJailCards - requestJailCards
+        );
+        await updatePlayer(gameId, fromPlayerId as string, {
+          getOutOfJailFree: fromUpdated,
+        });
+        await updatePlayer(gameId, toPlayerId as string, {
+          getOutOfJailFree: toUpdated,
+        });
+      }
+    }
+
     // Add to history
     await addHistoryEntry(
       "transaction",
@@ -1475,7 +1580,9 @@ export default function DigitalBanker({
     offerMoney,
     offerProperties,
     requestMoney,
-    requestProperties
+    requestProperties,
+    offerJailCards,
+    requestJailCards
   ) => {
     const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
     if (!playerIdToUse) return;
@@ -1506,6 +1613,8 @@ export default function DigitalBanker({
         offerProperties,
         requestMoney,
         requestProperties,
+        offerJailCards,
+        requestJailCards,
         isCounterOffer: false,
       });
 
@@ -1519,9 +1628,13 @@ export default function DigitalBanker({
       // In single player, execute immediately with confirmation
       const tradeSummary = `Trade with ${toPlayer.name}:\n\nYou give:\n${
         offerMoney > 0 ? `- $${offerMoney.toLocaleString()}\n` : ""
-      }${offerProperties.join("\n- ")}\n\nYou receive:\n${
+      }${offerProperties.join("\n- ")}${
+        offerJailCards > 0 ? `\n- ${offerJailCards} Get Out of Jail Free` : ""
+      }\n\nYou receive:\n${
         requestMoney > 0 ? `- $${requestMoney.toLocaleString()}\n` : ""
-      }${requestProperties.join("\n- ")}\n\nAccept this trade?`;
+      }${requestProperties.join("\n- ")}${
+        requestJailCards > 0 ? `\n- ${requestJailCards} Get Out of Jail Free` : ""
+      }\n\nAccept this trade?`;
 
       if (!window.confirm(tradeSummary)) {
         return;
@@ -1533,7 +1646,9 @@ export default function DigitalBanker({
         offerMoney,
         offerProperties,
         requestMoney,
-        requestProperties
+        requestProperties,
+        offerJailCards,
+        requestJailCards
       );
     }
   };
@@ -1556,6 +1671,8 @@ export default function DigitalBanker({
         offerProperties,
         requestMoney,
         requestProperties,
+        offerJailCards = 0,
+        requestJailCards = 0,
       } = offer;
       await executeTrade(
         fromPlayerId,
@@ -1563,7 +1680,9 @@ export default function DigitalBanker({
         offerMoney,
         offerProperties,
         requestMoney,
-        requestProperties
+        requestProperties,
+        offerJailCards,
+        requestJailCards
       );
 
       // Clear the trade offer locally and remotely
@@ -1602,7 +1721,9 @@ export default function DigitalBanker({
     offerMoney: number,
     offerProperties: string[],
     requestMoney: number,
-    requestProperties: string[]
+    requestProperties: string[],
+    offerJailCards = 0,
+    requestJailCards = 0
   ) => {
     if (executingTrade) return;
     if (!tradeOffer) return;
@@ -1635,6 +1756,8 @@ export default function DigitalBanker({
         offerProperties,
         requestMoney,
         requestProperties,
+        offerJailCards,
+        requestJailCards,
         isCounterOffer: true,
       });
     }

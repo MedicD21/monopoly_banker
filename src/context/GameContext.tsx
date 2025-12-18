@@ -190,6 +190,7 @@ export function GameProvider({ children }: GameProviderProps) {
         isHost: true,
         isConnected: true,
         lastSeen: Date.now(),
+        getOutOfJailFree: 0,
       });
 
       navigate(`/lobby/${gameId}`);
@@ -244,6 +245,7 @@ export function GameProvider({ children }: GameProviderProps) {
           isHost: false,
           isConnected: true,
           lastSeen: Date.now(),
+          getOutOfJailFree: 0,
         });
       }
 

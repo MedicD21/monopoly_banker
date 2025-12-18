@@ -18,6 +18,7 @@ interface Player {
   piece?: { name: string; icon: string };
   pieceId?: string;
   properties: Property[];
+  getOutOfJailFree?: number;
 }
 
 interface TradeModalProps {
@@ -30,7 +31,9 @@ interface TradeModalProps {
     offerMoney: number,
     offerProperties: string[],
     requestMoney: number,
-    requestProperties: string[]
+    requestProperties: string[],
+    offerJailCards: number,
+    requestJailCards: number
   ) => void;
 }
 
@@ -48,6 +51,8 @@ export default function TradeModal({
   const [requestProperties, setRequestProperties] = useState<string[]>([]);
   const [showOfferPad, setShowOfferPad] = useState(false);
   const [showRequestPad, setShowRequestPad] = useState(false);
+  const [offerJailCards, setOfferJailCards] = useState(0);
+  const [requestJailCards, setRequestJailCards] = useState(0);
 
   if (!isOpen) return null;
 
@@ -94,7 +99,25 @@ export default function TradeModal({
       return;
     }
 
-    onProposeTrade(selectedPlayer, offerMoneyNum, offerProperties, requestMoneyNum, requestProperties);
+    if (offerJailCards > (currentPlayer.getOutOfJailFree || 0)) {
+      alert('You cannot offer more Get Out of Jail Free cards than you have');
+      return;
+    }
+
+    if (requestJailCards > (selectedOpponent?.getOutOfJailFree || 0)) {
+      alert('They do not have that many Get Out of Jail Free cards');
+      return;
+    }
+
+    onProposeTrade(
+      selectedPlayer,
+      offerMoneyNum,
+      offerProperties,
+      requestMoneyNum,
+      requestProperties,
+      offerJailCards,
+      requestJailCards
+    );
 
     // Reset form
     setSelectedPlayer(null);
@@ -102,6 +125,8 @@ export default function TradeModal({
     setRequestMoney('0');
     setOfferProperties([]);
     setRequestProperties([]);
+    setOfferJailCards(0);
+    setRequestJailCards(0);
     onClose();
   };
 
@@ -206,6 +231,35 @@ export default function TradeModal({
                     </div>
                   )}
                 </div>
+
+                {/* Get Out of Jail Free Cards */}
+                <div className="mt-3">
+                  <label className="text-amber-100 text-sm mb-1 block">Get Out of Jail Free Cards</label>
+                  <div className="flex items-center justify-between bg-zinc-900 px-3 py-2 rounded border border-amber-900/30">
+                    <span className="text-amber-200 text-sm">
+                      Available: {currentPlayer.getOutOfJailFree || 0}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setOfferJailCards(Math.max(0, offerJailCards - 1))}
+                        className="bg-zinc-800 text-amber-200 rounded px-2 py-1"
+                      >
+                        -
+                      </button>
+                      <span className="text-amber-50 font-semibold">{offerJailCards}</span>
+                      <button
+                        onClick={() =>
+                          setOfferJailCards(
+                            Math.min((currentPlayer.getOutOfJailFree || 0), offerJailCards + 1)
+                          )
+                        }
+                        className="bg-zinc-800 text-amber-200 rounded px-2 py-1"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Your Request */}
@@ -253,6 +307,35 @@ export default function TradeModal({
                     </div>
                   )}
                 </div>
+
+                {/* Get Out of Jail Free Cards */}
+                <div className="mt-3">
+                  <label className="text-amber-100 text-sm mb-1 block">Get Out of Jail Free Cards</label>
+                  <div className="flex items-center justify-between bg-zinc-900 px-3 py-2 rounded border border-amber-900/30">
+                    <span className="text-amber-200 text-sm">
+                      They have: {selectedOpponent?.getOutOfJailFree || 0}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setRequestJailCards(Math.max(0, requestJailCards - 1))}
+                        className="bg-zinc-800 text-amber-200 rounded px-2 py-1"
+                      >
+                        -
+                      </button>
+                      <span className="text-amber-50 font-semibold">{requestJailCards}</span>
+                      <button
+                        onClick={() =>
+                          setRequestJailCards(
+                            Math.min((selectedOpponent?.getOutOfJailFree || 0), requestJailCards + 1)
+                          )
+                        }
+                        className="bg-zinc-800 text-amber-200 rounded px-2 py-1"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -264,6 +347,8 @@ export default function TradeModal({
                   setRequestMoney('0');
                   setOfferProperties([]);
                   setRequestProperties([]);
+                  setOfferJailCards(0);
+                  setRequestJailCards(0);
                 }}
                 className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold py-3 rounded transition-colors border border-amber-900/30"
               >

@@ -18,6 +18,7 @@ interface Player {
   piece?: { name: string; icon: string };
   pieceId?: string;
   properties: Property[];
+  getOutOfJailFree?: number;
 }
 
 interface TradeOfferModalProps {
@@ -32,7 +33,9 @@ interface TradeOfferModalProps {
     offerMoney: number,
     offerProperties: string[],
     requestMoney: number,
-    requestProperties: string[]
+    requestProperties: string[],
+    offerJailCards: number,
+    requestJailCards: number
   ) => void;
 }
 
@@ -53,6 +56,8 @@ export default function TradeOfferModal({
   const [requestProperties, setRequestProperties] = useState<string[]>(tradeOffer.requestProperties);
   const [showOfferPad, setShowOfferPad] = useState(false);
   const [showRequestPad, setShowRequestPad] = useState(false);
+  const [offerJailCards, setOfferJailCards] = useState(tradeOffer.offerJailCards || 0);
+  const [requestJailCards, setRequestJailCards] = useState(tradeOffer.requestJailCards || 0);
 
   // Reset state when trade offer changes
   useEffect(() => {
@@ -60,6 +65,8 @@ export default function TradeOfferModal({
     setRequestMoney(tradeOffer.requestMoney.toString());
     setOfferProperties(tradeOffer.offerProperties);
     setRequestProperties(tradeOffer.requestProperties);
+    setOfferJailCards(tradeOffer.offerJailCards || 0);
+    setRequestJailCards(tradeOffer.requestJailCards || 0);
   }, [tradeOffer]);
 
   if (!isOpen) return null;
@@ -72,7 +79,9 @@ export default function TradeOfferModal({
     offerMoney !== tradeOffer.offerMoney.toString() ||
     requestMoney !== tradeOffer.requestMoney.toString() ||
     JSON.stringify(offerProperties.sort()) !== JSON.stringify(tradeOffer.offerProperties.sort()) ||
-    JSON.stringify(requestProperties.sort()) !== JSON.stringify(tradeOffer.requestProperties.sort());
+    JSON.stringify(requestProperties.sort()) !== JSON.stringify(tradeOffer.requestProperties.sort()) ||
+    offerJailCards !== (tradeOffer.offerJailCards || 0) ||
+    requestJailCards !== (tradeOffer.requestJailCards || 0);
 
   const toggleOfferProperty = (propertyName: string) => {
     setOfferProperties((prev) =>
@@ -105,7 +114,9 @@ export default function TradeOfferModal({
       requestMoneyNum, // What they give (from their perspective)
       requestProperties,
       offerMoneyNum, // What you give (from their perspective)
-      offerProperties
+      offerProperties,
+      requestJailCards,
+      offerJailCards
     );
   };
 
@@ -198,6 +209,39 @@ export default function TradeOfferModal({
                 </div>
               )}
             </div>
+
+            {/* Get Out of Jail Free Cards */}
+            <div className="mt-3">
+              <label className="text-amber-100 text-sm mb-1 block">Get Out of Jail Free Cards</label>
+              <div className="flex items-center justify-between bg-zinc-900 px-3 py-2 rounded border border-amber-900/30">
+                <span className="text-amber-200 text-sm">
+                  {fromPlayer.name} has: {fromPlayer.getOutOfJailFree || 0}
+                </span>
+                {isRecipient ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setOfferJailCards(Math.max(0, offerJailCards - 1))}
+                      className="bg-zinc-800 text-amber-200 rounded px-2 py-1"
+                    >
+                      -
+                    </button>
+                    <span className="text-amber-50 font-semibold">{offerJailCards}</span>
+                    <button
+                      onClick={() =>
+                        setOfferJailCards(
+                          Math.min(fromPlayer.getOutOfJailFree || 0, offerJailCards + 1)
+                        )
+                      }
+                      className="bg-zinc-800 text-amber-200 rounded px-2 py-1"
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-amber-50 font-semibold">{offerJailCards}</span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* What toPlayer gives */}
@@ -256,6 +300,39 @@ export default function TradeOfferModal({
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Get Out of Jail Free Cards */}
+            <div className="mt-3">
+              <label className="text-amber-100 text-sm mb-1 block">Get Out of Jail Free Cards</label>
+              <div className="flex items-center justify-between bg-zinc-900 px-3 py-2 rounded border border-amber-900/30">
+                <span className="text-amber-200 text-sm">
+                  {toPlayer.name} has: {toPlayer.getOutOfJailFree || 0}
+                </span>
+                {isRecipient ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setRequestJailCards(Math.max(0, requestJailCards - 1))}
+                      className="bg-zinc-800 text-amber-200 rounded px-2 py-1"
+                    >
+                      -
+                    </button>
+                    <span className="text-amber-50 font-semibold">{requestJailCards}</span>
+                    <button
+                      onClick={() =>
+                        setRequestJailCards(
+                          Math.min(toPlayer.getOutOfJailFree || 0, requestJailCards + 1)
+                        )
+                      }
+                      className="bg-zinc-800 text-amber-200 rounded px-2 py-1"
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-amber-50 font-semibold">{requestJailCards}</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -1,3 +1,5 @@
+import { CallerSdkTypeEnum } from "firebase/data-connect";
+
 export const STARTING_MONEY = 1500;
 export const PASS_GO_AMOUNT = 200;
 export const HOUSE_COST = 50;
@@ -275,6 +277,10 @@ export type CardEffect =
   | { kind: "bank"; amount: number } // positive collects, negative pays bank
   | { kind: "each"; amount: number } // collect from each (positive) or pay each (negative)
   | { kind: "move"; position: number; passGo?: boolean }
+  | { kind: "moveNearest"; group: "railroad" | "utility"; passGo?: boolean }
+  | { kind: "back"; spaces: number }
+  | { kind: "repairs"; perHouse: number; perHotel: number }
+  | { kind: "getOutOfJailFree" }
   | { kind: "gotoJail" };
 
 export interface Card {
@@ -285,11 +291,36 @@ export interface Card {
 }
 
 export const CHANCE_CARDS: Card[] = [
+  // Classic set mapped to our board indexing
   {
     id: "chance-go",
     type: "chance",
     text: "Advance to GO. Collect $200.",
     effect: { kind: "move", position: 0, passGo: true },
+  },
+  {
+    id: "chance-illinois",
+    type: "chance",
+    text: "Advance to Illinois Avenue. Collect $200 if you pass GO.",
+    effect: { kind: "move", position: 24, passGo: true },
+  },
+  {
+    id: "chance-st-charles",
+    type: "chance",
+    text: "Advance to St. Charles Place. Collect $200 if you pass GO.",
+    effect: { kind: "move", position: 11, passGo: true },
+  },
+  {
+    id: "chance-utility-nearest",
+    type: "chance",
+    text: "Advance token to nearest Utility. If unowned, you may buy it.",
+    effect: { kind: "moveNearest", group: "utility", passGo: true },
+  },
+  {
+    id: "chance-railroad-nearest-1",
+    type: "chance",
+    text: "Advance token to nearest Railroad.",
+    effect: { kind: "moveNearest", group: "railroad", passGo: true },
   },
   {
     id: "chance-bank-dividend",
@@ -298,10 +329,16 @@ export const CHANCE_CARDS: Card[] = [
     effect: { kind: "bank", amount: 50 },
   },
   {
-    id: "chance-speeding-fine",
+    id: "chance-get-out-of-jail",
     type: "chance",
-    text: "Speeding fine $15.",
-    effect: { kind: "bank", amount: -15 },
+    text: "Get Out of Jail Free. This card may be kept until needed or traded.",
+    effect: { kind: "getOutOfJailFree" },
+  },
+  {
+    id: "chance-back-3",
+    type: "chance",
+    text: "Go Back Three Spaces.",
+    effect: { kind: "back", spaces: 3 },
   },
   {
     id: "chance-jail",
@@ -310,14 +347,51 @@ export const CHANCE_CARDS: Card[] = [
     effect: { kind: "gotoJail" },
   },
   {
-    id: "chance-pay-each",
+    id: "chance-repairs",
+    type: "chance",
+    text: "Make general repairs on all your property: For each house pay $25, for each hotel pay $100.",
+    effect: { kind: "repairs", perHouse: 25, perHotel: 100 },
+  },
+  {
+    id: "chance-poor-tax",
+    type: "chance",
+    text: "Pay poor tax of $15.",
+    effect: { kind: "bank", amount: -15 },
+  },
+  {
+    id: "chance-reading-railroad",
+    type: "chance",
+    text: "Take a trip to Reading Railroad. If you pass GO collect $200.",
+    effect: { kind: "move", position: 5, passGo: true },
+  },
+  {
+    id: "chance-boardwalk",
+    type: "chance",
+    text: "Take a walk on the Boardwalk.",
+    effect: { kind: "move", position: 39, passGo: true },
+  },
+  {
+    id: "chance-chairman",
     type: "chance",
     text: "Pay each player $50.",
     effect: { kind: "each", amount: -50 },
   },
+  {
+    id: "chance-building-loan",
+    type: "chance",
+    text: "Your building loan matures. Collect $150.",
+    effect: { kind: "bank", amount: 150 },
+  },
+  {
+    id: "chance-speeding-fine",
+    type: "chance",
+    text: "Speeding fine $15.",
+    effect: { kind: "bank", amount: -15 },
+  },
 ];
 
 export const COMMUNITY_CARDS: Card[] = [
+  // Classic set mapped to our board indexing
   {
     id: "comm-bank-error",
     type: "community",
@@ -337,16 +411,82 @@ export const COMMUNITY_CARDS: Card[] = [
     effect: { kind: "move", position: 0, passGo: true },
   },
   {
-    id: "comm-collect-each",
+    id: "comm-get-out-of-jail",
     type: "community",
-    text: "It is your birthday. Collect $10 from every player.",
-    effect: { kind: "each", amount: 10 },
+    text: "Get Out of Jail Free. This card may be kept until needed or traded.",
+    effect: { kind: "getOutOfJailFree" },
   },
   {
     id: "comm-go-to-jail",
     type: "community",
     text: "Go to Jail. Do not pass GO. Do not collect $200.",
     effect: { kind: "gotoJail" },
+  },
+  {
+    id: "comm-grand-opera",
+    type: "community",
+    text: "Grand Opera Opening. Collect $50 from every player.",
+    effect: { kind: "each", amount: 50 },
+  },
+  {
+    id: "comm-holiday-fund",
+    type: "community",
+    text: "Holiday Fund matures. Receive $100.",
+    effect: { kind: "bank", amount: 100 },
+  },
+  {
+    id: "comm-income-tax-refund",
+    type: "community",
+    text: "Income tax refund. Collect $20.",
+    effect: { kind: "bank", amount: 20 },
+  },
+  {
+    id: "comm-birthday",
+    type: "community",
+    text: "It is your birthday. Collect $10 from every player.",
+    effect: { kind: "each", amount: 10 },
+  },
+  {
+    id: "comm-life-insurance",
+    type: "community",
+    text: "Life insurance matures. Collect $100.",
+    effect: { kind: "bank", amount: 100 },
+  },
+  {
+    id: "comm-hospital-fees",
+    type: "community",
+    text: "Hospital Fees. Pay $50.",
+    effect: { kind: "bank", amount: -50 },
+  },
+  {
+    id: "comm-school-fees",
+    type: "community",
+    text: "School Fees. Pay $50.",
+    effect: { kind: "bank", amount: -50 },
+  },
+  {
+    id: "comm-consultancy",
+    type: "community",
+    text: "Receive $25 consultancy fee.",
+    effect: { kind: "bank", amount: 25 },
+  },
+  {
+    id: "comm-street-repairs",
+    type: "community",
+    text: "You are assessed for street repairs: $40 per house, $115 per hotel.",
+    effect: { kind: "repairs", perHouse: 40, perHotel: 115 },
+  },
+  {
+    id: "comm-beauty-contest",
+    type: "community",
+    text: "You have won second prize in a beauty contest. Collect $10.",
+    effect: { kind: "bank", amount: 10 },
+  },
+  {
+    id: "comm-inherit-100",
+    type: "community",
+    text: "You inherit $100.",
+    effect: { kind: "bank", amount: 100 },
   },
 ];
 
