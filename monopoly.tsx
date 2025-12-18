@@ -81,6 +81,7 @@ interface DigitalBankerProps {
     doubleGoOnLanding: boolean;
     auctionProperties: boolean;
     speedDie: boolean;
+    onRandomizeOrder?: boolean;
   };
 }
 

@@ -1,4 +1,4 @@
-import { collection, getDocs, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, writeBatch } from "firebase/firestore";
 import { db } from "./config";
 import { Player } from "../types/game";
 
@@ -18,8 +18,8 @@ export async function randomizePlayerOrder(gameId: string): Promise<void> {
   // Write new order to Firestore (add an 'order' field)
   const batch = writeBatch(db);
   players.forEach((player, idx) => {
-    const ref = playersRef.doc ? playersRef.doc(player.id) : playersRef;
-    batch.update(ref, { order: idx });
+    const playerRef = doc(db, "games", gameId, "players", String(player.id));
+    batch.update(playerRef, { order: idx });
   });
   await batch.commit();
 }

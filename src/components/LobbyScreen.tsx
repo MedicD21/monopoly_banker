@@ -33,6 +33,7 @@ export default function LobbyScreen({
   onToggleReady,
   onStartGame,
   onLeave,
+  onRandomizeOrder,
 }: LobbyScreenProps) {
   const [name, setName] = useState("");
   const [selectedPiece, setSelectedPiece] = useState("");
