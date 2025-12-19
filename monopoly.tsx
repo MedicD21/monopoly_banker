@@ -20,6 +20,8 @@ import BuildingCounter from "./src/components/BuildingCounter";
 import AuctionSelectorModal from "./src/components/AuctionSelectorModal";
 import BuyPropertyModal from "./src/components/BuyPropertyModal";
 import { HistoryEntry, TradeOffer } from "./src/types/game";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app as firebaseApp } from "./src/firebase/config";
 import {
   subscribeToPlayers,
   subscribeToGame,
@@ -113,6 +115,35 @@ export default function DigitalBanker({
       await updatePlayer(gameId, playerId as string, { position: newPos });
     }
   };
+
+  //AI intergrating
+
+  const functions = getFunctions(firebaseApp, "us-central1");
+  const analyzeGame = httpsCallable(functions, "analyzeMonopolyGame");
+
+  async function testAI() {
+    if (!gameId) {
+      console.warn("No gameId available for AI analysis.");
+      showToastMessage("Start or join a multiplayer game to use AI.");
+      return;
+    }
+    try {
+      showToastMessage("Analyzing game with AI...");
+      const res = await analyzeGame({
+        gameId: gameId,
+        message: "Who is winning right now?",
+      });
+      console.log("AI RESPONSE:", res.data);
+      showToastMessage("AI response logged to console.");
+    } catch (err: any) {
+      console.error("AI error:", err);
+      const msg =
+        err?.message ||
+        err?.code ||
+        "AI call failed. Check console or function logs.";
+      showToastMessage(msg);
+    }
+  }
 
   const updateJailStatus = async (
     playerId: string | number,
@@ -237,7 +268,8 @@ export default function DigitalBanker({
             const def = getPropertyDef(pr.name);
             return def?.group === "railroad";
           }).length;
-          const baseRent = [25, 50, 100, 200][Math.min(ownedRails, 4) - 1] || 25;
+          const baseRent =
+            [25, 50, 100, 200][Math.min(ownedRails, 4) - 1] || 25;
           const rentDue = baseRent * 2; // twice the rental
           await transferMoney(playerId, owner.id, rentDue.toString());
           showToastMessage(
@@ -1663,7 +1695,9 @@ export default function DigitalBanker({
       }\n\nYou receive:\n${
         requestMoney > 0 ? `- $${requestMoney.toLocaleString()}\n` : ""
       }${requestProperties.join("\n- ")}${
-        requestJailCards > 0 ? `\n- ${requestJailCards} Get Out of Jail Free` : ""
+        requestJailCards > 0
+          ? `\n- ${requestJailCards} Get Out of Jail Free`
+          : ""
       }\n\nAccept this trade?`;
 
       if (!window.confirm(tradeSummary)) {
@@ -2380,6 +2414,7 @@ export default function DigitalBanker({
             isMultiplayer={isMultiplayer}
             roomCode={gameCode}
             activePlayerName={activePlayer?.name}
+            testAI={testAI}
           />
 
           <ProFeaturesRow

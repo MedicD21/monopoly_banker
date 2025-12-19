@@ -7,6 +7,7 @@ type Props = {
   isMultiplayer: boolean;
   roomCode?: string;
   activePlayerName?: string;
+  testAI: () => void;
 };
 
 const BankerHeader: React.FC<Props> = ({
@@ -15,6 +16,7 @@ const BankerHeader: React.FC<Props> = ({
   isMultiplayer,
   roomCode,
   activePlayerName,
+  testAI,
 }) => {
   return (
     <>
@@ -38,6 +40,12 @@ const BankerHeader: React.FC<Props> = ({
           >
             <Clock className="w-4 h-4" />
             History
+          </button>
+          <button
+            onClick={testAI}
+            className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-blue-500 text-white"
+          >
+            🤖 Test AI
           </button>
         </div>
       </div>

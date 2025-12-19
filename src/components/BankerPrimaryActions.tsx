@@ -85,7 +85,7 @@ const BankerPrimaryActions: React.FC<Props> = ({
           >
             <Dice6 className="w-auto h-10 animate-bounce ease-in-out duration-500 fill-gray-300" />
             {diceRolling ? "Rolling..." : "Roll Dice"}
-            <Dice6 className="w-auto h-10 animate-spin ease-in duration-75 animate-bounce fill-gray-300" />
+            <Dice6 className="w-auto h-10 animate-bounce fill-gray-300" />
           </button>
 
           {lastRoll && (

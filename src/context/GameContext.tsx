@@ -23,6 +23,8 @@ import {
   subscribeToPlayers,
   setupPresence,
 } from "../firebase/realtimeService";
+import { db } from "../firebase/config";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import {
   Game,
   GameConfig,
@@ -202,8 +204,11 @@ export function GameProvider({ children }: GameProviderProps) {
 
   const joinGame = async (code: string) => {
     try {
+      // Trim/normalize code
+      const normalizedCode = (code || "").trim();
+
       // Find game by code
-      const gameId = await joinGameByCode(code);
+      const gameId = await joinGameByCode(normalizedCode);
 
       if (!gameId) {
         alert("Game not found. Please check the code and try again.");
@@ -279,24 +284,40 @@ export function GameProvider({ children }: GameProviderProps) {
     }
 
     try {
-      // Prefer local state to avoid an extra read; fall back to Firestore if missing
-      let currentIsReady =
-        players.find((p) => p.id === currentPlayerId)?.isReady ?? false;
-      if (currentIsReady === undefined) {
-        const currentPlayerData = await getPlayer(game.id, currentPlayerId);
-        currentIsReady = currentPlayerData?.isReady ?? false;
-      }
+      const playerRef = doc(db, "games", game.id, "players", currentPlayerId);
+      const snap = await getDoc(playerRef);
+      const now = Date.now();
+      const startingMoney = game?.config?.startingMoney ?? 1500;
+      const isHostFlag = game?.hostId === currentPlayerId;
+      const currentIsReady = snap.exists() ? Boolean(snap.data()?.isReady) : false;
+      const newValue = !currentIsReady;
 
-      await updatePlayer(game.id, currentPlayerId, {
-        isReady: !currentIsReady,
-      });
+      // Use setDoc with merge to avoid precondition failures
+      await setDoc(
+        playerRef,
+        {
+          id: currentPlayerId,
+          name: snap.data()?.name ?? "",
+          pieceId: snap.data()?.pieceId ?? "",
+          color: snap.data()?.color ?? "",
+          balance: snap.data()?.balance ?? startingMoney,
+          properties: snap.data()?.properties ?? [],
+          isReady: newValue,
+          isHost: snap.data()?.isHost ?? isHostFlag,
+          isConnected: true,
+          lastSeen: now,
+          order: snap.data()?.order ?? null,
+          getOutOfJailFree: snap.data()?.getOutOfJailFree ?? 0,
+        },
+        { merge: true }
+      );
 
-       // Optimistically update local state so the UI reflects readiness immediately
-       setPlayers((prev) =>
-         prev.map((p) =>
-           p.id === currentPlayerId ? { ...p, isReady: !currentIsReady } : p
-         )
-       );
+      // Optimistically update local state so the UI reflects readiness immediately
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.id === currentPlayerId ? { ...p, isReady: newValue } : p
+        )
+      );
     } catch (error) {
       console.error("Error toggling ready:", error);
       alert("Failed to toggle ready status. Please try again.");
