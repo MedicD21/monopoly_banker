@@ -124,18 +124,29 @@ export default function DigitalBanker({
 
   async function handleChatMessage(message: string): Promise<string> {
     try {
-      // If there's a gameId, use it for game-specific analysis
-      const payload: any = { message };
-      if (gameId) {
-        payload.gameId = gameId;
+      // If there's no gameId, provide general Monopoly rules assistance
+      if (!gameId) {
+        return `I can help answer Monopoly questions! However, for the best experience with game-specific analysis (like "Who is winning?"), please start or join a multiplayer game.
+
+For general rules questions, I can still help! Try asking:
+• "How do I get out of jail?"
+• "What happens when I land on Free Parking?"
+• "How do mortgages work?"
+• "When can I buy houses?"
+
+What would you like to know?`;
       }
 
-      const res = await analyzeGame(payload);
+      // Call the cloud function with gameId and message
+      const res = await analyzeGame({
+        gameId: gameId,
+        message: message,
+      });
       const data = res.data as any;
 
-      // Return the AI response
-      if (data && data.response) {
-        return data.response;
+      // Handle the response format from your cloud function (uses 'reply' not 'response')
+      if (data && data.reply) {
+        return data.reply;
       } else if (data && typeof data === 'string') {
         return data;
       } else {
@@ -143,7 +154,7 @@ export default function DigitalBanker({
       }
     } catch (err: any) {
       console.error("AI error:", err);
-      const errorMsg = err?.message || err?.code || "Failed to get a response.";
+      const errorMsg = err?.message || err?.code || "Failed to get a response. Make sure the Gemini API is configured in Firebase Functions.";
       throw new Error(errorMsg);
     }
   }

@@ -9,7 +9,7 @@
     "@capacitor/core": "^7.4.4",
     "@capacitor/ios": "^7.4.4",
     "@revenuecat/purchases-capacitor": "^11.3.0",
-    "firebase": "^12.6.0",
+    "firebase": "^12.7.0",
     "lucide-react": "^0.263.1",
     "npm": "^11.7.0",
     "qrcode.react": "^4.2.0",

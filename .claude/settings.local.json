@@ -23,7 +23,8 @@
       "Bash(awk:*)",
       "Bash(npm uninstall:*)",
       "Bash(xcodebuild:*)",
-      "Bash(file:*)"
+      "Bash(file:*)",
+      "Bash(firebase:*)"
     ]
   }
 }
