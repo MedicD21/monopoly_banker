@@ -19,6 +19,7 @@ import BankerPrimaryActions from "./src/components/BankerPrimaryActions";
 import BuildingCounter from "./src/components/BuildingCounter";
 import AuctionSelectorModal from "./src/components/AuctionSelectorModal";
 import BuyPropertyModal from "./src/components/BuyPropertyModal";
+import ChatbotModal from "./src/components/ChatbotModal";
 import { HistoryEntry, TradeOffer } from "./src/types/game";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app as firebaseApp } from "./src/firebase/config";
@@ -121,27 +122,29 @@ export default function DigitalBanker({
   const functions = getFunctions(firebaseApp, "us-central1");
   const analyzeGame = httpsCallable(functions, "analyzeMonopolyGame");
 
-  async function testAI() {
-    if (!gameId) {
-      console.warn("No gameId available for AI analysis.");
-      showToastMessage("Start or join a multiplayer game to use AI.");
-      return;
-    }
+  async function handleChatMessage(message: string): Promise<string> {
     try {
-      showToastMessage("Analyzing game with AI...");
-      const res = await analyzeGame({
-        gameId: gameId,
-        message: "Who is winning right now?",
-      });
-      console.log("AI RESPONSE:", res.data);
-      showToastMessage("AI response logged to console.");
+      // If there's a gameId, use it for game-specific analysis
+      const payload: any = { message };
+      if (gameId) {
+        payload.gameId = gameId;
+      }
+
+      const res = await analyzeGame(payload);
+      const data = res.data as any;
+
+      // Return the AI response
+      if (data && data.response) {
+        return data.response;
+      } else if (data && typeof data === 'string') {
+        return data;
+      } else {
+        return "I received your question but couldn't generate a proper response. Please try rephrasing your question.";
+      }
     } catch (err: any) {
       console.error("AI error:", err);
-      const msg =
-        err?.message ||
-        err?.code ||
-        "AI call failed. Check console or function logs.";
-      showToastMessage(msg);
+      const errorMsg = err?.message || err?.code || "Failed to get a response.";
+      throw new Error(errorMsg);
     }
   }
 
@@ -407,6 +410,7 @@ export default function DigitalBanker({
   const [showToast, setShowToast] = useState(false);
   const [gameHistory, setGameHistory] = useState<HistoryEntry[]>([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showChatbotModal, setShowChatbotModal] = useState(false);
   const [tradeOffer, setTradeOffer] = useState<TradeOffer | null>(null);
   const [ignoredTradeId, setIgnoredTradeId] = useState<string | null>(null);
   const [executingTrade, setExecutingTrade] = useState(false);
@@ -2414,7 +2418,7 @@ export default function DigitalBanker({
             isMultiplayer={isMultiplayer}
             roomCode={gameCode}
             activePlayerName={activePlayer?.name}
-            testAI={testAI}
+            onChatbotClick={() => setShowChatbotModal(true)}
           />
 
           <ProFeaturesRow
@@ -3005,6 +3009,14 @@ export default function DigitalBanker({
           isOpen={showHistoryModal}
           onClose={() => setShowHistoryModal(false)}
           history={gameHistory}
+        />
+
+        {/* Chatbot Modal */}
+        <ChatbotModal
+          isOpen={showChatbotModal}
+          onClose={() => setShowChatbotModal(false)}
+          onSendMessage={handleChatMessage}
+          gameId={gameId}
         />
       </div>
     </div>
