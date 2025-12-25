@@ -1,6 +1,6 @@
 import React from "react";
 import PlayerProperties from "./PlayerProperties";
-import { GAME_PIECES } from "../constants/monopolyData";
+import { GAME_PIECES, PROPERTIES } from "../constants/monopolyData";
 
 type Player = {
   id: string | number;
@@ -44,6 +44,36 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   const piece =
     player.piece || GAME_PIECES.find((p) => p.id === player.pieceId);
 
+  // Calculate net worth (same logic as win probability)
+  const calculateNetWorth = () => {
+    const cash = player.balance || 0;
+
+    const propertyValue = player.properties.reduce((total, prop) => {
+      const propertyData = PROPERTIES.find(p => p.name === prop.name);
+      if (!propertyData) return total;
+
+      // Properties worth 50% of price (mortgage value)
+      let value = propertyData.price * 0.5;
+
+      if (prop.mortgaged) {
+        value = 0; // Mortgaged properties have no immediate value
+      } else {
+        // Add building value at 50% (sell back price)
+        if (prop.hotel) {
+          value += 125;
+        } else {
+          value += (prop.houses || 0) * 25;
+        }
+      }
+
+      return total + value;
+    }, 0);
+
+    return cash + propertyValue;
+  };
+
+  const netWorth = calculateNetWorth();
+
   return (
     <div
       className={`relative bg-zinc-900 rounded-lg p-4 border-2 transition-all flex flex-col gap-3 ${
@@ -73,8 +103,13 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
               )}
               {jailBadge}
             </h3>
-            <div className="text-2xl font-bold text-green-400">
-              ${player.balance.toLocaleString()}
+            <div className="flex items-baseline gap-2">
+              <div className="text-2xl font-bold text-green-400">
+                ${player.balance.toLocaleString()}
+              </div>
+              <div className="text-sm text-zinc-400">
+                (${netWorth.toLocaleString()} net)
+              </div>
             </div>
           </div>
         </div>

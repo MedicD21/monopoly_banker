@@ -45,21 +45,25 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
   };
 
   return (
-    <div className="min-h-screen bg-black text-amber-50 p-4">
+    <div className="min-h-screen bg-black text-amber-50 p-4 pt-16">
       <div className="max-w-2xl mx-auto">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-amber-400 hover:text-amber-300 mb-6"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Back
-        </button>
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-amber-400 hover:text-amber-300"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back
+          </button>
 
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-emerald-600 mb-2">
-            Game Setup
-          </h1>
-          <p className="text-red-600">Configure your game settings</p>
+          <div className="text-center flex-1">
+            <h1 className="text-4xl font-bold text-emerald-600 mb-2">
+              Game Setup
+            </h1>
+            <p className="text-red-600">Configure your game settings</p>
+          </div>
+
+          <div className="w-20" />
         </div>
 
         <div className="bg-zinc-900 rounded-lg p-6 border border-amber-900/30 mb-6">
@@ -102,15 +106,20 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
                 <span className="text-amber-50">Free Parking Jackpot</span>
                 {!isPro && <Lock className="w-4 h-4 text-amber-600" />}
               </div>
-              <input
-                type="checkbox"
-                checked={config.freeParkingJackpot}
-                onChange={(e) =>
-                  isPro && setConfig({ ...config, freeParkingJackpot: e.target.checked })
-                }
+              <button
+                type="button"
+                onClick={() => isPro && setConfig({ ...config, freeParkingJackpot: !config.freeParkingJackpot })}
                 disabled={!isPro}
-                className="w-6 h-6 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  config.freeParkingJackpot ? 'bg-amber-600' : 'bg-zinc-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    config.freeParkingJackpot ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </label>
 
             <label className={`flex items-center justify-between p-3 bg-zinc-800 rounded ${isPro ? 'cursor-pointer hover:bg-zinc-700' : 'opacity-50 cursor-not-allowed'} transition-colors`}>
@@ -118,15 +127,20 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
                 <span className="text-amber-50">Double GO on Exact Landing</span>
                 {!isPro && <Lock className="w-4 h-4 text-amber-600" />}
               </div>
-              <input
-                type="checkbox"
-                checked={config.doubleGoOnLanding}
-                onChange={(e) =>
-                  isPro && setConfig({ ...config, doubleGoOnLanding: e.target.checked })
-                }
+              <button
+                type="button"
+                onClick={() => isPro && setConfig({ ...config, doubleGoOnLanding: !config.doubleGoOnLanding })}
                 disabled={!isPro}
-                className="w-6 h-6 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  config.doubleGoOnLanding ? 'bg-amber-600' : 'bg-zinc-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    config.doubleGoOnLanding ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </label>
 
             <label className={`flex items-center justify-between p-3 bg-zinc-800 rounded ${isPro ? 'cursor-pointer hover:bg-zinc-700' : 'opacity-50 cursor-not-allowed'} transition-colors`}>
@@ -134,15 +148,20 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
                 <span className="text-amber-50">Auction Unowned Properties</span>
                 {!isPro && <Lock className="w-4 h-4 text-amber-600" />}
               </div>
-              <input
-                type="checkbox"
-                checked={config.auctionProperties}
-                onChange={(e) =>
-                  isPro && setConfig({ ...config, auctionProperties: e.target.checked })
-                }
+              <button
+                type="button"
+                onClick={() => isPro && setConfig({ ...config, auctionProperties: !config.auctionProperties })}
                 disabled={!isPro}
-                className="w-6 h-6 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  config.auctionProperties ? 'bg-amber-600' : 'bg-zinc-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    config.auctionProperties ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </label>
 
             <label className={`flex items-center justify-between p-3 bg-zinc-800 rounded ${isPro ? 'cursor-pointer hover:bg-zinc-700' : 'opacity-50 cursor-not-allowed'} transition-colors`}>
@@ -150,15 +169,20 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
                 <span className="text-amber-50">Speed Die Variant</span>
                 {!isPro && <Lock className="w-4 h-4 text-amber-600" />}
               </div>
-              <input
-                type="checkbox"
-                checked={config.speedDie}
-                onChange={(e) =>
-                  isPro && setConfig({ ...config, speedDie: e.target.checked })
-                }
+              <button
+                type="button"
+                onClick={() => isPro && setConfig({ ...config, speedDie: !config.speedDie })}
                 disabled={!isPro}
-                className="w-6 h-6 text-amber-600 bg-zinc-700 border-amber-900 rounded focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  config.speedDie ? 'bg-amber-600' : 'bg-zinc-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    config.speedDie ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </label>
           </div>
         </div>

@@ -1,12 +1,16 @@
-import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { setGlobalOptions } from "firebase-functions";
-import { defineSecret } from "firebase-functions/params";
+import {
+  HttpsError,
+  onCall,
+  CallableRequest,
+} from "firebase-functions/v2/https";
+import {setGlobalOptions} from "firebase-functions";
+import {defineSecret} from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 
 // ---------- Global Setup ----------
-setGlobalOptions({ maxInstances: 10, region: "us-central1" });
+setGlobalOptions({maxInstances: 10, region: "us-central1"});
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -14,6 +18,132 @@ const db = admin.firestore();
 // Gemini (uses Firebase project billing automatically)
 // Gemini API key (Functions v2 secret)
 const GOOGLE_API_KEY = defineSecret("GOOGLE_API_KEY");
+
+// ---------- AI Usage Limits ----------
+const AI_LIMITS = {
+  FREE: 5, // Free users: 5 messages/month
+  PREMIUM: 100, // Premium users with AI subscription: 100/month
+};
+
+// RevenueCat entitlement IDs that grant AI access (100 messages/month)
+const AI_ENTITLEMENTS = [
+  "ai", // AI subscription entitlement (monthly/yearly)
+];
+
+// RevenueCat entitlement/product IDs that grant game features
+const PRO_ENTITLEMENTS = [
+  "pro", // Game features entitlement (subscription + one-time)
+  "ai", // AI subscription also includes game features
+  "digital_banker_pro", // One-time purchase (legacy)
+  "digital_banker_pro_v2", // One-time purchase (current)
+];
+
+// ---------- Helper: Verify AI and Pro status ----------
+async function verifyUserStatus(
+  userId: string,
+  clientReportedPro: boolean,
+  activeEntitlements?: string[]
+): Promise<{ hasAI: boolean; hasPro: boolean }> {
+  try {
+    let hasAI = false;
+    let hasPro = clientReportedPro;
+
+    // If client provides entitlement list, verify server-side
+    if (activeEntitlements && activeEntitlements.length > 0) {
+      // Check for AI subscription (100 messages/month)
+      hasAI = activeEntitlements.some((entitlement) =>
+        AI_ENTITLEMENTS.includes(entitlement)
+      );
+
+      // Check for Pro game features
+      hasPro = activeEntitlements.some((entitlement) =>
+        PRO_ENTITLEMENTS.includes(entitlement)
+      );
+    }
+
+    // Store status in Firestore for audit trail
+    await db.collection("users").doc(userId).set(
+      {
+        hasAI,
+        hasPro,
+        activeEntitlements: activeEntitlements || [],
+        lastVerified: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { hasAI, hasPro };
+  } catch (error) {
+    logger.error("Error verifying user status", error);
+    // On error, trust client-reported status (fail open for better UX)
+    return { hasAI: false, hasPro: clientReportedPro };
+  }
+}
+
+// ---------- Helper: Check and update AI usage ----------
+async function checkAndUpdateAIUsage(
+  userId: string,
+  isPremium: boolean
+): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+  const now = new Date();
+  const monthNum = now.getMonth() + 1;
+  const currentMonth = `${now.getFullYear()}-${String(monthNum)
+    .padStart(2, "0")}`;
+
+  const usageRef = db.collection("aiUsage").doc(userId);
+
+  try {
+    const result = await db.runTransaction(
+      async (transaction: admin.firestore.Transaction) => {
+        const doc = await transaction.get(usageRef);
+        const limit = isPremium ? AI_LIMITS.PREMIUM : AI_LIMITS.FREE;
+
+        let currentUsage = 0;
+        let storedMonth = currentMonth;
+
+        if (doc.exists) {
+          const data = doc.data();
+          storedMonth = data?.month || currentMonth;
+          currentUsage = data?.count || 0;
+
+          // Reset counter if it's a new month
+          if (storedMonth !== currentMonth) {
+            currentUsage = 0;
+            storedMonth = currentMonth;
+          }
+        }
+
+        // Check if user has exceeded limit
+        if (currentUsage >= limit) {
+          return {
+            allowed: false,
+            remaining: 0,
+            limit,
+          };
+        }
+
+        // Increment usage
+        transaction.set(usageRef, {
+          month: storedMonth,
+          count: currentUsage + 1,
+          lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+          isPremium,
+        });
+
+        return {
+          allowed: true,
+          remaining: limit - (currentUsage + 1),
+          limit,
+        };
+      }
+    );
+
+    return result;
+  } catch (error) {
+    logger.error("Error checking AI usage", error);
+    throw new HttpsError("internal", "Failed to check AI usage limits");
+  }
+}
 
 // ---------- Helper: calculate player metrics ----------
 function calculateMetrics(players: any[]) {
@@ -55,56 +185,100 @@ function calculateMetrics(players: any[]) {
 
 // ---------- Callable AI Function ----------
 export const analyzeMonopolyGame = onCall(
-  { secrets: [GOOGLE_API_KEY] },
-  async (request) => {
-    const { gameId, message } = request.data;
+  {secrets: [GOOGLE_API_KEY]},
+  async (request: CallableRequest) => {
+    const {gameId, message, userId, isPremium, activeEntitlements} =
+      request.data;
 
-    if (!gameId || !message) {
-      throw new HttpsError("invalid-argument", "Missing gameId or message");
+    if (!gameId || !message || !userId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing required fields: gameId, message, or userId"
+      );
     }
+
+    // 1️⃣ Verify AI subscription and Pro status
+    const userStatus = await verifyUserStatus(
+      userId,
+      isPremium || false,
+      activeEntitlements
+    );
+
+    logger.info(
+      `User ${userId} - AI: ${userStatus.hasAI}, Pro: ` +
+      `${userStatus.hasPro}`
+    );
+
+    // 2️⃣ Check AI usage limits BEFORE calling Gemini
+    // Users with AI subscription get 100 messages/month
+    // Without AI subscription (one-time purchase) get 5 messages/month
+    const usageCheck = await checkAndUpdateAIUsage(
+      userId,
+      userStatus.hasAI
+    );
+
+    if (!usageCheck.allowed) {
+      const limitMsg = "AI usage limit reached. You've used all " +
+        `${usageCheck.limit} messages this month. `;
+      const upsellMsg = userStatus.hasAI ?
+        "Your limit will reset next month." :
+        "Subscribe to AI Chat for 100 messages/month! " +
+        "Only $1.99/month or $14.99/year.";
+
+      throw new HttpsError("resource-exhausted", limitMsg + upsellMsg);
+    }
+
+    logger.info(
+      `AI usage: ${usageCheck.remaining}/${usageCheck.limit} ` +
+      `remaining for user ${userId}`
+    );
 
     // Initialize Gemini INSIDE the function
     const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY.value());
 
-    // 1️⃣ Load players
+    // 3️⃣ Load players
     const playersSnap = await db.collection(`games/${gameId}/players`).get();
     const players = playersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     const metrics = calculateMetrics(players);
 
-    // 2️⃣ AI prompt
+    // 4️⃣ AI prompt
     const prompt = `
-You are a Monopoly game analyst.
-
-Rules:
-- Standard US Monopoly rules
-- Explain strategy, risk, and momentum but only if asked.
-- NEVER invent game data
-- if not asked any rules then skip this section.
+You are a helpful Monopoly assistant.
 
 Current game metrics:
 ${JSON.stringify(metrics, null, 2)}
-- Only game metrics with no other text.
 
 User question:
 "${message}"
 
-Respond with:
-- Plain english answer to user question. 
-- Keep answer short and concise under 100 characters.
-- Don't ask follow up questions unless required for a rule explaination. 
+Instructions:
+1. First, answer the user's question briefly and directly
+2. Then provide a quick 1-2 sentence game summary showing who's
+   winning, be snarky about who is losing
+3. Keep your ENTIRE response under 150 characters total
+4. Be conversational and concise
+5. Use the actual player names from the metrics
 
+Example format: "[Answer to question]. Currently [player] is leading
+with $[amount] and [properties]."
 `;
 
     logger.info("Sending prompt to Gemini");
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+      const model = genAI.getGenerativeModel({model: "gemini-1.5-pro"});
       const result = await model.generateContent(prompt);
       const response = result.response.text();
 
       return {
         reply: response,
         leaderboard: metrics,
+        usage: {
+          remaining: usageCheck.remaining,
+          limit: usageCheck.limit,
+          hasAI: userStatus.hasAI,
+          hasPro: userStatus.hasPro,
+        },
       };
     } catch (err: any) {
       logger.error("Gemini call failed", err);

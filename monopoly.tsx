@@ -124,8 +124,8 @@ export default function DigitalBanker({
 
   async function handleChatMessage(message: string): Promise<string> {
     try {
-      // If there's no gameId, provide general Monopoly rules assistance
-      if (!gameId) {
+      // If there's no gameId or userId, provide general Monopoly rules assistance
+      if (!gameId || !firebasePlayerId) {
         return `I can help answer Monopoly questions! However, for the best experience with game-specific analysis (like "Who is winning?"), please start or join a multiplayer game.
 
 For general rules questions, I can still help! Try asking:
@@ -137,15 +137,29 @@ For general rules questions, I can still help! Try asking:
 What would you like to know?`;
       }
 
-      // Call the cloud function with gameId and message
+      // Get current player's pro status
+      // Note: isPro is set by RevenueCat and includes BOTH:
+      // - Subscription status (via "pro" entitlement)
+      // - One-time purchase (digital_banker_pro, digital_banker_pro_v2)
+      const currentPlayer = players.find((p) => p.id === firebasePlayerId);
+      const isPremium = currentPlayer?.isPro || false;
+
+      // Call the cloud function with gameId, message, userId, and premium status
+      // The cloud function will verify premium status server-side
       const res = await analyzeGame({
         gameId: gameId,
         message: message,
+        userId: firebasePlayerId,
+        isPremium: isPremium,
       });
       const data = res.data as any;
 
       // Handle the response format from your cloud function (uses 'reply' not 'response')
       if (data && data.reply) {
+        // Optionally show usage info to user
+        if (data.usage) {
+          console.log(`AI Usage: ${data.usage.remaining}/${data.usage.limit} remaining this month`);
+        }
         return data.reply;
       } else if (data && typeof data === 'string') {
         return data;
@@ -154,6 +168,12 @@ What would you like to know?`;
       }
     } catch (err: any) {
       console.error("AI error:", err);
+
+      // Handle usage limit errors specifically
+      if (err?.code === 'functions/resource-exhausted') {
+        return err.message || "You've reached your AI usage limit for this month. Upgrade to Premium for more messages!";
+      }
+
       const errorMsg = err?.message || err?.code || "Failed to get a response. Make sure the Gemini API is configured in Firebase Functions.";
       throw new Error(errorMsg);
     }
@@ -2481,6 +2501,7 @@ What would you like to know?`;
             diceRolling={diceRolling}
             lastRoll={lastRoll}
             showOverlay={(showDice || diceRolling) && !!lastRoll}
+            players={players}
           />
         </div>
 

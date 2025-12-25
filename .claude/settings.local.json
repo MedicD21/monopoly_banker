@@ -24,7 +24,8 @@
       "Bash(npm uninstall:*)",
       "Bash(xcodebuild:*)",
       "Bash(file:*)",
-      "Bash(firebase:*)"
+      "Bash(firebase:*)",
+      "Bash(npm run lint:*)"
     ]
   }
 }

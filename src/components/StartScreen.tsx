@@ -1,5 +1,6 @@
-import React from "react";
-import { Users, LogIn } from "lucide-react";
+import React, { useState } from "react";
+import { Users, LogIn, ShoppingCart } from "lucide-react";
+import ProPurchaseModal from "./ProPurchaseModal";
 
 interface StartScreenProps {
   onHost: () => void;
@@ -7,6 +8,9 @@ interface StartScreenProps {
 }
 
 export default function StartScreen({ onHost, onJoin }: StartScreenProps) {
+  const [showProModal, setShowProModal] = useState(false);
+  const isDev = import.meta.env.DEV;
+
   return (
     <div className="min-h-screen bg-black text-amber-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -36,6 +40,17 @@ export default function StartScreen({ onHost, onJoin }: StartScreenProps) {
             <LogIn className="w-8 h-8" />
             Join Game
           </button>
+
+          {/* Dev-only button to test IAP modal */}
+          {isDev && (
+            <button
+              onClick={() => setShowProModal(true)}
+              className="w-full bg-amber-600 hover:bg-amber-500 text-black font-bold py-4 rounded-lg text-lg transition-colors flex items-center justify-center gap-3 border-2 border-amber-400"
+            >
+              <ShoppingCart className="w-6 h-6" />
+              Test IAP Modal (Dev Only)
+            </button>
+          )}
         </div>
 
         <div className="mt-8 text-center text-amber-600 text-sm">
@@ -55,6 +70,9 @@ export default function StartScreen({ onHost, onJoin }: StartScreenProps) {
           </p>
         </div>
       </div>
+
+      {/* Pro Purchase Modal */}
+      {showProModal && <ProPurchaseModal onClose={() => setShowProModal(false)} />}
     </div>
   );
 }

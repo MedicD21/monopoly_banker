@@ -1,68 +1,157 @@
 import React, { useState, useEffect } from "react";
-import { X, Crown, Check } from "lucide-react";
+import { X, Crown, ChevronDown, ChevronUp, Sparkles, Zap } from "lucide-react";
 import { usePro } from "../context/ProContext";
 import { Capacitor } from "@capacitor/core";
-import { Purchases } from "@revenuecat/purchases-capacitor";
+import { Purchases, PurchasesPackage } from "@revenuecat/purchases-capacitor";
 
 interface ProPurchaseModalProps {
   onClose: () => void;
 }
 
-export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
-  const { purchasePro, restorePurchases, isLoading } = usePro();
-  const [purchasing, setPurchasing] = useState(false);
-  const [priceString, setPriceString] = useState("$1.99");
+interface PurchaseOption {
+  id: string;
+  title: string;
+  subtitle: string;
+  price: string;
+  period?: string;
+  badge?: string;
+  badgeColor?: string;
+  icon: typeof Crown;
+  features: string[];
+  productId: string;
+  popular?: boolean;
+}
 
-  // Fetch the actual price from RevenueCat
+export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
+  const { restorePurchases, isLoading } = usePro();
+  const [purchasing, setPurchasing] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [packages, setPackages] = useState<{ [key: string]: PurchasesPackage }>({});
+
+  const purchaseOptions: PurchaseOption[] = [
+    {
+      id: "onetime",
+      title: "Digital Banker Pro",
+      subtitle: "One-Time Purchase",
+      price: "$1.99",
+      badge: "Game Features",
+      badgeColor: "bg-blue-600",
+      icon: Crown,
+      productId: "digital_banker_pro_v2",
+      features: [
+        "All game variants unlocked",
+        "Free Parking Jackpot",
+        "Double GO Bonus",
+        "Property Auctions",
+        "Speed Die Mode",
+        "5 AI chat messages/month"
+      ]
+    },
+    {
+      id: "monthly",
+      title: "AI Chat Monthly",
+      subtitle: "$1.99/month",
+      price: "$1.99",
+      period: "/month",
+      badge: "Most Popular",
+      badgeColor: "bg-green-600",
+      icon: Sparkles,
+      productId: "ai_banker_chat_monthly",
+      popular: true,
+      features: [
+        "All game variants unlocked",
+        "100 AI chat messages/month",
+        "Game rules & strategy tips",
+        "Real-time game analysis",
+        "Cancel anytime"
+      ]
+    },
+    {
+      id: "yearly",
+      title: "AI Chat Yearly",
+      subtitle: "$14.99/year • Save 37%",
+      price: "$14.99",
+      period: "/year",
+      badge: "Best Value",
+      badgeColor: "bg-amber-600",
+      icon: Zap,
+      productId: "ai_banker_chat_yearly",
+      features: [
+        "All game variants unlocked",
+        "100 AI chat messages/month",
+        "Game rules & strategy tips",
+        "Real-time game analysis",
+        "Just $1.25/month"
+      ]
+    }
+  ];
+
+  // Fetch prices from RevenueCat
   useEffect(() => {
-    const fetchPrice = async () => {
+    const fetchPrices = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
           const offerings = await Purchases.getOfferings();
-          if (
-            offerings.current &&
-            offerings.current.availablePackages &&
-            offerings.current.availablePackages.length > 0
-          ) {
-            const proPackage = offerings.current.availablePackages.find(
-              (pkg) => pkg.product.identifier === "digital_banker_pro_v2"
-            );
+          if (offerings.current?.availablePackages) {
+            const pkgMap: { [key: string]: PurchasesPackage } = {};
 
-            if (proPackage?.product.priceString) {
-              setPriceString(proPackage.product.priceString);
-            } else {
-              console.warn(
-                "digital_banker_pro_v2 package not found in current offerings"
-              );
-              // Keep default priceString ($1.99)
-            }
+            offerings.current.availablePackages.forEach((pkg) => {
+              pkgMap[pkg.product.identifier] = pkg;
+            });
+
+            setPackages(pkgMap);
           }
         } catch (error) {
-          console.error("Error fetching price:", error);
-          // Keep default $1.99 if fetch fails
+          console.error("Error fetching prices:", error);
         }
       }
     };
 
-    fetchPrice();
+    fetchPrices();
   }, []);
 
-  const handlePurchase = async () => {
-    setPurchasing(true);
-    try {
-      const success = await purchasePro();
-      setPurchasing(false);
+  const getPriceString = (productId: string, defaultPrice: string): string => {
+    return packages[productId]?.product.priceString || defaultPrice;
+  };
 
-      if (success) {
-        alert(
-          "🎉 Pro features unlocked! You can now access all game variants."
-        );
+  const handlePurchase = async (option: PurchaseOption) => {
+    setPurchasing(true);
+    setSelectedOption(option.id);
+
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const pkg = packages[option.productId];
+
+        if (!pkg) {
+          alert("Product not available. Please try again.");
+          setPurchasing(false);
+          setSelectedOption(null);
+          return;
+        }
+
+        const purchaseResult = await Purchases.purchasePackage({ aPackage: pkg });
+
+        if (purchaseResult.customerInfo.entitlements.active["pro"] ||
+            purchaseResult.customerInfo.entitlements.active["ai"]) {
+          alert(`🎉 Success! ${option.title} unlocked!`);
+          onClose();
+        }
+      } else {
+        // Web testing - simulate purchase
+        localStorage.setItem("digital_banker_pro_v2", "true");
+        alert(`🎉 Success! ${option.title} unlocked!`);
         onClose();
       }
-      // Error handling is done in ProContext, so we don't need to show another alert here
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Purchase error:", error);
+
+      if (error.code !== "1") { // User cancelled
+        alert(`Purchase failed: ${error.message || "Please try again"}`);
+      }
+    } finally {
       setPurchasing(false);
-      console.error("Unexpected purchase error:", error);
+      setSelectedOption(null);
     }
   };
 
@@ -79,105 +168,151 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
     }
   };
 
+  const toggleCard = (id: string) => {
+    setExpandedCard(expandedCard === id ? null : id);
+  };
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80 p-4">
-      <div className="bg-zinc-900 rounded-lg p-6 max-w-md w-full border-2 border-amber-500/50 relative">
+    <div className="fixed inset-0 flex items-start justify-center z-50 bg-black bg-opacity-90 p-4 pt-20 overflow-y-auto">
+      <div className="bg-zinc-900 rounded-xl p-6 max-w-md w-full border-2 border-amber-500/50 relative my-4">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-amber-400 hover:text-amber-300"
+          className="absolute top-4 right-4 text-amber-400 hover:text-amber-300 z-10"
           disabled={purchasing}
         >
           <X className="w-6 h-6" />
         </button>
 
         <div className="text-center mb-6">
-          <div className="flex justify-center mb-4">
-            <div className="bg-gradient-to-br from-amber-400 to-amber-600 rounded-full p-4">
-              <Crown className="w-12 h-12 text-black" />
+          <div className="flex justify-center mb-3">
+            <div className="bg-gradient-to-br from-amber-400 to-amber-600 rounded-full p-3">
+              <Crown className="w-8 h-8 text-black" />
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-amber-400 mb-2">
-            Upgrade to Pro
+          <h2 className="text-2xl font-bold text-amber-400 mb-1">
+            Unlock Premium
           </h2>
-          <p className="text-amber-600 text-sm">
-            One-time purchase • {priceString}
+          <p className="text-zinc-400 text-xs">
+            Choose the plan that works best for you
           </p>
         </div>
 
-        <div className="bg-black/30 rounded-lg p-4 mb-6 space-y-3">
-          <h3 className="text-amber-400 font-bold mb-3">Pro Features:</h3>
+        {/* Purchase Options - Compact Expandable Cards */}
+        <div className="space-y-3 mb-6">
+          {purchaseOptions.map((option) => {
+            const Icon = option.icon;
+            const actualPrice = getPriceString(option.productId, option.price);
+            const isExpanded = expandedCard === option.id;
+            const isSelected = selectedOption === option.id;
+            const isPurchasing = purchasing && isSelected;
 
-          <div className="flex items-start gap-3">
-            <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-white font-semibold">Free Parking Jackpot</p>
-              <p className="text-gray-400 text-sm">
-                Collect taxes and fees in a jackpot
-              </p>
-            </div>
-          </div>
+            return (
+              <div
+                key={option.id}
+                className={`relative bg-zinc-800 rounded-lg border-2 transition-all ${
+                  option.popular
+                    ? "border-green-500"
+                    : "border-zinc-700"
+                }`}
+              >
+                {/* Badge */}
+                {option.badge && (
+                  <div className="absolute -top-2 right-3">
+                    <span className={`${option.badgeColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-full`}>
+                      {option.badge}
+                    </span>
+                  </div>
+                )}
 
-          <div className="flex items-start gap-3">
-            <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-white font-semibold">Double GO Bonus</p>
-              <p className="text-gray-400 text-sm">
-                Get $400 when landing on GO
-              </p>
-            </div>
-          </div>
+                {/* Collapsed View - Always Visible */}
+                <button
+                  onClick={() => toggleCard(option.id)}
+                  className="w-full p-4 flex items-center gap-3"
+                  disabled={purchasing}
+                >
+                  <div className={`${option.popular ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-zinc-700'} rounded-full p-2 flex-shrink-0`}>
+                    <Icon className="w-5 h-5 text-white" />
+                  </div>
 
-          <div className="flex items-start gap-3">
-            <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-white font-semibold">Property Auctions</p>
-              <p className="text-gray-400 text-sm">
-                Auction unpurchased properties
-              </p>
-            </div>
-          </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-white font-bold text-sm">
+                      {option.title}
+                    </h3>
+                    <p className="text-zinc-400 text-xs">
+                      {option.subtitle}
+                    </p>
+                  </div>
 
-          <div className="flex items-start gap-3">
-            <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-white font-semibold">Speed Die Mode</p>
-              <p className="text-gray-400 text-sm">
-                Roll 3 dice for faster gameplay
-              </p>
-            </div>
-          </div>
+                  {isExpanded ? (
+                    <ChevronUp className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                  )}
+                </button>
+
+                {/* Expanded View - Details & Purchase Button */}
+                {isExpanded && (
+                  <div className="px-4 pb-4 border-t border-zinc-700">
+                    {/* Price */}
+                    <div className="text-center my-3">
+                      <span className="text-2xl font-bold text-amber-400">
+                        {actualPrice}
+                      </span>
+                      {option.period && (
+                        <span className="text-zinc-400 text-sm">{option.period}</span>
+                      )}
+                    </div>
+
+                    {/* Features */}
+                    <div className="space-y-1 mb-4">
+                      {option.features.map((feature, idx) => (
+                        <div key={idx} className="flex items-start gap-2">
+                          <div className="w-1 h-1 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
+                          <span className="text-zinc-300 text-xs">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Purchase Button */}
+                    <button
+                      onClick={() => handlePurchase(option)}
+                      disabled={purchasing || isLoading}
+                      className={`w-full ${
+                        option.popular
+                          ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                          : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+                      } text-black font-bold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+                    >
+                      {isPurchasing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          {option.id === "onetime" ? "Buy Now" : "Subscribe"}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        <div className="space-y-3">
-          <button
-            onClick={handlePurchase}
-            disabled={purchasing || isLoading}
-            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold py-4 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
-          >
-            {purchasing ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
-                Processing...
-              </>
-            ) : (
-              <>
-                <Crown className="w-5 h-5" />
-                Purchase Pro • {priceString}
-              </>
-            )}
-          </button>
-
+        {/* Restore Button */}
+        <div className="space-y-2">
           <button
             onClick={handleRestore}
             disabled={purchasing || isLoading}
-            className="w-full bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-zinc-700 text-sm"
           >
             Restore Purchases
           </button>
 
-          <p className="text-xs text-gray-500 text-center mt-4">
-            Pro features are tied to your Apple ID. One-time payment unlocks all
-            game variants when hosting.
+          <p className="text-[10px] text-zinc-500 text-center leading-tight">
+            Purchases are tied to your Apple ID. Subscriptions auto-renew unless cancelled 24h before renewal.
           </p>
         </div>
       </div>
