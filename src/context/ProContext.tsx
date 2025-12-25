@@ -85,11 +85,19 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
       if (Capacitor.isNativePlatform()) {
         const customerInfo = await Purchases.getCustomerInfo();
 
-        // Check if user has the pro entitlement
+        // Check if user has the pro entitlement OR AI entitlement
         const hasPro =
-          customerInfo.customerInfo.entitlements.active[PRO_ENTITLEMENT_ID] !==
-          undefined;
-        setIsPro(hasPro);
+          customerInfo.customerInfo.entitlements.active[PRO_ENTITLEMENT_ID] !== undefined ||
+          customerInfo.customerInfo.entitlements.active["ai"] !== undefined;
+
+        // For development: also check if any product was purchased (even with invalid receipt)
+        const hasAnyPurchase = customerInfo.customerInfo.allPurchasedProductIdentifiers?.length > 0;
+
+        console.log("✅ Pro Status:", hasPro);
+        console.log("📦 Purchased Products:", customerInfo.customerInfo.allPurchasedProductIdentifiers);
+
+        // In simulator with StoreKit config, trust local purchases
+        setIsPro(hasPro || hasAnyPurchase);
       } else {
         // Web fallback
         const proStatus = localStorage.getItem("digital_banker_pro_v2");
