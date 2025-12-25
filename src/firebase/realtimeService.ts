@@ -2,8 +2,6 @@ import {
   collection,
   doc,
   onSnapshot,
-  query,
-  orderBy,
   Unsubscribe,
 } from 'firebase/firestore';
 import { ref, onDisconnect, set, onValue } from 'firebase/database';
@@ -29,12 +27,21 @@ export function subscribeToPlayers(
   callback: (players: Player[]) => void
 ): Unsubscribe {
   const playersRef = collection(db, 'games', gameId, 'players');
-  const q = query(playersRef, orderBy('order', 'asc'));
-  return onSnapshot(q, (snapshot) => {
+  // Don't use orderBy in query to avoid excluding players without 'order' field
+  // Instead, sort after fetching
+  return onSnapshot(playersRef, (snapshot) => {
     const players: Player[] = [];
     snapshot.forEach((doc) => {
       players.push({ id: doc.id, ...doc.data() } as Player);
     });
+
+    // Sort by order field, treating missing order as MAX to put them at the end
+    players.sort((a, b) => {
+      const aOrder = typeof (a as any).order === 'number' ? (a as any).order : Number.MAX_SAFE_INTEGER;
+      const bOrder = typeof (b as any).order === 'number' ? (b as any).order : Number.MAX_SAFE_INTEGER;
+      return aOrder - bOrder;
+    });
+
     callback(players);
   });
 }

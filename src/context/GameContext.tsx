@@ -145,15 +145,9 @@ export function GameProvider({ children }: GameProviderProps) {
   useEffect(() => {
     if (!game?.id) return;
 
+    // subscribeToPlayers now handles sorting internally
     const unsubscribe = subscribeToPlayers(game.id, (updatedPlayers) => {
-      const sorted = [...updatedPlayers].sort((a, b) => {
-        const aOrder =
-          typeof (a as any).order === "number" ? (a as any).order : Number.MAX_SAFE_INTEGER;
-        const bOrder =
-          typeof (b as any).order === "number" ? (b as any).order : Number.MAX_SAFE_INTEGER;
-        return aOrder - bOrder;
-      });
-      setPlayers(sorted);
+      setPlayers(updatedPlayers);
     });
 
     return () => unsubscribe();

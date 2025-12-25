@@ -76,11 +76,18 @@ export async function addPlayer(
   playerData: Player
 ): Promise<void> {
   const playerRef = doc(db, "games", gameId, "players", playerData.id);
+
+  // Get current player count to assign order
+  const playersRef = collection(db, "games", gameId, "players");
+  const playersSnap = await getDocs(playersRef);
+  const playerCount = playersSnap.size;
+
   await setDoc(playerRef, {
     ...playerData,
     isConnected: true,
     lastSeen: Date.now(),
     position: playerData.position ?? 0,
+    order: (playerData as any).order ?? playerCount, // Ensure order field exists
   });
 }
 
