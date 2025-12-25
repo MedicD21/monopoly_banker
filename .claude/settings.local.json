@@ -25,7 +25,10 @@
       "Bash(xcodebuild:*)",
       "Bash(file:*)",
       "Bash(firebase:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(npx capacitor-assets:*)",
+      "Bash(pod install)",
+      "Bash(pod deintegrate:*)"
     ]
   }
 }
