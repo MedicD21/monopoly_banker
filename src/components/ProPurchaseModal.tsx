@@ -29,6 +29,7 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [packages, setPackages] = useState<{ [key: string]: PurchasesPackage }>({});
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [activeSubscriptionType, setActiveSubscriptionType] = useState<'monthly' | 'yearly' | null>(null);
 
   const purchaseOptions: PurchaseOption[] = [
     {
@@ -108,14 +109,17 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
           const customerInfo = await Purchases.getCustomerInfo();
           const activeProducts = customerInfo.customerInfo.activeSubscriptions || [];
 
-          // Check if user has monthly or yearly AI subscription
-          const hasSubscription = activeProducts.includes("ai_banker_chat_monthly") ||
-                                  activeProducts.includes("ai_banker_chat_yearly");
+          // Check which specific subscription they have
+          const hasMonthly = activeProducts.includes("ai_banker_chat_monthly");
+          const hasYearly = activeProducts.includes("ai_banker_chat_yearly");
+          const hasSubscription = hasMonthly || hasYearly;
 
           setHasActiveSubscription(hasSubscription);
+          setActiveSubscriptionType(hasMonthly ? 'monthly' : hasYearly ? 'yearly' : null);
 
           console.log("🔍 Active subscriptions:", activeProducts);
           console.log("📊 Has active subscription:", hasSubscription);
+          console.log("📅 Subscription type:", hasMonthly ? 'monthly' : hasYearly ? 'yearly' : 'none');
         } catch (error) {
           console.error("Error fetching prices/status:", error);
         }
@@ -270,17 +274,30 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             const isSelected = selectedOption === option.id;
             const isPurchasing = purchasing && isSelected;
 
+            // Check if this is the user's current subscription
+            const isCurrentPlan =
+              (option.id === "monthly" && activeSubscriptionType === 'monthly') ||
+              (option.id === "yearly" && activeSubscriptionType === 'yearly');
+
             return (
               <div
                 key={option.id}
                 className={`relative bg-zinc-800 rounded-lg border-2 transition-all ${
-                  option.popular
+                  isCurrentPlan
+                    ? "border-blue-500"
+                    : option.popular
                     ? "border-green-500"
                     : "border-zinc-700"
                 }`}
               >
-                {/* Badge */}
-                {option.badge && (
+                {/* Badge - Show "Current Plan" or regular badge */}
+                {isCurrentPlan ? (
+                  <div className="absolute -top-2 right-3">
+                    <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      Current Plan
+                    </span>
+                  </div>
+                ) : option.badge && (
                   <div className="absolute -top-2 right-3">
                     <span className={`${option.badgeColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-full`}>
                       {option.badge}
@@ -337,27 +354,33 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
                       ))}
                     </div>
 
-                    {/* Purchase Button */}
-                    <button
-                      onClick={() => handlePurchase(option)}
-                      disabled={purchasing || isLoading}
-                      className={`w-full ${
-                        option.popular
-                          ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                          : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
-                      } text-black font-bold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
-                    >
-                      {isPurchasing ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          {option.id === "onetime" ? "Buy Now" : "Subscribe"}
-                        </>
-                      )}
-                    </button>
+                    {/* Purchase Button or Current Plan Message */}
+                    {isCurrentPlan ? (
+                      <div className="w-full bg-blue-900/30 border border-blue-600/50 text-blue-400 font-bold py-3 rounded-lg text-center text-sm">
+                        ✓ Your Current Subscription
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handlePurchase(option)}
+                        disabled={purchasing || isLoading}
+                        className={`w-full ${
+                          option.popular
+                            ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                            : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+                        } text-black font-bold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+                      >
+                        {isPurchasing ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            {option.id === "onetime" ? "Buy Now" : "Subscribe"}
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

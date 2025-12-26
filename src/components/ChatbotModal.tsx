@@ -26,7 +26,7 @@ const ChatbotModal: React.FC<Props> = ({
       id: "welcome",
       role: "assistant",
       content:
-        "Hello! I'm your Monopoly Rules Assistant. Ask me anything about Monopoly rules, strategies, or game mechanics!",
+        "Hello! I'm your AI Game Assistant. Ask me anything about rules, who is winning, or game mechanics!",
       timestamp: Date.now(),
     },
   ]);
@@ -103,7 +103,7 @@ const ChatbotModal: React.FC<Props> = ({
           <div className="flex items-center gap-2">
             <MessageCircle className="w-6 h-6 text-amber-400" />
             <h2 className="text-xl font-bold text-amber-400">
-              Monopoly Rules Assistant
+              AI Game Assistant
             </h2>
           </div>
           <button

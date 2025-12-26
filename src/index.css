@@ -8,7 +8,8 @@ body,
 #root {
   margin: 0;
   padding: 0;
-  min-height: 100%;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
   height: 100%;
   background: #000;
   color: #fefce8; /* match amber-50 tone */
@@ -18,11 +19,39 @@ body,
 
 /* Ensure black background on iOS overscroll */
 html {
-  background: #000;
+  background: #000 !important;
+  background-color: #000 !important;
+  height: -webkit-fill-available;
 }
 
 body {
-  background: #000;
+  background: #000 !important;
+  background-color: #000 !important;
   /* Prevent iOS rubber band white background */
   overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Force black background on all potential white areas */
+body::before {
+  content: '';
+  position: fixed;
+  top: -100vh;
+  left: 0;
+  right: 0;
+  height: 200vh;
+  background: #000;
+  z-index: -1;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -100vh;
+  left: 0;
+  right: 0;
+  height: 200vh;
+  background: #000;
+  z-index: -1;
 }

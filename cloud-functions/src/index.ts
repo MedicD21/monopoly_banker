@@ -3,14 +3,14 @@ import {
   onCall,
   CallableRequest,
 } from "firebase-functions/v2/https";
-import {setGlobalOptions} from "firebase-functions";
-import {defineSecret} from "firebase-functions/params";
+import { setGlobalOptions } from "firebase-functions";
+import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import {GoogleGenerativeAI} from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ---------- Global Setup ----------
-setGlobalOptions({maxInstances: 10, region: "us-central1"});
+setGlobalOptions({ maxInstances: 10, region: "us-central1" });
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -62,15 +62,18 @@ async function verifyUserStatus(
     }
 
     // Store status in Firestore for audit trail
-    await db.collection("users").doc(userId).set(
-      {
-        hasAI,
-        hasPro,
-        activeEntitlements: activeEntitlements || [],
-        lastVerified: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    await db
+      .collection("users")
+      .doc(userId)
+      .set(
+        {
+          hasAI,
+          hasPro,
+          activeEntitlements: activeEntitlements || [],
+          lastVerified: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
 
     return { hasAI, hasPro };
   } catch (error) {
@@ -87,8 +90,10 @@ async function checkAndUpdateAIUsage(
 ): Promise<{ allowed: boolean; remaining: number; limit: number }> {
   const now = new Date();
   const monthNum = now.getMonth() + 1;
-  const currentMonth = `${now.getFullYear()}-${String(monthNum)
-    .padStart(2, "0")}`;
+  const currentMonth = `${now.getFullYear()}-${String(monthNum).padStart(
+    2,
+    "0"
+  )}`;
 
   const usageRef = db.collection("aiUsage").doc(userId);
 
@@ -185,9 +190,9 @@ function calculateMetrics(players: any[]) {
 
 // ---------- Callable AI Function ----------
 export const analyzeMonopolyGame = onCall(
-  {secrets: [GOOGLE_API_KEY]},
+  { secrets: [GOOGLE_API_KEY] },
   async (request: CallableRequest) => {
-    const {gameId, message, userId, isPremium, activeEntitlements} =
+    const { gameId, message, userId, isPremium, activeEntitlements } =
       request.data;
 
     if (!gameId || !message || !userId) {
@@ -205,32 +210,29 @@ export const analyzeMonopolyGame = onCall(
     );
 
     logger.info(
-      `User ${userId} - AI: ${userStatus.hasAI}, Pro: ` +
-      `${userStatus.hasPro}`
+      `User ${userId} - AI: ${userStatus.hasAI}, Pro: ` + `${userStatus.hasPro}`
     );
 
     // 2️⃣ Check AI usage limits BEFORE calling Gemini
     // Users with AI subscription get 100 messages/month
     // Without AI subscription (one-time purchase) get 5 messages/month
-    const usageCheck = await checkAndUpdateAIUsage(
-      userId,
-      userStatus.hasAI
-    );
+    const usageCheck = await checkAndUpdateAIUsage(userId, userStatus.hasAI);
 
     if (!usageCheck.allowed) {
-      const limitMsg = "AI usage limit reached. You've used all " +
+      const limitMsg =
+        "AI usage limit reached. You've used all " +
         `${usageCheck.limit} messages this month. `;
       const upsellMsg = userStatus.hasAI ?
         "Your limit will reset next month." :
         "Subscribe to AI Chat for 100 messages/month! " +
-        "Only $1.99/month or $14.99/year.";
+          "Only $1.99/month or $14.99/year.";
 
       throw new HttpsError("resource-exhausted", limitMsg + upsellMsg);
     }
 
     logger.info(
       `AI usage: ${usageCheck.remaining}/${usageCheck.limit} ` +
-      `remaining for user ${userId}`
+        `remaining for user ${userId}`
     );
 
     // Initialize Gemini INSIDE the function
@@ -243,7 +245,7 @@ export const analyzeMonopolyGame = onCall(
 
     // 4️⃣ AI prompt
     const prompt = `
-You are a helpful Monopoly assistant.
+You are a helpful Monopoly assistant for the Digital Banker app.
 
 Current game metrics:
 ${JSON.stringify(metrics, null, 2)}
@@ -251,22 +253,32 @@ ${JSON.stringify(metrics, null, 2)}
 User question:
 "${message}"
 
-Instructions:
-1. First, answer the user's question briefly and directly
-2. Then provide a quick 1-2 sentence game summary showing who's
-   winning, be snarky about who is losing
-3. Keep your ENTIRE response under 150 characters total
-4. Be conversational and concise
-5. Use the actual player names from the metrics
+Digital Banker App Guide (answer app usage questions):
+- **Buy Property**: Tap player → "Buy Property" → amount → confirm
+- **Sell Property**: Tap player → "Sell Property" → amount → confirm
+- **Add Houses/Hotels**: Tap player → "Add House/Hotel" → property
+- **Remove Houses/Hotels**: Tap player → "Remove House/Hotel"
+- **Pass GO**: Tap player → "Pass GO" → gets $200
+- **Pay/Receive**: Tap player → "Pay" or "Receive" → amount
+- **Game Variants**: Set in Host Setup (Free Parking, etc.)
+- **AI Chat**: Ask me strategy or app questions!
 
-Example format: "[Answer to question]. Currently [player] is leading
-with $[amount] and [properties]."
+Instructions:
+1. Answer app questions with clear steps from guide above
+2. Answer strategy questions using current game metrics
+3. Be conversational, helpful, and concise but snarky to players losing
+4. Keep response under 200 characters when possible
+5. Use actual player names when discussing game state
+
+Examples:
+App: "Tap the player → 'Buy Property' → enter amount!"
+Game: "[Answer]. [Player] is leading with $[amount]."
 `;
 
     logger.info("Sending prompt to Gemini");
 
     try {
-      const model = genAI.getGenerativeModel({model: "gemini-1.5-pro"});
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
       const result = await model.generateContent(prompt);
       const response = result.response.text();
 

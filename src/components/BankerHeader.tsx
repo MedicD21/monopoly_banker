@@ -46,7 +46,7 @@ const BankerHeader: React.FC<Props> = ({
             className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 border border-blue-500 text-white"
           >
             <MessageCircle className="w-4 h-4" />
-            Rules Chat
+            AI Chat
           </button>
         </div>
       </div>
