@@ -304,7 +304,7 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
           <div className="mt-4 text-center">
             <button
               onClick={() => setShowProModal(true)}
-              className="text-xs text-amber-600 hover:text-amber-500 underline transition-colors"
+              className="text-xs text-amber-400 hover:text-amber-300 underline transition-colors"
             >
               Upgrade to AI Chat Yearly & Save 37%
             </button>
