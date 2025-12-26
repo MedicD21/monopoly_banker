@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, TrendingUp } from "lucide-react";
+import {
+  Dice1,
+  Dice2,
+  Dice3,
+  Dice4,
+  Dice5,
+  Dice6,
+  TrendingUp,
+} from "lucide-react";
 import { Player } from "../types/game";
 import { calculateWinProbabilities } from "../utils/winProbability";
 
@@ -17,9 +25,10 @@ type Props = {
   showOverlay: boolean;
   onRoll: () => void;
   onTellerPays: () => void;
-  onPassGo: () => void;
-  onBuyProperty: () => void;
+  onDrawChance: () => void;
+  onDrawCommunity: () => void;
   players: Player[];
+  isPro?: boolean;
 };
 
 const DiceIcon = ({ value }: { value: number }) => {
@@ -30,43 +39,40 @@ const DiceIcon = ({ value }: { value: number }) => {
 
 const BankerPrimaryActions: React.FC<Props> = ({
   onTellerPays,
-  onPassGo,
-  onBuyProperty,
+  onDrawChance,
+  onDrawCommunity,
   lastRoll,
   diceRolling,
   showOverlay,
   onRoll,
   players,
+  isPro = false,
 }) => {
   const [showWinPercentages, setShowWinPercentages] = useState(false);
   const winProbabilities = calculateWinProbabilities(players);
 
   return (
     <>
-      {/* Pass GO / Buy Property */}
-      <div className="flex gap-2 flex-wrap justify-center w-full ">
+      {/* Chance / Community Chest */}
+      <div className="flex gap-2 flex-wrap justify-center w-full mb-2">
         <button
-          onClick={onPassGo}
-          className="flex-1 bg-amber-600 hover:bg-amber-500 text-black text-lg drop-shadow-[0_0_10px_amber] -mt-3 mb-2 px-4 py-2 rounded-3xl font-bold transition-colors flex items-center justify-center gap-2"
+          onClick={onDrawChance}
+          className="flex-1 bg-amber-600 hover:bg-amber-500 text-black text-sm font-bold py-1.5 px-3 rounded-3xl transition-colors flex items-center justify-center gap-1.5 border-2 border-orange-400"
         >
-          <img
-            src="/images/Go.svg"
-            alt="GO"
-            className="w-auto h-20 -mt-3 -mb-3 pointer-events-none "
-          />
-          Pass GO
+          <img src="/images/Chance.svg" alt="Chance" className="w-auto h-12" />
+          Chance
         </button>
 
         <button
-          onClick={onBuyProperty}
-          className="flex-1 bg-amber-600 hover:bg-amber-500 text-black text-lg drop-shadow-[0_0_10px_amber] -mt-3 mb-2 px-4 py-2 rounded-3xl font-bold transition-colors flex items-center justify-center gap-2"
+          onClick={onDrawCommunity}
+          className="flex-1 bg-blue-600 hover:bg-blue-500 text-black text-sm font-bold py-1.5 px-3 rounded-3xl transition-colors flex items-center justify-center gap-1.5 border-2 border-blue-400"
         >
           <img
-            src="/images/property.svg"
-            alt="property"
-            className="w-auto h-20 pb-1 pt-1 -mt-2 -mb-2 pointer-events-auto"
+            src="/images/Community_Chest.svg"
+            alt="Community Chest"
+            className="w-auto h-12"
           />
-          Buy Property
+          Community Chest
         </button>
       </div>
 
@@ -74,7 +80,7 @@ const BankerPrimaryActions: React.FC<Props> = ({
       <div className="w-full mb-1">
         <button
           onClick={onTellerPays}
-          className="w-full bg-blue-500 hover:bg-blue-200 text-black text-lg rounded-3xl font-bold transition-colors flex items-center justify-center mb-2"
+          className="w-full bg-green-600 hover:bg-green-400 text-black text-lg rounded-3xl font-bold transition-colors flex items-center justify-center mb-2"
         >
           <img
             src="/images/Banker.svg"
@@ -131,41 +137,73 @@ const BankerPrimaryActions: React.FC<Props> = ({
 
           {/* Win Probability Toggle */}
           <button
-            onClick={() => setShowWinPercentages(!showWinPercentages)}
-            className="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 text-amber-400 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2 border border-amber-900/30"
+            onClick={() => {
+              if (isPro) {
+                setShowWinPercentages(!showWinPercentages);
+              }
+            }}
+            className={`w-full mt-2 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2 border ${
+              isPro
+                ? "bg-zinc-800 hover:bg-zinc-700 text-amber-400 border-amber-900/30"
+                : "bg-zinc-800/50 text-zinc-500 border-zinc-700 cursor-not-allowed"
+            }`}
           >
             <TrendingUp className="w-4 h-4" />
-            {showWinPercentages ? "Hide" : "Show"} Win Probabilities
+            {isPro ? (
+              <>{showWinPercentages ? "Hide" : "Show"} Win Probabilities</>
+            ) : (
+              <>
+                <span>Win Probabilities</span>
+                <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-black text-xs font-extrabold">
+                  PRO
+                </span>
+              </>
+            )}
           </button>
 
           {/* Win Percentages Display */}
-          {showWinPercentages && (
+          {showWinPercentages && isPro && (
             <div className="mt-2 bg-zinc-800 p-3 rounded-lg border border-amber-900/30">
               <h3 className="text-amber-400 font-bold text-sm mb-2 text-center">
                 Win Probabilities
               </h3>
               <div className="space-y-2">
                 {winProbabilities.map((prob, index) => {
-                  const player = players.find(p => p.id === prob.playerId);
+                  const player = players.find((p) => p.id === prob.playerId);
                   const isLeading = index === 0;
 
                   return (
-                    <div key={prob.playerId} className="flex items-center gap-2">
+                    <div
+                      key={prob.playerId}
+                      className="flex items-center gap-2"
+                    >
                       <div
-                        className={`w-3 h-3 rounded-full ${player?.color || 'bg-gray-500'}`}
+                        className={`w-3 h-3 rounded-full ${
+                          player?.color || "bg-gray-500"
+                        }`}
                       />
                       <div className="flex-1">
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs font-semibold ${isLeading ? 'text-green-400' : 'text-amber-50'}`}>
+                          <span
+                            className={`text-xs font-semibold ${
+                              isLeading ? "text-green-400" : "text-amber-50"
+                            }`}
+                          >
                             {prob.playerName}
                           </span>
-                          <span className={`text-xs font-bold ${isLeading ? 'text-green-400' : 'text-amber-400'}`}>
+                          <span
+                            className={`text-xs font-bold ${
+                              isLeading ? "text-green-400" : "text-amber-400"
+                            }`}
+                          >
                             {prob.percentage}%
                           </span>
                         </div>
                         <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden">
                           <div
-                            className={`h-full ${isLeading ? 'bg-green-500' : 'bg-amber-600'} transition-all duration-500`}
+                            className={`h-full ${
+                              isLeading ? "bg-green-500" : "bg-amber-600"
+                            } transition-all duration-500`}
                             style={{ width: `${prob.percentage}%` }}
                           />
                         </div>

@@ -1,6 +1,7 @@
 import React from "react";
+import { Crown } from "lucide-react";
 import PlayerProperties from "./PlayerProperties";
-import { GAME_PIECES, PROPERTIES } from "../constants/monopolyData";
+import { GAME_PIECES, PROPERTIES, BOARD_SPACES } from "../constants/monopolyData";
 
 type Player = {
   id: string | number;
@@ -12,28 +13,34 @@ type Player = {
   pieceId?: string;
   isPro?: boolean;
   inJail?: boolean;
+  getOutOfJailFree?: number;
+  position?: number;
 };
 
 type PlayerCardProps = {
   player: Player;
   isCurrentUser: boolean;
+  showProCrown?: boolean;
   onPayRent: (landlordId: string | number) => void;
   onPayCustom: (toPlayerId: string | number) => void;
   onOpenPayModal: () => void;
   onOpenTrade: () => void;
   onOpenTax: () => void;
   onManageProperty: (propertyName: string) => void;
+  onUseJailCard?: () => void;
 };
 
 const PlayerCard: React.FC<PlayerCardProps> = ({
   player,
   isCurrentUser,
+  showProCrown = false,
   onPayRent,
   onPayCustom,
   onOpenPayModal,
   onOpenTrade,
   onOpenTax,
   onManageProperty,
+  onUseJailCard,
 }) => {
   const jailBadge = player.inJail ? (
     <span className="ml-2 px-2 py-0.5 rounded bg-red-800 text-red-100 text-xs font-bold">
@@ -41,8 +48,38 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
     </span>
   ) : null;
 
+  const jailCardBadge = (player.getOutOfJailFree || 0) > 0 ? (
+    <span
+      className="ml-2 px-2 py-0.5 rounded bg-green-700 text-white text-xs font-bold flex items-center gap-1"
+      title="Get Out of Jail Free cards"
+    >
+      🔓 x{player.getOutOfJailFree}
+    </span>
+  ) : null;
+
   const piece =
     player.piece || GAME_PIECES.find((p) => p.id === player.pieceId);
+
+  // Get board space info (color and icon)
+  const getBoardSpaceInfo = (position: number): { color: string; icon?: string } => {
+    const spaceName = BOARD_SPACES[position];
+    const property = PROPERTIES.find(p => p.name === spaceName);
+
+    if (property) {
+      return { color: property.color };
+    }
+
+    // Special spaces with icons
+    if (position === 0) return { color: "bg-green-600", icon: "/images/Go.svg" }; // GO
+    if (position === 10) return { color: "bg-orange-500", icon: "/images/Just_Visiting.svg" }; // Just Visiting
+    if (position === 20) return { color: "bg-red-600", icon: "/images/Free_Parking.svg" }; // Free Parking
+    if (position === 30) return { color: "bg-red-700", icon: "/images/Jail.svg" }; // Go To Jail
+    if (spaceName === "Income Tax" || spaceName === "Luxury Tax") return { color: "bg-yellow-600" };
+    if (spaceName === "Chance") return { color: "bg-orange-600" };
+    if (spaceName === "Community Chest") return { color: "bg-blue-600" };
+
+    return { color: "bg-gray-600" }; // Default
+  };
 
   // Calculate net worth (same logic as win probability)
   const calculateNetWorth = () => {
@@ -94,22 +131,38 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             ) : null}
           </div>
           <div>
-            <h3 className="text-xl font-bold text-amber-50 text-center flex items-center gap-2">
+            <h3 className="text-xl font-bold text-amber-50 text-center flex items-center flex-wrap gap-2">
               {player.name}
-              {player.isPro && (
-                <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-black text-xs font-extrabold shadow-lg">
-                  PRO
-                </span>
+              {showProCrown && (
+                <Crown className="w-5 h-5 text-amber-500" />
               )}
               {jailBadge}
+              {jailCardBadge}
             </h3>
-            <div className="flex items-baseline gap-2">
-              <div className="text-2xl font-bold text-green-400">
-                ${player.balance.toLocaleString()}
+            <div className="flex flex-col">
+              <div className="flex items-baseline gap-2">
+                <div className="text-2xl font-bold text-green-400">
+                  ${player.balance.toLocaleString()}
+                </div>
+                <div className="text-sm text-zinc-400">
+                  (${netWorth.toLocaleString()} net)
+                </div>
               </div>
-              <div className="text-sm text-zinc-400">
-                (${netWorth.toLocaleString()} net)
-              </div>
+              {player.position !== undefined && (() => {
+                const spaceInfo = getBoardSpaceInfo(player.position);
+                return (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {spaceInfo.icon ? (
+                      <img src={spaceInfo.icon} alt="Space" className="w-4 h-4" />
+                    ) : (
+                      <div className={`w-3 h-3 rounded-full ${spaceInfo.color} border border-white/30`} />
+                    )}
+                    <span className="text-xs text-amber-50 font-semibold">
+                      {BOARD_SPACES[player.position] || `Space ${player.position}`}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -142,6 +195,15 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
       {isCurrentUser && (
         <div className="flex flex-wrap justify-center gap-2 mb-3">
+          {player.inJail && (player.getOutOfJailFree || 0) > 0 && onUseJailCard && (
+            <button
+              onClick={onUseJailCard}
+              className="w-auto h-11 bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1 animate-pulse"
+            >
+              🔓 Use Jail Card
+            </button>
+          )}
+
           <button
             onClick={onOpenPayModal}
             className="w-auto h-11 bg-orange-700 hover:bg-orange-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors flex items-center gap-1"
@@ -164,10 +226,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
           >
             <img
               src="/images/Luxury_Tax.svg"
-              alt="Tax"
+              alt="Fee"
               className="w-auto h-12"
             />
-            Pay Tax
+            Pay Fee
           </button>
         </div>
       )}

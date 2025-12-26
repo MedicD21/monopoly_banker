@@ -2,56 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global base styles */
+/* Global base styles - iOS safe area handling
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+:root {
+  --safe-top: env(safe-area-inset-top);
+  --safe-right: env(safe-area-inset-right);
+  --safe-bottom: env(safe-area-inset-bottom);
+  --safe-left: env(safe-area-inset-left);
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
-  height: 100%;
-  background: #000;
-  color: #fefce8; /* match amber-50 tone */
-  /* Fix iOS overscroll white background */
-  background-color: #000 !important;
+  scroll-padding-bottom: calc(var(--safe-bottom) + 32px);
 }
 
-/* Ensure black background on iOS overscroll */
 html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  height: -webkit-fill-available;
   background: #000 !important;
   background-color: #000 !important;
-  height: -webkit-fill-available;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  height: -webkit-fill-available;
+  position: fixed;
   background: #000 !important;
   background-color: #000 !important;
-  /* Prevent iOS rubber band white background */
-  overscroll-behavior-y: none;
+  overflow: hidden;
+  overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  position: relative;
+  color: #fefce8;
 }
 
-/* Force black background on all potential white areas */
-body::before {
-  content: '';
+/* Root container - pad for safe areas, fill entire screen */
+/* #root {
   position: fixed;
-  top: -100vh;
+  top: 0;
   left: 0;
   right: 0;
-  height: 200vh;
-  background: #000;
-  z-index: -1;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  height: -webkit-fill-available;
+  background: #000 !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
 }
 
-body::after {
+/* Massive black background behind everything */
+/* html::before {
   content: '';
   position: fixed;
-  bottom: -100vh;
-  left: 0;
-  right: 0;
-  height: 200vh;
+  top: -500vh;
+  left: -500vw;
+  width: 1000vw;
+  height: 1000vh;
   background: #000;
-  z-index: -1;
-}
+  z-index: -99999;
+  pointer-events: none;
+} */

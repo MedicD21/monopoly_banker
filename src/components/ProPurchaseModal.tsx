@@ -23,7 +23,7 @@ interface PurchaseOption {
 }
 
 export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
-  const { restorePurchases, isLoading } = usePro();
+  const { restorePurchases, isLoading, purchasePro } = usePro();
   const [purchasing, setPurchasing] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
@@ -158,10 +158,12 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
           window.location.reload();
         }
       } else {
-        // Web testing - simulate purchase
-        localStorage.setItem("digital_banker_pro_v2", "true");
-        alert(`🎉 Success! ${option.title} unlocked!`);
-        onClose();
+        // Web testing - use ProContext's purchasePro which handles state updates
+        const success = await purchasePro();
+        if (success) {
+          alert(`🎉 Success! ${option.title} unlocked!`);
+          onClose();
+        }
       }
     } catch (error: any) {
       console.error("💰 Product purchase for '" + option.productId + "' failed with error:", error);

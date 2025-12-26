@@ -18,21 +18,7 @@ export default function TaxModal({
 }: TaxModalProps) {
   if (!isOpen) return null;
 
-  const incomeTaxOption1 = Math.floor(playerBalance * 0.1); // 10% of total money
-  const incomeTaxOption2 = 200; // Flat $200
-  const luxuryTax = 75;
   const jailFee = 50;
-
-  const handleIncomeTax = () => {
-    const amount = incomeTaxOption1 < incomeTaxOption2 ? incomeTaxOption1 : incomeTaxOption2;
-    onPayTax(amount, 'Income Tax');
-    onClose();
-  };
-
-  const handleLuxuryTax = () => {
-    onPayTax(luxuryTax, 'Luxury Tax');
-    onClose();
-  };
 
   const handleJailFee = () => {
     onPayTax(jailFee, 'Jail Fee');
@@ -43,7 +29,7 @@ export default function TaxModal({
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-zinc-900 border-2 border-amber-600 rounded-lg p-6 max-w-md w-full">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-amber-400">Pay Tax</h2>
+          <h2 className="text-2xl font-bold text-amber-400">Pay Fee</h2>
           <button
             onClick={onClose}
             className="text-amber-400 hover:text-amber-300"
@@ -53,20 +39,6 @@ export default function TaxModal({
         </div>
 
         <div className="space-y-3">
-          {/* Income Tax */}
-          <div className="bg-zinc-800 rounded-lg p-4 border border-amber-900/30">
-            <h3 className="font-bold text-amber-50 mb-2">Income Tax</h3>
-            <p className="text-sm text-amber-300 mb-3">
-              Pay 10% (${incomeTaxOption1.toLocaleString()}) or $200 (whichever is less)
-            </p>
-            <button
-              onClick={handleIncomeTax}
-              className="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors"
-            >
-              Pay ${incomeTaxOption1 < incomeTaxOption2 ? incomeTaxOption1.toLocaleString() : '200'}
-            </button>
-          </div>
-
           {/* Jail Fee */}
           <div className="bg-zinc-800 rounded-lg p-4 border border-amber-900/30">
             <h3 className="font-bold text-amber-50 mb-2">Jail Fee</h3>
@@ -79,21 +51,9 @@ export default function TaxModal({
             </button>
           </div>
 
-          {/* Luxury Tax */}
+          {/* Custom Fee */}
           <div className="bg-zinc-800 rounded-lg p-4 border border-amber-900/30">
-            <h3 className="font-bold text-amber-50 mb-2">Luxury Tax</h3>
-            <p className="text-sm text-amber-300 mb-3">Pay $75</p>
-            <button
-              onClick={handleLuxuryTax}
-              className="w-full bg-purple-700 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded transition-colors"
-            >
-              Pay $75
-            </button>
-          </div>
-
-          {/* Custom Tax */}
-          <div className="bg-zinc-800 rounded-lg p-4 border border-amber-900/30">
-            <h3 className="font-bold text-amber-50 mb-2">Custom Tax Amount</h3>
+            <h3 className="font-bold text-amber-50 mb-2">Custom Fee Amount</h3>
             <p className="text-sm text-amber-300 mb-3">Enter any amount</p>
             <button
               onClick={() => {

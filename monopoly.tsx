@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Clock } from "lucide-react";
+import { usePro } from "./src/context/ProContext";
 import NumberPadModal from "./src/components/NumberPadModal";
 import PayPlayerModal from "./src/components/PayPlayerModal";
 import RentSelector from "./src/components/RentSelector";
@@ -20,6 +21,8 @@ import BuildingCounter from "./src/components/BuildingCounter";
 import AuctionSelectorModal from "./src/components/AuctionSelectorModal";
 import BuyPropertyModal from "./src/components/BuyPropertyModal";
 import ChatbotModal from "./src/components/ChatbotModal";
+import LandOnSpaceModal from "./src/components/LandOnSpaceModal";
+import ManualActionsMenu from "./src/components/ManualActionsMenu";
 import { HistoryEntry, TradeOffer } from "./src/types/game";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app as firebaseApp } from "./src/firebase/config";
@@ -96,6 +99,7 @@ export default function DigitalBanker({
   gameConfig,
 }: DigitalBankerProps = {}) {
   const isMultiplayer = !!gameId;
+  const { isPro: isProUser } = usePro();
 
   const [screen, setScreen] = useState(isMultiplayer ? "play" : "setup");
   const [players, setPlayers] = useState(
@@ -206,6 +210,91 @@ What would you like to know?`;
     }
   };
 
+  const payJailFine = async (playerId: string | number, rollTotal?: number) => {
+    const player = players.find((p) => p.id === playerId);
+    if (!player) {
+      showError("Player not found");
+      return;
+    }
+
+    const jailFine = 50;
+
+    if (player.balance < jailFine) {
+      showError(`${player.name} doesn't have $${jailFine} to pay the jail fine!`);
+      return;
+    }
+
+    // Deduct $50 from player's balance
+    await updateBalance(playerId, -jailFine);
+
+    // Release from jail
+    await updateJailStatus(playerId, false, 0);
+
+    // Move player by the amount they rolled
+    if (rollTotal) {
+      const currentPosition = player.position || 0;
+      const newPosition = (currentPosition + rollTotal) % 40;
+      await updatePlayerPosition(playerId, newPosition);
+
+      // Check if player passed GO
+      if (newPosition < currentPosition) {
+        showToastMessage(
+          `${player.name} paid $${jailFine}, got out of jail, and passed GO! Collected $${
+            gameConfig?.passGoAmount || PASS_GO_AMOUNT
+          }`
+        );
+      } else {
+        showToastMessage(
+          `${player.name} paid $${jailFine} and got out of jail! Moved ${rollTotal} spaces.`
+        );
+      }
+    } else {
+      showToastMessage(`${player.name} paid $${jailFine} and got out of jail!`);
+    }
+
+    // Close the modal
+    setJailPaymentModal({ open: false });
+  };
+
+  const useJailCard = async (playerId: string | number) => {
+    const player = players.find((p) => p.id === playerId);
+    if (!player || !player.inJail || (player.getOutOfJailFree || 0) === 0) {
+      showError("Cannot use Get Out of Jail Free card");
+      return;
+    }
+
+    // Decrease card count
+    const newCardCount = (player.getOutOfJailFree || 0) - 1;
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? { ...p, getOutOfJailFree: newCardCount }
+          : p
+      )
+    );
+
+    if (isMultiplayer && gameId) {
+      await updatePlayer(gameId, playerId as string, {
+        getOutOfJailFree: newCardCount,
+      });
+    }
+
+    // Return card to deck for reuse
+    const cardType = Math.random() < 0.5 ? "chance" : "community"; // Randomly choose which deck (both have GOOJF)
+    const setDrawnCards = cardType === "chance" ? setDrawnChanceCards : setDrawnCommunityCards;
+    const goojfCardId = cardType === "chance" ? "chance-get-out-of-jail" : "comm-get-out-of-jail";
+
+    setDrawnCards(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(goojfCardId);
+      return newSet;
+    });
+
+    // Release from jail
+    await updateJailStatus(playerId, false, 0);
+    showToastMessage(`${player.name} used a Get Out of Jail Free card!`);
+  };
+
   const getPropertyDef = (name: string) =>
     PROPERTIES.find((p) => p.name.toLowerCase() === name.toLowerCase());
 
@@ -219,9 +308,42 @@ What would you like to know?`;
   };
 
   const drawCard = (type: CardType): Card => {
-    const pool = type === "chance" ? CHANCE_CARDS : COMMUNITY_CARDS;
-    const idx = Math.floor(Math.random() * pool.length);
-    return pool[idx];
+    const deck = type === "chance" ? chanceDeck : communityDeck;
+    const setDeck = type === "chance" ? setChanceDeck : setCommunityDeck;
+    const drawnCards = type === "chance" ? drawnChanceCards : drawnCommunityCards;
+    const setDrawnCards = type === "chance" ? setDrawnChanceCards : setDrawnCommunityCards;
+
+    // Safety check - if deck is empty, return first card from constants
+    if (deck.length === 0) {
+      return type === "chance" ? CHANCE_CARDS[0] : COMMUNITY_CARDS[0];
+    }
+
+    // Get all undrawn cards
+    const undrawnCards = deck.filter(c => !drawnCards.has(c.id));
+
+    // If all cards drawn, reshuffle (excluding currently held GOOJF cards)
+    if (undrawnCards.length === 0) {
+      const availableCards = deck.filter(c => c.effect.kind !== "getOutOfJailFree" || !drawnCards.has(c.id));
+      const shuffled = shuffleArray(availableCards);
+      setDeck(shuffled);
+      setDrawnCards(new Set());
+      const card = shuffled[0];
+      if (card) {
+        setDrawnCards(new Set([card.id]));
+      }
+      return card || deck[0];
+    }
+
+    // Pick a random card from undrawn cards
+    const randomIndex = Math.floor(Math.random() * undrawnCards.length);
+    const card = undrawnCards[randomIndex];
+
+    // Mark card as drawn (will be returned to deck if not GOOJF)
+    if (card) {
+      setDrawnCards(prev => new Set([...prev, card.id]));
+    }
+
+    return card || deck[0];
   };
 
   const handleDrawCard = (type: CardType) => {
@@ -266,14 +388,30 @@ What would you like to know?`;
       const others = players.filter((p) => p.id !== playerId && !p.isBankrupt);
       for (const other of others) {
         if (effect.amount >= 0) {
-          await transferMoney(other.id, playerId, effect.amount.toString());
+          await transferMoney(other.id, playerId, effect.amount.toString(), { suppressHistory: true });
         } else {
           await transferMoney(
             playerId,
             other.id,
-            Math.abs(effect.amount).toString()
+            Math.abs(effect.amount).toString(),
+            { suppressHistory: true }
           );
         }
+      }
+      // Add single history entry for the card effect
+      const totalAmount = Math.abs(effect.amount) * others.length;
+      if (effect.amount >= 0) {
+        addHistoryEntry(
+          "transaction",
+          `${player.name} collected $${effect.amount.toLocaleString()} from each of ${others.length} players (total: $${totalAmount.toLocaleString()})`,
+          player.name
+        );
+      } else {
+        addHistoryEntry(
+          "transaction",
+          `${player.name} paid $${Math.abs(effect.amount).toLocaleString()} to each of ${others.length} players (total: $${totalAmount.toLocaleString()})`,
+          player.name
+        );
       }
     } else if (effect.kind === "move") {
       const currentPos = player.position ?? 0;
@@ -282,6 +420,12 @@ What would you like to know?`;
         await updateBalance(playerId, PASS_GO_AMOUNT);
       }
       await updatePlayerPosition(playerId, effect.position);
+      // Trigger land on space modal after moving (unless it's GO which auto-collects)
+      if (effect.position !== 0) {
+        setTimeout(() => {
+          handleLandOnSpace(effect.position);
+        }, 300);
+      }
     } else if (effect.kind === "moveNearest") {
       const currentPos = player.position ?? 0;
       const targetIndex = nearestIndexForGroup(effect.group, currentPos);
@@ -292,40 +436,23 @@ What would you like to know?`;
       await updatePlayerPosition(playerId, targetIndex);
       const landedName = BOARD_SPACES[targetIndex];
       const owner = getOwnerOfProperty(landedName);
-      if (!owner) {
-        showToastMessage(
-          `${landedName} is unowned. You may buy it from the bank.`
-        );
-      } else if (!idsMatch(owner.id, playerId)) {
-        if (effect.group === "railroad") {
-          const ownedRails = owner.properties.filter((pr: any) => {
-            const def = getPropertyDef(pr.name);
-            return def?.group === "railroad";
-          }).length;
-          const baseRent =
-            [25, 50, 100, 200][Math.min(ownedRails, 4) - 1] || 25;
-          const rentDue = baseRent * 2; // twice the rental
-          await transferMoney(playerId, owner.id, rentDue.toString());
-          showToastMessage(
-            `${player.name} paid $${rentDue} (double rent) to ${owner.name} for ${landedName}`
-          );
-        } else if (effect.group === "utility") {
-          // Roll dice for utility payment (10x roll)
-          const die1 = Math.floor(Math.random() * 6) + 1;
-          const die2 = Math.floor(Math.random() * 6) + 1;
-          const total = die1 + die2;
-          const rentDue = total * 10;
-          await transferMoney(playerId, owner.id, rentDue.toString());
-          showToastMessage(
-            `${player.name} rolled ${total} for utility and paid $${rentDue} to ${owner.name}`
-          );
-        }
-      }
+
+      // Determine which special Chance effect to apply
+      const chanceEffect = effect.group === "railroad" ? 'doubleRailroad' : effect.group === "utility" ? 'utilityDice' : undefined;
+
+      // Show land on space modal with special Chance effect
+      setTimeout(() => {
+        handleLandOnSpace(targetIndex, chanceEffect);
+      }, 300);
     } else if (effect.kind === "back") {
       const boardSize = BOARD_SPACES.length;
       const currentPos = player.position ?? 0;
       const target = (currentPos - effect.spaces + boardSize) % boardSize;
       await updatePlayerPosition(playerId, target);
+      // Trigger land on space modal after moving back
+      setTimeout(() => {
+        handleLandOnSpace(target);
+      }, 300);
     } else if (effect.kind === "gotoJail") {
       await updateJailStatus(playerId, true, 0, JAIL_INDEX);
     } else if (effect.kind === "getOutOfJailFree") {
@@ -341,6 +468,7 @@ What would you like to know?`;
           getOutOfJailFree: updated,
         });
       }
+      // Don't return GOOJF card to deck - it stays with player until used
     } else if (effect.kind === "repairs") {
       const houses =
         player.properties?.reduce(
@@ -356,6 +484,17 @@ What would you like to know?`;
       if (totalCost !== 0) {
         await updateBalance(playerId, -totalCost);
       }
+    }
+
+    // Return card to deck (except GOOJF which stays with player)
+    if (card.effect.kind !== "getOutOfJailFree") {
+      const cardType = card.type;
+      const setDrawnCards = cardType === "chance" ? setDrawnChanceCards : setDrawnCommunityCards;
+      setDrawnCards(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(card.id);
+        return newSet;
+      });
     }
 
     setCardModal({ open: false });
@@ -449,12 +588,47 @@ What would you like to know?`;
     open: boolean;
     playerName?: string;
   }>({ open: false });
+  const [passedGoModal, setPassedGoModal] = useState<{
+    open: boolean;
+    playerName?: string;
+    amount?: number;
+    position?: number; // Position to trigger Land on Space modal after dismissing
+  }>({ open: false });
+  const [landOnSpaceModal, setLandOnSpaceModal] = useState<{
+    open: boolean;
+    spaceName: string;
+    position: number;
+    chanceEffect?: 'doubleRailroad' | 'utilityDice'; // Track special Chance card rent rules
+  } | null>(null);
+  const [jailPaymentModal, setJailPaymentModal] = useState<{
+    open: boolean;
+    playerName?: string;
+    playerId?: string | number;
+    rollTotal?: number;
+  }>({ open: false });
   const activePlayer = players[activeTurnIndex] || null;
   const [cardModal, setCardModal] = useState<{
     open: boolean;
     card?: Card;
     playerId?: string | number;
   }>({ open: false });
+
+  // Shuffle helper function
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  // Card deck management - shuffle decks and track drawn cards
+  const [chanceDeck, setChanceDeck] = useState<Card[]>(() => shuffleArray(CHANCE_CARDS));
+  const [communityDeck, setCommunityDeck] = useState<Card[]>(() => shuffleArray(COMMUNITY_CARDS));
+  const [drawnChanceCards, setDrawnChanceCards] = useState<Set<string>>(new Set());
+  const [drawnCommunityCards, setDrawnCommunityCards] = useState<Set<string>>(new Set());
+
   const ignoredTradeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -625,7 +799,7 @@ What would you like to know?`;
     setDiceRolling(true);
     return await new Promise<RollResult | null>((resolve) => {
       let rollCount = 0;
-      const rollInterval = setInterval(() => {
+      const rollInterval = setInterval(async () => {
         const tempD1 = Math.floor(Math.random() * 6) + 1;
         const tempD2 = Math.floor(Math.random() * 6) + 1;
         const tempD3 = speedDieEnabled
@@ -670,6 +844,56 @@ What would you like to know?`;
             }`,
             rollingPlayer.name
           );
+
+          // Handle jail logic
+          if (rollingPlayer.inJail) {
+            const jailTurnsCount = rollingPlayer.jailTurns || 0;
+
+            if (finalRoll.isDoubles) {
+              // Rolled doubles - get out of jail free!
+              updateJailStatus(playerIdToUse, false, 0);
+              showToastMessage(
+                `${rollingPlayer.name} rolled doubles and got out of jail!`
+              );
+              // Continue with normal movement
+            } else {
+              // Didn't roll doubles - increment jail turn counter
+              const newJailTurns = jailTurnsCount + 1;
+
+              if (newJailTurns >= 3) {
+                // Been in jail for 3 turns - must pay $50 to get out
+                setJailPaymentModal({
+                  open: true,
+                  playerName: rollingPlayer.name,
+                  playerId: playerIdToUse,
+                  rollTotal: finalRoll.total,
+                });
+                resolve(finalRoll);
+                return;
+              } else {
+                // Increment jail turn counter
+                setPlayers((prev) =>
+                  prev.map((p) =>
+                    p.id === playerIdToUse
+                      ? { ...p, jailTurns: newJailTurns }
+                      : p
+                  )
+                );
+
+                if (isMultiplayer && gameId) {
+                  updatePlayer(gameId, playerIdToUse, {
+                    jailTurns: newJailTurns,
+                  });
+                }
+
+                showToastMessage(
+                  `${rollingPlayer.name} didn't roll doubles. Turn ${newJailTurns}/3 in jail.`
+                );
+                resolve(finalRoll);
+                return;
+              }
+            }
+          }
 
           // Handle doubles tracking and three-doubles-in-a-row jail rule
           const currentDoublesCount = rollingPlayer.doublesCount || 0;
@@ -740,6 +964,48 @@ What would you like to know?`;
                 updatePlayer(gameId, p.id, { doublesCount: 0 });
               }
             });
+          }
+
+          // Update player position
+          const currentPosition = rollingPlayer.position || 0;
+          const newPosition = (currentPosition + finalRoll.total) % 40;
+          updatePlayerPosition(playerIdToUse, newPosition);
+
+          // Check if player landed exactly on GO (position 0)
+          if (newPosition === 0 && gameConfig?.doubleGoOnLanding) {
+            // Player landed on GO with double bonus variant enabled - auto-pay doubled amount
+            landOnGoDouble(playerIdToUse);
+            setPassedGoModal({
+              open: true,
+              playerName: rollingPlayer.name,
+              amount: (gameConfig?.passGoAmount || PASS_GO_AMOUNT) * 2,
+              position: newPosition,
+            });
+            // Show land on space modal AFTER passed GO modal is dismissed
+          } else if (newPosition === 20 && gameConfig?.freeParkingJackpot && freeParkingBalance > 0) {
+            // Player landed on Free Parking with jackpot variant enabled - auto-claim
+            await handleClaimFreeParking();
+            // Still show land on space modal after claiming
+            setTimeout(() => {
+              handleLandOnSpace(newPosition);
+            }, 500);
+          } else if (newPosition < currentPosition) {
+            // Player passed GO (but didn't land on it) - auto-pay regular amount
+            passGo(playerIdToUse);
+            setPassedGoModal({
+              open: true,
+              playerName: rollingPlayer.name,
+              amount: gameConfig?.passGoAmount || PASS_GO_AMOUNT,
+              position: newPosition, // Store position to trigger Land on Space modal after
+            });
+
+            // Show land on space modal AFTER passed GO modal is dismissed
+            // We'll trigger this when the modal closes instead of here
+          } else {
+            // Didn't pass GO - show land on space modal after rolling
+            setTimeout(() => {
+              handleLandOnSpace(newPosition);
+            }, 500); // Small delay so the dice animation completes
           }
 
           // Sync to Firebase in multiplayer mode
@@ -839,9 +1105,12 @@ What would you like to know?`;
       return;
     }
 
+    console.log('Starting game - isProUser:', isProUser);
     const newPlayers = [];
     for (let i = 0; i < numPlayers; i++) {
       const piece = GAME_PIECES.find((p) => p.id === playerPieces[i]);
+      const playerIsPro = i === 0 ? isProUser : false;
+      console.log(`Player ${i} (${playerNames[i]}) isPro:`, playerIsPro);
       newPlayers.push({
         id: i,
         name: playerNames[i].trim(),
@@ -851,6 +1120,7 @@ What would you like to know?`;
         piece: piece,
         position: 0,
         getOutOfJailFree: 0,
+        isPro: playerIsPro, // First player gets device owner's PRO status
       });
     }
     setPlayers(newPlayers);
@@ -935,7 +1205,6 @@ What would you like to know?`;
       );
 
       setTransactionMode(null);
-      setRentMode(null);
       setTransactionAmount("");
       setSelectedPlayer(null);
       setUtilityDiceRoll("");
@@ -1904,11 +2173,21 @@ What would you like to know?`;
         await updatePlayerBalance(gameId, playerIdToUse, newBalance);
         await addToFreeParking(gameId, amount);
       }
+
+      // Show toast notification
+      const message = `${player.name} paid $${amount.toLocaleString()} ${taxType} → Free Parking`;
+      showToastMessage(message);
+      addHistoryEntry("tax", message, player.name);
     } else {
       // Money goes to banker (just removed from game)
       if (isMultiplayer && gameId) {
         await updatePlayerBalance(gameId, playerIdToUse, newBalance);
       }
+
+      // Show toast notification
+      const message = `${player.name} paid $${amount.toLocaleString()} ${taxType}`;
+      showToastMessage(message);
+      addHistoryEntry("tax", message, player.name);
     }
   };
 
@@ -1950,6 +2229,97 @@ What would you like to know?`;
     alert(
       `${player.name} collected $${amount.toLocaleString()} from Free Parking!`
     );
+  };
+
+  const handleLandOnSpace = (position: number, chanceEffect?: 'doubleRailroad' | 'utilityDice') => {
+    const spaceName = BOARD_SPACES[position];
+    setLandOnSpaceModal({
+      open: true,
+      spaceName,
+      position,
+      chanceEffect,
+    });
+  };
+
+  const handleLandOnSpaceBuy = async () => {
+    if (!landOnSpaceModal) return;
+
+    const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+    if (playerIdToUse === null) return;
+
+    const spaceName = landOnSpaceModal.spaceName;
+    const property = PROPERTIES.find((p) => p.name === spaceName);
+
+    if (property) {
+      await buyProperty(playerIdToUse, property);
+      setLandOnSpaceModal(null);
+    }
+  };
+
+  const handleLandOnSpaceAuction = async () => {
+    if (!landOnSpaceModal) return;
+
+    const spaceName = landOnSpaceModal.spaceName;
+    const property = PROPERTIES.find((p) => p.name === spaceName);
+
+    if (property) {
+      await handleStartAuction(property);
+      setLandOnSpaceModal(null);
+    }
+  };
+
+  const handleLandOnSpacePayRent = async () => {
+    if (!landOnSpaceModal) return;
+
+    const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+    if (playerIdToUse === null) return;
+
+    const spaceName = landOnSpaceModal.spaceName;
+    const property = PROPERTIES.find((p) => p.name === spaceName);
+
+    if (property) {
+      const owner = players.find((p) =>
+        p.properties.some((owned) => owned.name === property.name)
+      );
+
+      if (owner && owner.id !== playerIdToUse) {
+        const currentPlayer = players.find((p) => p.id === playerIdToUse);
+
+        // Handle special Chance card rent rules
+        if (landOnSpaceModal.chanceEffect === 'doubleRailroad' && property.group === 'railroad') {
+          // Calculate double railroad rent
+          const ownedRails = owner.properties.filter((pr: any) => {
+            const def = getPropertyDef(pr.name);
+            return def?.group === "railroad";
+          }).length;
+          const baseRent = [25, 50, 100, 200][Math.min(ownedRails, 4) - 1] || 25;
+          const rentDue = baseRent * 2; // double rent from Chance card
+
+          await transferMoney(playerIdToUse, owner.id, rentDue.toString());
+          showToastMessage(
+            `${currentPlayer?.name} paid $${rentDue} (double rent from Chance card) to ${owner.name} for ${property.name}`
+          );
+          setLandOnSpaceModal(null);
+        } else if (landOnSpaceModal.chanceEffect === 'utilityDice' && property.group === 'utility') {
+          // Roll dice and pay 10x for utility (Chance card rule)
+          const die1 = Math.floor(Math.random() * 6) + 1;
+          const die2 = Math.floor(Math.random() * 6) + 1;
+          const total = die1 + die2;
+          const rentDue = total * 10;
+
+          await transferMoney(playerIdToUse, owner.id, rentDue.toString());
+          showToastMessage(
+            `${currentPlayer?.name} rolled ${die1} + ${die2} = ${total} and paid $${rentDue} (10x from Chance card) to ${owner.name}`
+          );
+          setLandOnSpaceModal(null);
+        } else {
+          // Normal rent payment - open rent selector
+          setSelectedLandlord(owner.id);
+          setShowRentSelector(true);
+          setLandOnSpaceModal(null);
+        }
+      }
+    }
   };
 
   const handleStartAuction = async (property: any) => {
@@ -2179,8 +2549,11 @@ What would you like to know?`;
   if (screen === "setup") {
     return (
       <div
-        className="min-h-screen bg-black text-amber-50 p-8 relative overflow-hidden"
-        style={{ paddingTop: "max(2rem, env(safe-area-inset-top))" }}
+        className="h-full bg-black text-amber-50 p-8 relative"
+        style={{
+          paddingTop: "max(2rem, env(safe-area-inset-top))",
+          minHeight: "100%",
+        }}
       >
         {/* Error Toast */}
         {errorMessage && (
@@ -2374,10 +2747,11 @@ What would you like to know?`;
 
   return (
     <div
-      className="min-h-screen bg-black text-amber-50 p-2 sm:p-4 relative overflow-hidden"
+      className="h-full bg-black text-amber-50 p-2 sm:p-4 relative"
       style={{
         paddingTop: "max(0.5rem, env(safe-area-inset-top))",
         paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+        minHeight: "100%",
       }}
     >
       {/* Error Toast */}
@@ -2440,6 +2814,67 @@ What would you like to know?`;
           </div>
         </div>
       )}
+      {/* Passed GO Modal */}
+      {passedGoModal.open && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
+          <div className="bg-zinc-900 border-2 border-green-500 rounded-lg p-6 max-w-sm w-full shadow-lg text-center">
+            <img
+              src="/images/Go.svg"
+              alt="Passed GO"
+              className="w-32 h-32 mx-auto mb-4"
+            />
+            <p className="text-xl font-bold text-green-400 mb-2">
+              {passedGoModal.playerName || "Player"} passed GO!
+            </p>
+            <p className="text-sm text-amber-200 mb-4">
+              ✅ Collected ${passedGoModal.amount?.toLocaleString() || 200}
+            </p>
+            <button
+              onClick={() => {
+                const position = passedGoModal.position;
+                setPassedGoModal({ open: false, playerName: "", amount: 0 });
+                // Trigger Land on Space modal after dismissing
+                if (position !== undefined) {
+                  setTimeout(() => {
+                    handleLandOnSpace(position);
+                  }, 300);
+                }
+              }}
+              className="px-4 py-2 rounded bg-green-600 text-black font-bold hover:bg-green-500 transition-colors"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Jail Payment Modal */}
+      {jailPaymentModal.open && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
+          <div className="bg-zinc-900 border-2 border-red-500 rounded-lg p-6 max-w-sm w-full shadow-lg text-center">
+            <img
+              src="/images/Go-To_Jail.svg"
+              alt="Jail"
+              className="w-32 h-32 mx-auto mb-4"
+            />
+            <p className="text-xl font-bold text-red-400 mb-2">
+              {jailPaymentModal.playerName || "Player"} must pay to get out!
+            </p>
+            <p className="text-sm text-amber-200 mb-4">
+              You've been in jail for 3 turns without rolling doubles. You must pay $50 to get out of jail.
+            </p>
+            <button
+              onClick={() => {
+                if (jailPaymentModal.playerId) {
+                  payJailFine(jailPaymentModal.playerId, jailPaymentModal.rollTotal);
+                }
+              }}
+              className="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 transition-colors"
+            >
+              Pay $50 and Get Out
+            </button>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto relative z-10">
         {/* BANKER CARD - Reorganized with all main actions */}
         <div className="relative bg-zinc-900 rounded-lg pb-0 mb-2 border border-amber-500 overflow-shown shadow-lg drop-shadow-[0_0_10px_white] ">
@@ -2460,14 +2895,8 @@ What would you like to know?`;
               )
             }
             freeParkingBalance={freeParkingBalance}
-            onClaimFreeParking={handleClaimFreeParking}
-            showAuction={
-              gameConfig?.auctionProperties !== false || !isMultiplayer
-            }
+            showAuction={false}
             onOpenAuctionSelector={() => setShowAuctionSelector(true)}
-            doubleGoOnLanding={!!gameConfig?.doubleGoOnLanding}
-            passGoAmount={gameConfig?.passGoAmount || PASS_GO_AMOUNT}
-            onLandOnGoBonus={handleLandOnGoBonus}
           />
 
           <BuildingCounter
@@ -2477,7 +2906,18 @@ What would you like to know?`;
 
           <BankerPrimaryActions
             onTellerPays={handleBankerPays}
-            onPassGo={(e) => {
+            onDrawChance={() => handleDrawCard("chance")}
+            onDrawCommunity={() => handleDrawCard("community")}
+            onRoll={() => rollDice()}
+            diceRolling={diceRolling}
+            lastRoll={lastRoll}
+            showOverlay={(showDice || diceRolling) && !!lastRoll}
+            players={players}
+            isPro={isProUser}
+          />
+
+          <ManualActionsMenu
+            onPassGo={() => {
               const playerIdToUse = isMultiplayer
                 ? firebasePlayerId
                 : currentPlayerId;
@@ -2487,7 +2927,7 @@ What would you like to know?`;
               }
               passGo(playerIdToUse);
             }}
-            onBuyProperty={(e) => {
+            onBuyProperty={() => {
               const playerIdToUse = isMultiplayer
                 ? firebasePlayerId
                 : currentPlayerId;
@@ -2497,11 +2937,7 @@ What would you like to know?`;
               }
               setShowBuyProperty(true);
             }}
-            onRoll={() => rollDice()}
-            diceRolling={diceRolling}
-            lastRoll={lastRoll}
-            showOverlay={(showDice || diceRolling) && !!lastRoll}
-            players={players}
+            passGoAmount={gameConfig?.passGoAmount || PASS_GO_AMOUNT}
           />
         </div>
 
@@ -2518,6 +2954,7 @@ What would you like to know?`;
                 key={player.id}
                 player={player}
                 isCurrentUser={isCurrentUser}
+                showProCrown={isCurrentUser && isProUser}
                 onPayRent={handlePayRentClick}
                 onPayCustom={handleCustomAmountClick}
                 onOpenPayModal={() => setShowPayPlayerModal(true)}
@@ -2531,6 +2968,7 @@ What would you like to know?`;
                 onOpenTrade={() => setShowTradeModal(true)}
                 onOpenTax={() => setShowTaxModal(true)}
                 onManageProperty={(name) => setSelectedProperty(name)}
+                onUseJailCard={() => useJailCard(player.id)}
               />
             );
           })}
@@ -2557,6 +2995,35 @@ What would you like to know?`;
           }}
           onClose={() => setShowBuyProperty(false)}
         />
+
+        {/* Land On Space Modal */}
+        {landOnSpaceModal?.open && (() => {
+          const playerIdToUse = isMultiplayer ? firebasePlayerId : currentPlayerId;
+          const currentPlayer = players.find((p) => p.id === playerIdToUse);
+          const property = PROPERTIES.find((p) => p.name === landOnSpaceModal.spaceName);
+          const owner = property ? players.find((p) =>
+            p.properties.some((owned) => owned.name === property.name)
+          ) : null;
+          const isOwnProperty = owner?.id === playerIdToUse;
+
+          return (
+            <LandOnSpaceModal
+              spaceName={landOnSpaceModal.spaceName}
+              property={property || null}
+              owner={owner ? { id: owner.id, name: owner.name } : null}
+              isOwnProperty={isOwnProperty}
+              playerBalance={currentPlayer?.balance || 0}
+              auctionEnabled={gameConfig?.auctionProperties !== false}
+              chanceEffect={landOnSpaceModal.chanceEffect}
+              onBuy={handleLandOnSpaceBuy}
+              onPass={() => setLandOnSpaceModal(null)}
+              onAuction={handleLandOnSpaceAuction}
+              onPayRent={handleLandOnSpacePayRent}
+              onPayTax={handlePayTax}
+              onClose={() => setLandOnSpaceModal(null)}
+            />
+          );
+        })()}
 
         {/* Transaction Modal */}
         {transactionMode && currentPlayer !== null && (
@@ -2944,9 +3411,9 @@ What would you like to know?`;
           }
           onPayTax={handlePayTax}
           onOpenCustomTaxNumberPad={() => {
-            setNumberPadTitle("Custom Tax Amount");
+            setNumberPadTitle("Custom Fee Amount");
             setNumberPadCallback(() => (amount) => {
-              handlePayTax(amount, "Custom Tax");
+              handlePayTax(amount, "Custom Fee");
             });
             setShowNumberPad(true);
           }}

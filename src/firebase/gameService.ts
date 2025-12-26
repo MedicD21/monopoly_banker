@@ -98,8 +98,14 @@ export async function updatePlayer(
   updates: Partial<Player>
 ): Promise<void> {
   const playerRef = doc(db, "games", gameId, "players", playerId);
+
+  // Filter out undefined values to prevent Firebase errors
+  const filteredUpdates = Object.fromEntries(
+    Object.entries(updates).filter(([_, value]) => value !== undefined)
+  );
+
   await updateDoc(playerRef, {
-    ...updates,
+    ...filteredUpdates,
     lastSeen: Date.now(),
   });
 }

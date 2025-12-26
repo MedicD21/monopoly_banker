@@ -21,11 +21,46 @@ const PlayerProperties: React.FC<PlayerPropertiesProps> = ({
 }) => {
   if (!properties || properties.length === 0) return null;
 
+  // Define the order of color groups (matches board order)
+  const groupOrder = [
+    "purple",
+    "lightblue",
+    "pink",
+    "orange",
+    "red",
+    "yellow",
+    "green",
+    "darkblue",
+    "railroad",
+    "utility",
+  ];
+
+  // Sort properties by color group
+  const sortedProperties = [...properties].sort((a, b) => {
+    const propA = PROPERTIES.find((p) => p.name === a.name);
+    const propB = PROPERTIES.find((p) => p.name === b.name);
+
+    if (!propA || !propB) return 0;
+
+    const groupIndexA = groupOrder.indexOf(propA.group);
+    const groupIndexB = groupOrder.indexOf(propB.group);
+
+    // Sort by group order first
+    if (groupIndexA !== groupIndexB) {
+      return groupIndexA - groupIndexB;
+    }
+
+    // Within the same group, maintain original order (board position)
+    const boardIndexA = PROPERTIES.findIndex((p) => p.name === a.name);
+    const boardIndexB = PROPERTIES.findIndex((p) => p.name === b.name);
+    return boardIndexA - boardIndexB;
+  });
+
   return (
     <div className="mt-3 border-t border-amber-900/30 pt-3">
       <h4 className="text-xs font-bold text-amber-500 mb-2">Properties</h4>
       <div className="space-y-1">
-        {properties.map((prop, idx) => {
+        {sortedProperties.map((prop, idx) => {
           const property = PROPERTIES.find((p) => p.name === prop.name);
           if (!property) return null;
 

@@ -12,7 +12,7 @@ export default function StartScreen({ onHost, onJoin }: StartScreenProps) {
   const isDev = import.meta.env.DEV;
 
   return (
-    <div className="min-h-screen bg-black text-amber-50 flex items-center justify-center p-4">
+    <div className="h-full bg-black text-amber-50 flex items-center justify-center p-4" style={{ minHeight: '100%' }}>
       <div className="max-w-md w-full">
         <div className="text-center mb-12">
           <div className="flex justify-center mb-6">

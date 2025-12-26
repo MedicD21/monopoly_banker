@@ -185,8 +185,11 @@ export default function LobbyScreen({
 
   return (
     <div
-      className="min-h-screen bg-black text-amber-50 p-4"
-      style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+      className="h-full bg-black text-amber-50 p-4"
+      style={{
+        paddingTop: "1rem",
+        minHeight: "100%",
+      }}
     >
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">

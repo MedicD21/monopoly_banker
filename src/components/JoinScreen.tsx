@@ -47,7 +47,7 @@ export default function JoinScreen({ onBack, onJoin }: JoinScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-black text-amber-50 p-4">
+    <div className="h-full bg-black text-amber-50 p-4" style={{ minHeight: '100%' }}>
       <div className="max-w-md mx-auto">
         <button
           onClick={onBack}
