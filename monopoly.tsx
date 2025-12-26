@@ -2551,8 +2551,10 @@ What would you like to know?`;
       <div
         className="h-full bg-black text-amber-50 p-8 relative"
         style={{
+          backgroundColor: '#000',
           paddingTop: "max(2rem, env(safe-area-inset-top))",
-          minHeight: "100%",
+          paddingBottom: "max(2rem, env(safe-area-inset-bottom))",
+          minHeight: "100vh",
         }}
       >
         {/* Error Toast */}
@@ -2749,9 +2751,10 @@ What would you like to know?`;
     <div
       className="h-full bg-black text-amber-50 p-2 sm:p-4 relative"
       style={{
+        backgroundColor: '#000',
         paddingTop: "max(0.5rem, env(safe-area-inset-top))",
         paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
-        minHeight: "100%",
+        minHeight: "100vh",
       }}
     >
       {/* Error Toast */}
