@@ -24,7 +24,7 @@ export default function GamePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-amber-50 flex items-center justify-center">
+      <div className="min-h-screen h-full bg-black text-amber-50 flex items-center justify-center" style={{ backgroundColor: '#000' }}>
         <div className="text-center">
           <p className="text-2xl mb-2">Loading game...</p>
           <p className="text-amber-600">Syncing with other players</p>
@@ -35,7 +35,7 @@ export default function GamePage() {
 
   if (!game || !currentPlayerId) {
     return (
-      <div className="min-h-screen bg-black text-amber-50 flex items-center justify-center">
+      <div className="min-h-screen h-full bg-black text-amber-50 flex items-center justify-center" style={{ backgroundColor: '#000' }}>
         <div className="text-center">
           <p className="text-2xl mb-2">Game not found</p>
           <button

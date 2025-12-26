@@ -28,6 +28,7 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [packages, setPackages] = useState<{ [key: string]: PurchasesPackage }>({});
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
 
   const purchaseOptions: PurchaseOption[] = [
     {
@@ -87,9 +88,9 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
     }
   ];
 
-  // Fetch prices from RevenueCat
+  // Fetch prices from RevenueCat and check subscription status
   useEffect(() => {
-    const fetchPrices = async () => {
+    const fetchPricesAndStatus = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
           const offerings = await Purchases.getOfferings();
@@ -102,13 +103,26 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
 
             setPackages(pkgMap);
           }
+
+          // Check if user has active subscription
+          const customerInfo = await Purchases.getCustomerInfo();
+          const activeProducts = customerInfo.customerInfo.activeSubscriptions || [];
+
+          // Check if user has monthly or yearly AI subscription
+          const hasSubscription = activeProducts.includes("ai_banker_chat_monthly") ||
+                                  activeProducts.includes("ai_banker_chat_yearly");
+
+          setHasActiveSubscription(hasSubscription);
+
+          console.log("🔍 Active subscriptions:", activeProducts);
+          console.log("📊 Has active subscription:", hasSubscription);
         } catch (error) {
-          console.error("Error fetching prices:", error);
+          console.error("Error fetching prices/status:", error);
         }
       }
     };
 
-    fetchPrices();
+    fetchPricesAndStatus();
   }, []);
 
   const getPriceString = (productId: string, defaultPrice: string): string => {
@@ -136,6 +150,8 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             purchaseResult.customerInfo.entitlements.active["ai"]) {
           alert(`🎉 Success! ${option.title} unlocked!`);
           onClose();
+          // Reload to update Pro status
+          window.location.reload();
         }
       } else {
         // Web testing - simulate purchase
@@ -219,16 +235,35 @@ export default function ProPurchaseModal({ onClose }: ProPurchaseModalProps) {
             </div>
           </div>
           <h2 className="text-2xl font-bold text-amber-400 mb-1">
-            Unlock Premium
+            {hasActiveSubscription ? "Upgrade Your Plan" : "Unlock Premium"}
           </h2>
           <p className="text-zinc-400 text-xs">
-            Choose the plan that works best for you
+            {hasActiveSubscription
+              ? "You already have Pro features! Upgrade to save more"
+              : "Choose the plan that works best for you"}
           </p>
         </div>
 
+        {/* Info banner for existing subscribers */}
+        {hasActiveSubscription && (
+          <div className="bg-green-900/30 border border-green-600/50 rounded-lg p-3 mb-4">
+            <p className="text-green-400 text-xs text-center">
+              ✓ You already have all Pro game features included with your subscription
+            </p>
+          </div>
+        )}
+
         {/* Purchase Options - Compact Expandable Cards */}
         <div className="space-y-3 mb-6">
-          {purchaseOptions.map((option) => {
+          {purchaseOptions
+            .filter((option) => {
+              // Hide one-time purchase if user has active subscription
+              if (option.id === "onetime" && hasActiveSubscription) {
+                return false;
+              }
+              return true;
+            })
+            .map((option) => {
             const Icon = option.icon;
             const actualPrice = getPriceString(option.productId, option.price);
             const isExpanded = expandedCard === option.id;

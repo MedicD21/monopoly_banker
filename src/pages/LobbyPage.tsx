@@ -38,7 +38,7 @@ export default function LobbyPage() {
 
   if (!game || !currentPlayerId) {
     return (
-      <div className="min-h-screen bg-black text-amber-50 flex items-center justify-center">
+      <div className="min-h-screen h-full bg-black text-amber-50 flex items-center justify-center" style={{ backgroundColor: '#000' }}>
         <p>Loading...</p>
       </div>
     );

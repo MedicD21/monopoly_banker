@@ -9,6 +9,20 @@ body,
   margin: 0;
   padding: 0;
   min-height: 100%;
+  height: 100%;
   background: #000;
   color: #fefce8; /* match amber-50 tone */
+  /* Fix iOS overscroll white background */
+  background-color: #000 !important;
+}
+
+/* Ensure black background on iOS overscroll */
+html {
+  background: #000;
+}
+
+body {
+  background: #000;
+  /* Prevent iOS rubber band white background */
+  overscroll-behavior-y: none;
 }

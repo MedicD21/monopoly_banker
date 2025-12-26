@@ -45,7 +45,7 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
   };
 
   return (
-    <div className="min-h-screen bg-black text-amber-50 p-4 pt-16">
+    <div className="min-h-screen h-full bg-black text-amber-50 p-4 pt-16" style={{ backgroundColor: '#000' }}>
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <button
@@ -240,6 +240,18 @@ export default function HostSetup({ onBack, onCreateGame }: HostSetupProps) {
           {loading ? "Opening Lobby..." : "Open Game Lobby"}
         </button>
         {error && <div className="text-red-500 text-center mt-2">{error}</div>}
+
+        {/* Upgrade to Yearly prompt - small and subtle */}
+        {isPro && (
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => setShowProModal(true)}
+              className="text-xs text-amber-600 hover:text-amber-500 underline transition-colors"
+            >
+              Upgrade to AI Chat Yearly & Save 37%
+            </button>
+          </div>
+        )}
 
         <NumberPadModal
           isOpen={showNumberPad}
